@@ -97,7 +97,18 @@ def generate_markdown_report(session: InterviewSession) -> str:
         md.append(f"### Question {i+1}: {turn.question.question_text}")
         md.append(f"*Category: {turn.question.category.value.capitalize()} | Focus: {turn.question.competency_or_topic}*\n")
 
-        md.append(f"**Your Initial Response:**\n```\n{turn.initial_answer.strip() or 'No answer recorded.'}\n```\n")
+        md.append(f"**Your Latest Response:**\n```\n{turn.initial_answer.strip() or 'No answer recorded.'}\n```\n")
+
+        if turn.answer_revisions:
+            md.append("**Answer Revision History (newest first):**")
+            for revision in reversed(turn.answer_revisions):
+                edited_at = datetime.datetime.fromtimestamp(
+                    revision.get("edited_at", session.created_at)
+                ).strftime("%Y-%m-%d %H:%M")
+                md.append(f"- **{revision.get('field', 'answer')} — {edited_at}**")
+                md.append(f"  - Previous: {revision.get('previous', '').replace(chr(10), ' ')}")
+                md.append(f"  - Updated: {revision.get('updated', '').replace(chr(10), ' ')}")
+            md.append("")
 
         if turn.followup_question:
             md.append(f"**Follow-Up Question:**\n> *\"{turn.followup_question}\"*\n")
