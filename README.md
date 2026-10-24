@@ -218,7 +218,7 @@ python -m pytest tests/
 
 ## 13. Screenshots / Demo
 - **Live Local URL:** `http://localhost:8501`
-- **Streamlit Community Cloud Live Demo:** `https://interviewiq-studio.streamlit.app` *(add deployed URL upon cloud launch)*
+- **Streamlit Community Cloud Live Demo:** [Open InterviewIQ](https://interviewiq-jinjpnyj6pmcyodyyjusnj.streamlit.app)
 - **Interactive Modules:** Includes *Mock Interview Studio*, *AI Technical Problem Generator*, *Spot the Flaw Game*, *STAR Story Builder*, and *System Design Playbooks*.
 
 ---
