@@ -501,7 +501,7 @@ Format output as pure JSON:
         import requests
 
         # Groq API endpoint (fastest inference for interviews)
-        if provider == "groq" or (api_key and api_key.startswith("gsk_")):
+        if provider == "groq":
             url = "https://api.groq.com/openai/v1/chat/completions"
             model = model_name or "llama-3.3-70b-versatile"
             headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
@@ -522,7 +522,7 @@ Format output as pure JSON:
             else:
                 logger.warning(f"Groq API returned status {resp.status_code}; falling back to heuristic.")
 
-        elif provider == "gemini" or "AIza" in (api_key or ""):
+        elif provider == "gemini":
             # Call Google Gemini API (v1beta)
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
             payload = {
@@ -732,6 +732,8 @@ def generate_dynamic_ai_technical_question(
     role: str = "Software Engineering",
     experience_level: str = "Graduate / Entry-Level (0-1 yrs)",
     api_key: Optional[str] = None,
+    provider: Optional[str] = None,
+    model_name: Optional[str] = None,
 ) -> QuestionItem:
     """
     Dynamically synthesizes a deep, novel technical interview question with rubric hints
@@ -740,9 +742,21 @@ def generate_dynamic_ai_technical_question(
     clean_topic = topic.strip() or "Distributed Systems & Concurrency"
     topic_lower = clean_topic.lower()
 
-    # Try live LLM if available
-    api_key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENAI_API_KEY")
-    if api_key:
+    # Use only the selected provider's key; never infer endpoints from key shape.
+    from .config import get_llm_config, get_setting
+    configured = get_llm_config()
+    provider = (provider or configured.get("provider") or "heuristic").strip().lower()
+    if provider not in {"groq", "gemini", "openai", "heuristic"}:
+        provider = "heuristic"
+    if api_key is None:
+        key_names = {"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY"}
+        api_key = get_setting(key_names[provider]) if provider in key_names else None
+    model_name = model_name or {
+        "groq": "llama-3.3-70b-versatile",
+        "gemini": "gemini-1.5-flash",
+        "openai": "gpt-4o-mini",
+    }.get(provider)
+    if api_key and provider != "heuristic":
         try:
             import requests
             prompt = (
@@ -752,11 +766,11 @@ def generate_dynamic_ai_technical_question(
                 "Return JSON matching: "
                 '{"question_text": "...", "competency_or_topic": "...", "rubric_hints": ["...", "...", "..."], "default_followup": "..."}'
             )
-            if api_key.startswith("gsk_") or "groq" in (provider or ""):
+            if provider == "groq":
                 url = "https://api.groq.com/openai/v1/chat/completions"
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                 payload = {
-                    "model": "llama-3.3-70b-versatile",
+                    "model": model_name or "llama-3.3-70b-versatile",
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.3,
                     "response_format": {"type": "json_object"}
@@ -774,7 +788,7 @@ def generate_dynamic_ai_technical_question(
                         rubric_hints=data.get("rubric_hints", ["Time and space complexity", "Concurrency safety", "Trade-offs"]),
                         default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
                     )
-            elif "AIza" in api_key or "gemini" in (provider or ""):
+            elif provider == "gemini":
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
                 payload = {
                     "contents": [{"parts": [{"text": prompt}]}],
@@ -783,6 +797,28 @@ def generate_dynamic_ai_technical_question(
                 resp = requests.post(url, json=payload, timeout=8)
                 if resp.status_code == 200:
                     raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    data = json.loads(raw)
+                    return QuestionItem(
+                        id=f"dyn_ai_{int(time.time())}",
+                        category=QuestionCategory.TECHNICAL,
+                        role=role,
+                        question_text=data.get("question_text", f"Explain the core technical mechanics and trade-offs of {clean_topic}."),
+                        competency_or_topic=data.get("competency_or_topic", clean_topic),
+                        rubric_hints=data.get("rubric_hints", ["Time and space complexity", "Concurrency safety", "Trade-offs"]),
+                        default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
+                    )
+            elif provider == "openai":
+                url = "https://api.openai.com/v1/chat/completions"
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                payload = {
+                    "model": model_name or "gpt-4o-mini",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.3,
+                    "response_format": {"type": "json_object"},
+                }
+                resp = requests.post(url, headers=headers, json=payload, timeout=8)
+                if resp.status_code == 200:
+                    raw = resp.json()["choices"][0]["message"]["content"]
                     data = json.loads(raw)
                     return QuestionItem(
                         id=f"dyn_ai_{int(time.time())}",
