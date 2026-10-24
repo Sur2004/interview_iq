@@ -73,6 +73,8 @@ class EvaluationResult:
     actionable_improvements: List[str] = field(default_factory=list)
     stronger_answer_outline: str = ""
     suggested_followup_question: Optional[str] = None
+    technical_breakdown: Optional[Dict[str, Any]] = None
+    architecture_diagram_mermaid: Optional[str] = None
     disclaimer: str = RUBRIC_DISCLAIMER
     ethical_note: str = ETHICAL_OUTLINE_GUIDELINE
 
@@ -84,6 +86,8 @@ class EvaluationResult:
             "actionable_improvements": self.actionable_improvements,
             "stronger_answer_outline": self.stronger_answer_outline,
             "suggested_followup_question": self.suggested_followup_question,
+            "technical_breakdown": self.technical_breakdown,
+            "architecture_diagram_mermaid": self.architecture_diagram_mermaid,
             "disclaimer": self.disclaimer,
             "ethical_note": self.ethical_note,
         }

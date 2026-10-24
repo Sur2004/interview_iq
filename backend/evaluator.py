@@ -9,6 +9,7 @@ import os
 import re
 import json
 import logging
+import time
 from typing import Dict, List, Optional, Tuple
 from .models import (
     RubricScore,
@@ -304,6 +305,10 @@ def evaluate_heuristically(
         "clarity": RubricScore("clarity", RUBRIC_CRITERIA_META["clarity"]["display_name"], round(clarity_score, 1), clar_feedback),
     }
 
+    # Technical breakdown and architecture diagram
+    tech_breakdown = analyze_technical_complexity(combined_answer)
+    arch_diagram = generate_mermaid_architecture(combined_answer)
+
     return EvaluationResult(
         overall_score=overall_score,
         rubric_scores=rubric_scores,
@@ -311,6 +316,8 @@ def evaluate_heuristically(
         actionable_improvements=improvements,
         stronger_answer_outline=outline,
         suggested_followup_question=followup_q,
+        technical_breakdown=tech_breakdown,
+        architecture_diagram_mermaid=arch_diagram,
     )
 
 
@@ -521,7 +528,7 @@ Format output as pure JSON:
     return evaluate_heuristically(question, candidate_answer, followup_answer, candidate_context)
 
 
-def _parse_llm_json(data: dict, question: QuestionItem) -> EvaluationResult:
+def _parse_llm_json(data: dict, question: QuestionItem, candidate_answer: str = "") -> EvaluationResult:
     """Helper to safely build EvaluationResult from LLM JSON response."""
     rubric_scores = {}
     for crit in ["relevance", "structure", "evidence", "clarity"]:
@@ -536,6 +543,9 @@ def _parse_llm_json(data: dict, question: QuestionItem) -> EvaluationResult:
             feedback=feedback,
         )
 
+    tech_breakdown = analyze_technical_complexity(candidate_answer)
+    arch_diagram = generate_mermaid_architecture(candidate_answer)
+
     return EvaluationResult(
         overall_score=min(5.0, max(1.0, float(data.get("overall_score", 3.5)))),
         rubric_scores=rubric_scores,
@@ -543,4 +553,224 @@ def _parse_llm_json(data: dict, question: QuestionItem) -> EvaluationResult:
         actionable_improvements=data.get("actionable_improvements", ["Deepen evidence and personal ownership."]),
         stronger_answer_outline=data.get("stronger_answer_outline", generate_ethical_outline(question)),
         suggested_followup_question=data.get("suggested_followup_question"),
+        technical_breakdown=tech_breakdown,
+        architecture_diagram_mermaid=arch_diagram,
+    )
+
+
+def analyze_technical_complexity(text: str) -> Dict[str, Any]:
+    """
+    Analyzes technical depth, Big-O complexity mentions, concurrency primitives,
+    and architectural concepts in student responses.
+    """
+    lower = text.lower()
+
+    # Time & Space complexity detection
+    time_matches = re.findall(r"\bo\([a-zA-Z0-9\s\^\+\-\*\/\.]+\)", text, re.IGNORECASE)
+    space_mentions = bool(re.search(r"\b(space complexity|auxiliary space|memory footprint|in-place)\b", lower))
+
+    # Concurrency primitives
+    concurrency_terms = []
+    concurrency_patterns = {
+        "Mutex / Locks": r"\b(mutex|rwlock|pessimistic lock|spinlock)\b",
+        "Optimistic Concurrency (OCC)": r"\b(optimistic|cas|compare-and-swap|versioning)\b",
+        "Race Conditions": r"\b(race condition|data race|thread-safe|deadlock)\b",
+        "Async / Event Loop": r"\b(async|await|event loop|goroutine|coroutine|non-blocking|io multiplexing)\b",
+        "Atomic Operations": r"\b(atomic|interlocked|volatile)\b",
+    }
+    for label, pattern in concurrency_patterns.items():
+        if re.search(pattern, lower):
+            concurrency_terms.append(label)
+
+    # Architectural patterns & systems concepts
+    arch_terms = []
+    arch_patterns = {
+        "Caching & Memory (Redis/TTL)": r"\b(cache|redis|memcached|lru|ttl|cache-aside|write-through)\b",
+        "Relational & Distributed DB": r"\b(postgres|postgresql|mysql|sqlite|mongodb|dynamodb|relational database|nosql)\b",
+        "Backend & Microservice APIs": r"\b(fastapi|backend service|microservice|api service|rest|grpc|api gateway|express)\b",
+        "Indexing (B-Tree/LSM)": r"\b(b-tree|b\+tree|lsm tree|index|clustered index|composite index)\b",
+        "Event-Driven / Queues": r"\b(kafka|rabbitmq|sqs|event-driven|pub/sub|message queue)\b",
+        "Database Isolation / ACID": r"\b(acid|isolation level|read committed|serializable|mvcc)\b",
+        "RAG / Vector Embeddings": r"\b(rag|vector db|embeddings|cosine similarity|hnsw|retrieval)\b",
+        "Security & Auth": r"\b(jwt|oauth|csrf|xss|sql injection|sanitization|least privilege)\b",
+    }
+    for label, pattern in arch_patterns.items():
+        if re.search(pattern, lower):
+            arch_terms.append(label)
+
+    # Telemetry and metrics
+    metrics_terms = []
+    if re.search(r"\b(p95|p99|latency|response time|throughput|qps|iops|rps)\b", lower):
+        metrics_terms.append("Latency & Throughput (P95/P99/QPS)")
+    if re.search(r"\b(\d+ms|\d+s|\d+kb|\d+mb|\d+gb|\d+%)\b", lower):
+        metrics_terms.append("Quantifiable Engineering Metrics")
+
+    # Compute technical depth score (1.0 to 5.0)
+    score_points = 2.0
+    if time_matches:
+        score_points += 0.8
+    if concurrency_terms:
+        score_points += 0.8
+    if len(arch_terms) >= 2:
+        score_points += 0.9
+    elif len(arch_terms) == 1:
+        score_points += 0.5
+    if metrics_terms:
+        score_points += 0.5
+    depth_score = min(5.0, round(score_points, 1))
+
+    return {
+        "depth_score": depth_score,
+        "time_complexity": list(dict.fromkeys(time_matches)),
+        "space_complexity_detected": space_mentions,
+        "concurrency_primitives": concurrency_terms,
+        "architectural_patterns": arch_terms,
+        "metrics_telemetry": metrics_terms,
+    }
+
+
+def generate_mermaid_architecture(text: str) -> Optional[str]:
+    """
+    Dynamically generates a Mermaid graph diagram representing the system architecture
+    described in the candidate's answer.
+    """
+    lower = text.lower()
+
+    components = []
+    if re.search(r"\b(client|frontend|browser|user|mobile|app|react|vue)\b", lower):
+        components.append(("Client", 'Client ["Client UI / Browser"]'))
+    if re.search(r"\b(gateway|proxy|load balancer|nginx|ingress|cdn)\b", lower):
+        components.append(("Gateway", 'Gateway ["API Gateway / Reverse Proxy"]'))
+    if re.search(r"\b(api|backend|service|microservice|server|fastapi|node|express|go|django)\b", lower):
+        components.append(("Service", 'Service ["Backend Application Service"]'))
+    if re.search(r"\b(cache|redis|memcached)\b", lower):
+        components.append(("Cache", 'Cache [("In-Memory Cache (Redis)")]'))
+    if re.search(r"\b(queue|kafka|rabbitmq|sqs|event|pub/sub)\b", lower):
+        components.append(("Queue", 'Queue [/"Message Broker (Kafka / RabbitMQ)"/]'))
+    if re.search(r"\b(database|postgres|postgresql|mysql|sql|nosql|mongodb|dynamodb)\b", lower):
+        components.append(("DB", 'DB [("Relational / NoSQL Database")]'))
+    if re.search(r"\b(vector|embeddings|rag|pinecone|weaviate|qdrant)\b", lower):
+        components.append(("VectorDB", 'VectorDB [("Vector DB / Embeddings")]'))
+
+    if len(components) < 2:
+        # Fallback standard architectural model for preview
+        return None
+
+    # Construct clean graph TD
+    lines = ["graph TD"]
+    for cid, cdef in components:
+        lines.append(f"    {cdef}")
+
+    comp_ids = [c[0] for c in components]
+    if "Client" in comp_ids and "Gateway" in comp_ids:
+        lines.append("    Client --> Gateway")
+    elif "Client" in comp_ids and "Service" in comp_ids:
+        lines.append("    Client --> Service")
+
+    if "Gateway" in comp_ids and "Service" in comp_ids:
+        lines.append("    Gateway --> Service")
+
+    if "Service" in comp_ids and "Cache" in comp_ids:
+        lines.append("    Service -.->|Cache Check / TTL| Cache")
+
+    if "Service" in comp_ids and "DB" in comp_ids:
+        lines.append("    Service -->|Persistent Queries| DB")
+
+    if "Service" in comp_ids and "Queue" in comp_ids:
+        lines.append("    Service -->|Async Event Publish| Queue")
+
+    if "Service" in comp_ids and "VectorDB" in comp_ids:
+        lines.append("    Service -->|Semantic Search| VectorDB")
+
+    return "\n".join(lines)
+
+
+def generate_dynamic_ai_technical_question(
+    topic: str,
+    role: str = "Software Engineering",
+    experience_level: str = "Graduate / Entry-Level (0-1 yrs)",
+    api_key: Optional[str] = None,
+) -> QuestionItem:
+    """
+    Dynamically synthesizes a deep, novel technical interview question with rubric hints
+    and follow-up challenges based on a custom candidate topic.
+    """
+    clean_topic = topic.strip() or "Distributed Systems & Concurrency"
+    topic_lower = clean_topic.lower()
+
+    # Try live LLM if available
+    api_key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    if api_key:
+        try:
+            import requests
+            prompt = (
+                f"You are a Principal Software Architect interviewing a {experience_level} candidate for a {role} role. "
+                f"Generate an in-depth technical interview question focused on '{clean_topic}'. "
+                "Include concrete technical mechanisms, trade-offs, and failure modes. "
+                "Return JSON matching: "
+                '{"question_text": "...", "competency_or_topic": "...", "rubric_hints": ["...", "...", "..."], "default_followup": "..."}'
+            )
+            if "AIza" in api_key or "gemini" in api_key.lower():
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                payload = {
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"responseMimeType": "application/json", "temperature": 0.3}
+                }
+                resp = requests.post(url, json=payload, timeout=8)
+                if resp.status_code == 200:
+                    raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    data = json.loads(raw)
+                    return QuestionItem(
+                        id=f"dyn_ai_{int(time.time())}",
+                        category=QuestionCategory.TECHNICAL,
+                        role=role,
+                        question_text=data.get("question_text", f"Explain the core technical mechanics and trade-offs of {clean_topic}."),
+                        competency_or_topic=data.get("competency_or_topic", clean_topic),
+                        rubric_hints=data.get("rubric_hints", ["Time and space complexity", "Concurrency safety", "Trade-offs"]),
+                        default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
+                    )
+        except Exception as e:
+            logger.warning(f"Live dynamic question generation failed: {e}")
+
+    # Fallback intelligent generator
+    hints = [
+        f"Internal algorithmic mechanics and data structures of {clean_topic}",
+        "Big-O time and space complexity under nominal vs worst-case load",
+        "Failure modes, network partitions, or concurrency contention",
+        "Real-world engineering trade-offs compared to simpler alternatives",
+    ]
+
+    q_text = (
+        f"Deep-dive into {clean_topic}: Explain its architectural flow, how state is managed, "
+        f"and how you would diagnose a performance bottleneck or race condition under 100x traffic."
+    )
+    followup = (
+        f"Under what specific production constraints would you explicitly reject {clean_topic} "
+        f"in favor of a simpler, less distributed design?"
+    )
+
+    if "kafka" in topic_lower or "queue" in topic_lower:
+        q_text = "Explain the mechanics of partition rebalancing and consumer offset commits in an event stream like Kafka. How do you prevent message loss and duplicate processing (at-least-once vs exactly-once semantics)?"
+        followup = "What happens if a consumer's processing time exceeds the max poll interval during a heavy batch?"
+    elif "cache" in topic_lower or "redis" in topic_lower:
+        q_text = "Compare the Cache-Aside pattern with Write-Through and Write-Behind. How do you design cache eviction and invalidation when multiple application nodes update shared state?"
+        followup = "How do you mitigate a Cache Stampede (thundering herd) when a hot key expires under 50,000 QPS?"
+    elif "rag" in topic_lower or "vector" in topic_lower or "llm" in topic_lower:
+        q_text = "Explain the end-to-end retrieval flow in a production RAG system. How do chunk size, overlapping boundaries, and vector index choices (HNSW vs IVFFlat) impact recall, latency, and context window economics?"
+        followup = "How do you detect and rerank retrieved chunks to eliminate conflicting or hallucinated context before LLM synthesis?"
+    elif "btree" in topic_lower or "index" in topic_lower or "sql" in topic_lower:
+        q_text = "Explain how database indexing utilizes B-Trees and composite indexes. Why does column ordering matter for the leading-prefix rule, and what is the exact write amplification cost on disk pages during inserts?"
+        followup = "What causes the database query planner to ignore an index and execute a sequential scan even when an index exists?"
+    elif "concurrency" in topic_lower or "lock" in topic_lower:
+        q_text = "Compare Pessimistic Locking with Optimistic Concurrency Control (OCC) using versioning. In a high-concurrency seat-booking system, how do you prevent race conditions without starving worker threads?"
+        followup = "How would you structure a deadlock detector to identify circular wait graphs in a distributed transaction?"
+
+    return QuestionItem(
+        id=f"dyn_tech_{int(time.time())}",
+        category=QuestionCategory.TECHNICAL,
+        role=role,
+        question_text=q_text,
+        competency_or_topic=clean_topic,
+        rubric_hints=hints,
+        default_followup=followup,
     )

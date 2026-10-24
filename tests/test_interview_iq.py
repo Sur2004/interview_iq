@@ -300,3 +300,35 @@ class TestDatabaseAndReports:
             for q in plan:
                 assert len(q.question_text) > 10
                 assert q.role == TargetRole.DATA_SCIENCE_ML.value
+
+    def test_technical_complexity_and_dynamic_generator(self):
+        from backend.evaluator import (
+            analyze_technical_complexity,
+            generate_mermaid_architecture,
+            generate_dynamic_ai_technical_question,
+        )
+
+        sample_answer = (
+            "In our FastAPI backend service, we handled client requests by checking Redis in-memory cache "
+            "with O(1) lookup time before falling back to PostgreSQL relational database. We used mutex locks "
+            "to prevent race conditions, achieving a P95 latency of 45ms."
+        )
+
+        analysis = analyze_technical_complexity(sample_answer)
+        assert analysis["depth_score"] >= 3.5
+        assert len(analysis["time_complexity"]) > 0
+        assert "Mutex / Locks" in analysis["concurrency_primitives"]
+        assert len(analysis["architectural_patterns"]) >= 2
+        assert len(analysis["metrics_telemetry"]) > 0
+
+        # Architecture diagram
+        mermaid = generate_mermaid_architecture(sample_answer)
+        assert mermaid is not None
+        assert "graph TD" in mermaid
+        assert "Client" in mermaid
+        assert "Cache" in mermaid or "DB" in mermaid
+
+        # Dynamic AI technical question generator
+        dyn_q = generate_dynamic_ai_technical_question(topic="Kafka Partition Rebalancing")
+        assert "kafka" in dyn_q.question_text.lower() or "partition" in dyn_q.question_text.lower()
+        assert len(dyn_q.rubric_hints) >= 3
