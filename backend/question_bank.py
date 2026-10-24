@@ -325,6 +325,58 @@ TECHNICAL_QUESTIONS_BY_ROLE: Dict[str, List[Dict]] = {
             "default_followup": "What happens if two engineers execute `terraform apply` concurrently without remote state locking?",
         },
     ],
+    TargetRole.AI_LLM_ENGINEERING.value: [
+        {
+            "id": "ai_tech_01",
+            "topic": "Retrieval-Augmented Generation (RAG) Architecture",
+            "question_text": "Explain the architecture of a Retrieval-Augmented Generation (RAG) system. What chunking strategies and embedding distance metrics do you evaluate?",
+            "rubric_hints": [
+                "Document chunking strategies (fixed-size vs recursive character vs semantic boundary)",
+                "Embedding vector search mechanics (Cosine Similarity vs Dot Product vs Euclidean)",
+                "Vector database indexing (HNSW vs IVFFlat)",
+                "Reranking models and context window budget management"
+            ],
+            "default_followup": "How do you detect and prevent hallucinations when the vector database retrieves irrelevant or contradictory context chunks?",
+        },
+        {
+            "id": "ai_tech_02",
+            "topic": "Fine-Tuning vs RAG vs Prompt Engineering",
+            "question_text": "How do you decide between Prompt Engineering, RAG, and Parameter-Efficient Fine-Tuning (PEFT/LoRA) for an enterprise domain problem?",
+            "rubric_hints": [
+                "Trade-offs in cost, latency, update frequency, and hallucination risk",
+                "RAG for dynamic factual knowledge retrieval",
+                "LoRA/PEFT for teaching specialized tone, vocabulary, or strict output syntax",
+                "Evaluation frameworks (RAGAS, BLEU, ROUGE, human evaluation)"
+            ],
+            "default_followup": "Suppose your fine-tuned model begins suffering from catastrophic forgetting on general queries. What mitigation steps do you take?",
+        },
+    ],
+    TargetRole.CYBERSECURITY.value: [
+        {
+            "id": "sec_tech_01",
+            "topic": "Authentication vs Authorization & JWT Security",
+            "question_text": "Compare Authentication with Authorization. What are common security vulnerabilities with JSON Web Tokens (JWTs), and how do you mitigate them in production?",
+            "rubric_hints": [
+                "AuthN (identity verification) vs AuthZ (permission enforcement)",
+                "JWT risks: sensitive payload data leakage, weak signing secrets, algorithm 'none' attacks",
+                "Revocation challenges and short-lived access tokens with rotating refresh tokens",
+                "Storage security: HttpOnly, Secure, SameSite cookies vs localStorage"
+            ],
+            "default_followup": "If a user's account is compromised, how do you instantly invalidate their active JWTs before expiration without destroying system throughput?",
+        },
+        {
+            "id": "sec_tech_02",
+            "topic": "OWASP Top 10 & SQL Injection Defense",
+            "question_text": "Explain how SQL Injection occurs at the database driver level. Why do parameterized queries prevent SQL injection, whereas string sanitization often fails?",
+            "rubric_hints": [
+                "Separation of SQL code and untrusted data in query compilation phases",
+                "Prepared statements and pre-compiled query execution plans",
+                "Bypassing naive regex filters with alternative character encodings or comment tricks",
+                "Principle of Least Privilege for database service accounts"
+            ],
+            "default_followup": "Can SQL injection occur even when using an Object-Relational Mapper (ORM) like SQLAlchemy or Prisma? Give an example.",
+        },
+    ],
 }
 
 

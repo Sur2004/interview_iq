@@ -39,6 +39,8 @@ class TargetRole(str, Enum):
     SOFTWARE_ENGINEERING = "Software Engineering (Full Stack / Backend)"
     FRONTEND_ENGINEERING = "Frontend & Web Engineering"
     DATA_SCIENCE_ML = "Data Science & Machine Learning"
+    AI_LLM_ENGINEERING = "AI & LLM Application Engineering"
+    CYBERSECURITY = "Cybersecurity & Information Security"
     PRODUCT_MANAGEMENT = "Product Management"
     DEVOPS_CLOUD = "DevOps & Cloud Engineering"
     CUSTOM = "Custom Target Role"
