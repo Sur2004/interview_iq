@@ -41,7 +41,8 @@ Furthermore, existing automated tools often function as opaque "pass/fail" filte
 - **Dynamic AI Technical Challenge Generator:** Synthesize FAANG/Principal-level technical questions on any custom subsystem (e.g. Kafka, Postgres MVCC, Raft, RAG).
 - **Spot the Flaw Interactive Game:** Train an "interviewer's eye" by diagnosing classic candidate errors (*The 'We' Trap*, *Unsubstantiated Metrics*, *The Defensive Blame Game*, *Buzzword Salad*).
 - **Interactive STAR Story Builder:** Step-by-step wizard converting raw coursework into structured 90-second interview pitch cards.
-- **Local Persistence (SQLite):** Complete session history, follow-up answers, and historical rubric performance charts stored in `interview_iq.db`.
+- **Local Persistence (SQLite):** Session history, follow-up answers, answer revision history, and historical rubric performance stored in `interview_iq.db`.
+- **Answer Revision Workflow:** Edit completed answers, re-score revised responses, and inspect timestamped previous/updated versions in the session transcript and exported reports.
 - **Multi-Format Report Export:** Downloadable comprehensive practice summaries in Markdown (`.md`), standalone printable HTML / PDF (`.html`), and machine-readable JSON (`.json`).
 
 ---
@@ -213,6 +214,9 @@ python -m pytest tests/
 - **`test_all_interview_types_generate_valid_plans`**: Tests all 4 interview modes.
 - **`test_technical_complexity_and_dynamic_generator`**: Tests Big-O analyzer, Mermaid diagram generation, and custom topic synthesis.
 - **`test_secret_management_and_environment_config`**: Validates `get_setting` fallback, secret masking, and graceful startup messages.
+- **Provider-isolation regression:** Confirms a missing selected-provider key falls back to offline evaluation rather than borrowing a different provider's key.
+- **Analytics regression:** Confirms unscored sessions are included in counts and session averages are not weighted by turn count.
+- **Answer revision persistence:** Confirms the old and revised answer text survive SQLite session save/load.
 
 ---
 
