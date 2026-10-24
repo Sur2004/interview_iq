@@ -443,3 +443,49 @@ class TestRegressionFixes:
         finally:
             if os.path.exists(db_path):
                 os.remove(db_path)
+
+
+
+def test_answer_revision_history_persists():
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tf:
+        db_path = tf.name
+
+    try:
+        question = QuestionItem(
+            id="revision-q",
+            category=QuestionCategory.TECHNICAL,
+            role=TargetRole.SOFTWARE_ENGINEERING.value,
+            question_text="Explain a hash map.",
+            competency_or_topic="Data Structures",
+        )
+        turn = InterviewTurn(
+            question_index=0,
+            question=question,
+            initial_answer="A hash map stores values.",
+            completed=True,
+        )
+        turn.answer_revisions.append({
+            "field": "main answer",
+            "previous": "A hash map stores values.",
+            "updated": "A hash map maps keys to values using a hash function.",
+            "edited_at": 1760000000.0,
+        })
+        session = InterviewSession(
+            session_id="revision-history",
+            candidate_name="Test Candidate",
+            target_role=TargetRole.SOFTWARE_ENGINEERING.value,
+            experience_level=ExperienceLevel.INTERNSHIP.value,
+            interview_type=InterviewType.COMPREHENSIVE.value,
+            total_questions=1,
+            turns=[turn],
+        )
+
+        save_session(session, db_path=db_path)
+        saved = get_session("revision-history", db_path=db_path)
+        assert saved is not None
+        saved_turn = saved["turns"][0]
+        assert saved_turn["answer_revisions"][0]["previous"] == "A hash map stores values."
+        assert saved_turn["answer_revisions"][0]["updated"].startswith("A hash map maps keys")
+    finally:
+        if os.path.exists(db_path):
+            os.remove(db_path)
