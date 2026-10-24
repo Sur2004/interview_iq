@@ -855,65 +855,147 @@ with tab_studio:
 # TAB 2: AI TECHNICAL GENERATOR & DEEP-DIVE STUDIO (NEW & TECHNICAL)
 # ==============================================================================
 with tab_dynamic_ai:
-    st.header("⚡ Dynamic AI Technical Problem Generator")
-    st.markdown("""
-    Want to test yourself on an ultra-niche technical topic? Enter any engineering subject below
-    and the AI will dynamically synthesize a FAANG/Principal-level interview question with rubric constraints.
-    """)
+    st.header("⚡ Build and Practice a Technical Challenge")
+    st.write(
+        "Choose a topic and difficulty, generate a question, write your answer, "
+        "then review your score and feedback. You can edit your answer and score it again."
+    )
 
-    col_g1, col_g2 = st.columns([2, 1])
-    with col_g1:
-        custom_topic = st.text_input(
-            "Target Engineering Topic / System Subsystem:",
-            value="Kafka Partition Rebalancing & Consumer Lag",
-            placeholder="e.g. Postgres MVCC Vacuuming, Redis Cluster Sentinel, RAG Vector Search with HNSW, Raft Consensus...",
-        )
-    with col_g2:
-        custom_difficulty = st.selectbox(
-            "Target Seniority Level:",
-            ["Internship / Entry-Level", "Mid-Level Engineer", "Staff / Principal Architect"],
-            index=0,
-        )
-
-    if st.button("⚡ Generate AI Technical Challenge", type="primary"):
-        with st.spinner("Synthesizing technical question, edge-case rubric, and follow-up challenge..."):
-            dyn_q = generate_dynamic_ai_technical_question(
-                topic=custom_topic,
-                role=target_role,
-                experience_level=custom_difficulty,
-                api_key=st.session_state.api_key,
+    with st.container(border=True):
+        st.subheader("1. Set up your challenge")
+        col_g1, col_g2 = st.columns([2, 1])
+        with col_g1:
+            custom_topic = st.text_input(
+                "Topic or technology",
+                value="Kafka Partition Rebalancing & Consumer Lag",
+                placeholder="For example: SQL indexes, Python concurrency, RAG, Redis caching",
+                help="Choose one topic so the question can focus on a specific skill.",
+                key="challenge_topic",
             )
-            st.session_state.current_dyn_q = dyn_q
+        with col_g2:
+            custom_difficulty = st.selectbox(
+                "Difficulty",
+                ["Internship / Entry-Level", "Mid-Level Engineer", "Staff / Principal Architect"],
+                index=0,
+                help="Choose the level you want the question to target.",
+                key="challenge_difficulty",
+            )
+
+        if st.button("Generate challenge", type="primary", use_container_width=True, key="generate_dynamic_challenge"):
+            if not custom_topic.strip():
+                st.warning("Enter a topic before generating a challenge.")
+            else:
+                with st.spinner("Creating your question and evaluation guide..."):
+                    dyn_q = generate_dynamic_ai_technical_question(
+                        topic=custom_topic.strip(),
+                        role=target_role,
+                        experience_level=custom_difficulty,
+                        api_key=st.session_state.api_key or None,
+                    )
+                    st.session_state.current_dyn_q = dyn_q
+                    st.session_state.current_dyn_eval = None
+                    st.session_state.current_dyn_answer = ""
+                    st.rerun()
 
     if "current_dyn_q" in st.session_state:
         dq: QuestionItem = st.session_state.current_dyn_q
-        st.markdown(f"""
-        <div class="animated-question-card">
-            <span style="font-size:0.8rem; font-weight:700; color:#0284c7; text-transform:uppercase;">
-                ⚡ AI-Generated Technical Challenge • {dq.competency_or_topic}
-            </span>
-            <p style="font-size:1.25rem; font-weight:700; color:#000000; margin-top:8px;">
-                {dq.question_text}
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown(f"""
-        <div class="animated-followup-card">
-            <span style="font-size:0.8rem; font-weight:700; color:#38bdf8; text-transform:uppercase;">
-                ⚡ Probing Follow-Up Challenge
-            </span>
-            <p style="font-size:1.15rem; font-weight:700; color:#ffffff; margin-top:6px;">
-                "{dq.default_followup}"
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("##### 💡 Technical Rubric Constraints:")
-        for h in dq.rubric_hints:
-            st.markdown(f"- `{h}`")
 
         st.markdown("---")
+        st.subheader("2. Your challenge")
+        st.caption(f"Topic: {dq.competency_or_topic}  ·  Role: {target_role}  ·  Level: {custom_difficulty}")
+        with st.container(border=True):
+            st.markdown("**Main question**")
+            st.markdown(dq.question_text)
+
+            st.markdown("**Follow-up question**")
+            st.info(dq.default_followup or "Explain the trade-offs, limitations, and failure cases.")
+
+            with st.expander("What a strong answer should cover", expanded=False):
+                for hint in dq.rubric_hints:
+                    st.markdown(f"- {hint}")
+
+        st.markdown("---")
+        st.subheader("3. Write or update your answer")
+        st.caption(
+            "Use this space to draft your response. You can change it at any time and select "
+            "**Score / update feedback** again to evaluate the latest version."
+        )
+        answer_key = f"dyn_answer_{dq.id}"
+        if answer_key not in st.session_state:
+            st.session_state[answer_key] = st.session_state.get("current_dyn_answer", "")
+
+        challenge_answer = st.text_area(
+            "Your answer",
+            key=answer_key,
+            height=220,
+            placeholder=(
+                "Explain the core idea, how it works, your approach, trade-offs, edge cases, "
+                "and a practical example..."
+            ),
+            help="Write in your own words. You can revise your response after seeing the feedback.",
+        )
+        word_count = len(challenge_answer.split()) if challenge_answer.strip() else 0
+        st.caption(f"{word_count} words · A useful structure is: concept → approach → trade-offs → example.")
+
+        if st.button("Score / update feedback", type="primary", use_container_width=True, key=f"score_dyn_{dq.id}"):
+            if not challenge_answer.strip():
+                st.warning("Write an answer before requesting feedback.")
+            else:
+                with st.spinner("Reviewing your answer against the interview rubric..."):
+                    dyn_eval = evaluate_with_llm(
+                        dq,
+                        challenge_answer.strip(),
+                        candidate_context=st.session_state.get("sb_candidate_context", "").strip(),
+                        api_key=st.session_state.api_key or None,
+                    )
+                    st.session_state.current_dyn_answer = challenge_answer.strip()
+                    st.session_state.current_dyn_eval = {
+                        "question_id": dq.id,
+                        "answer": challenge_answer.strip(),
+                        "evaluation": dyn_eval,
+                    }
+                st.rerun()
+
+        saved_eval = st.session_state.get("current_dyn_eval")
+        if saved_eval and saved_eval.get("question_id") == dq.id:
+            result = saved_eval["evaluation"]
+            st.markdown("---")
+            st.subheader("4. Feedback on your latest answer")
+            score_col, level_col = st.columns([1, 2])
+            score_col.metric("Overall practice score", f"{result.overall_score:.1f} / 5.0")
+            with level_col:
+                st.markdown("**What this score means**")
+                st.write(
+                    "4.2–5.0: Strong · 3.2–4.1: Good foundation · Below 3.2: Focus on the improvements below"
+                )
+
+            if result.key_strengths:
+                st.markdown("**What you did well**")
+                for item in result.key_strengths:
+                    st.markdown(f"- {item}")
+
+            if result.actionable_improvements:
+                st.markdown("**What to improve next**")
+                for item in result.actionable_improvements:
+                    st.markdown(f"- {item}")
+
+            if result.rubric_scores:
+                st.markdown("**Rubric breakdown**")
+                rubric_cols = st.columns(len(result.rubric_scores))
+                for idx, rubric in enumerate(result.rubric_scores.values()):
+                    with rubric_cols[idx]:
+                        st.metric(rubric.display_name, f"{rubric.score:.1f} / 5")
+                        st.caption(rubric.feedback)
+
+            if result.stronger_answer_outline:
+                with st.expander("Suggested answer structure", expanded=False):
+                    st.markdown(result.stronger_answer_outline)
+
+            st.caption(
+                "This is practice feedback, not a hiring prediction. Your answer remains editable above; "
+                "score it again after making changes."
+            )
+
 # ==============================================================================
 # TAB 3: SPOT THE FLAW INTERACTIVE GAME
 # ==============================================================================
