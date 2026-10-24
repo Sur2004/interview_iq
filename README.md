@@ -4,7 +4,7 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit App](https://img.shields.io/badge/frontend-Streamlit-FF4B4B.svg)](https://streamlit.io)
-[![Tests](https://img.shields.io/badge/tests-pytest-blue.svg)]()
+[![Tests](https://github.com/Sur2004/interview_iq/actions/workflows/tests.yml/badge.svg)](https://github.com/Sur2004/interview_iq/actions/workflows/tests.yml)
 [![Ethics](https://img.shields.io/badge/ethical%20feedback-anti--fabrication-success.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
