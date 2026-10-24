@@ -303,10 +303,20 @@ def get_active_llm_settings() -> dict:
     }.get(provider)
     api_key = None if provider == "heuristic" else (manual_key or configured.get(key_field))
 
+    default_models = {
+        "groq": "llama-3.3-70b-versatile",
+        "gemini": "gemini-1.5-flash",
+        "openai": "gpt-4o-mini",
+        "heuristic": "built-in-diagnostic-engine",
+    }
     return {
         "provider": provider,
         "api_key": api_key,
-        "model_name": configured.get("model_name") if provider == configured.get("provider") else None,
+        "model_name": (
+            configured.get("model_name")
+            if provider == configured.get("provider")
+            else default_models[provider]
+        ),
     }
 
 
