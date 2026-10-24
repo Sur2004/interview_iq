@@ -103,7 +103,7 @@ interview_iq/
 │   ├── __init__.py
 │   └── test_interview_iq.py    # 15 automated acceptance and unit tests
 ├── .streamlit/
-│   ├── config.toml             # Streamlit server and telemetry configurations
+│   └── config.toml             # Streamlit server protections and telemetry settings
 │   └── credentials.toml        # Headless execution configuration
 ├── .env.example                # Placeholder environment variable template
 ├── .gitignore                  # Git exclusion rules (.env and secrets ignored)
@@ -167,7 +167,7 @@ Open your browser at **`http://localhost:8501`**.
 ## 10. How to Use
 
 1. **Profile Setup (Sidebar):** Enter your name, choose your target role (e.g. *Software Engineering*), experience level (*Undergraduate Internship*), and select an AI Interviewer persona (e.g. *Jordan - Principal Architect*).
-2. **Start Round:** Click **"Initialize AI Interview Round"**.
+2. **Start Round:** Click **"Start Interview Round"**.
 3. **Step 1 (Primary Answer):** Read the prompt on the animated question card. Type your response in the text area. Optionally toggle the code box to provide a Python/Go snippet. Click **"Submit Answer"**.
 4. **Step 2 (Contextual Follow-Up):** The AI formulates an unscripted follow-up question in the black-and-blue callout box. Type your answer explaining edge cases or trade-offs and click **"Submit Follow-Up & Score Turn"**.
 5. **Step 3 (Diagnostic Results):** Review your 4-part rubric scores (*Relevance, Structure, Evidence, Clarity*), Big-O complexity detection, and the live Mermaid architecture diagram.
