@@ -281,6 +281,35 @@ def get_word_pacing_chip(words: int) -> str:
         return '<span class="pacing-chip pacing-warn">⚠️ Verbose / Wordy (&gt;240 words)</span>'
 
 
+def get_active_llm_settings() -> dict:
+    """Resolve the selected provider and its own key without cross-provider leakage."""
+    configured = get_llm_config()
+    selection = st.session_state.get("sb_provider", "Auto (via .env / Secrets)")
+    provider_by_label = {
+        "Groq Cloud — Llama 3.3 70B": "groq",
+        "Google Gemini 1.5 Flash": "gemini",
+        "OpenAI GPT-4o Mini": "openai",
+        "Built-In Offline Engine": "heuristic",
+    }
+    provider = provider_by_label.get(selection, configured.get("provider") or "heuristic")
+    if provider not in {"groq", "gemini", "openai", "heuristic"}:
+        provider = "heuristic"
+
+    manual_key = st.session_state.get("sb_manual_key", "").strip()
+    key_field = {
+        "groq": "groq_api_key",
+        "gemini": "gemini_api_key",
+        "openai": "openai_api_key",
+    }.get(provider)
+    api_key = None if provider == "heuristic" else (manual_key or configured.get(key_field))
+
+    return {
+        "provider": provider,
+        "api_key": api_key,
+        "model_name": configured.get("model_name") if provider == configured.get("provider") else None,
+    }
+
+
 def render_mermaid(code: str, height: int = 240):
     """Renders a Mermaid diagram inside a styled HTML component with sky-blue accents."""
     if not code:
@@ -386,14 +415,14 @@ def render_answer_revision_editor(session: InterviewSession, turn: InterviewTurn
                 turn.initial_evaluation = evaluate_with_llm(
                     turn.question, turn.initial_answer,
                     candidate_context=session.candidate_context,
-                    api_key=st.session_state.api_key or None,
+                    **get_active_llm_settings(),
                 )
                 if turn.followup_answer != "[Skipped]":
                     turn.turn_evaluation = evaluate_with_llm(
                         turn.question, turn.initial_answer,
                         followup_answer=turn.followup_answer,
                         candidate_context=session.candidate_context,
-                        api_key=st.session_state.api_key or None,
+                        **get_active_llm_settings(),
                     )
                 else:
                     turn.turn_evaluation = turn.initial_evaluation
@@ -844,7 +873,7 @@ with tab_studio:
                                 q_item,
                                 turn.initial_answer,
                                 candidate_context=session.candidate_context,
-                                api_key=st.session_state.api_key or None,
+                                **get_active_llm_settings(),
                             )
                             turn.initial_evaluation = init_eval
                             if init_eval.suggested_followup_question:
@@ -892,7 +921,7 @@ with tab_studio:
                             turn.initial_answer,
                             followup_answer=turn.followup_answer,
                             candidate_context=session.candidate_context,
-                            api_key=st.session_state.api_key or None,
+                            **get_active_llm_settings(),
                         )
                         turn.turn_evaluation = full_eval
                         turn.completed = True
@@ -1001,7 +1030,7 @@ with tab_dynamic_ai:
                         topic=custom_topic.strip(),
                         role=target_role,
                         experience_level=custom_difficulty,
-                        api_key=st.session_state.api_key or None,
+                        **get_active_llm_settings(),
                     )
                     st.session_state.current_dyn_q = dyn_q
                     st.session_state.current_dyn_eval = None
@@ -1057,7 +1086,7 @@ with tab_dynamic_ai:
                         dq,
                         challenge_answer.strip(),
                         candidate_context=st.session_state.get("sb_candidate_context", "").strip(),
-                        api_key=st.session_state.api_key or None,
+                        **get_active_llm_settings(),
                     )
                     st.session_state.current_dyn_answer = challenge_answer.strip()
                     st.session_state.current_dyn_eval = {
