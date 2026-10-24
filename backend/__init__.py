@@ -22,6 +22,16 @@ from .config import (
     get_llm_config,
 )
 
+from .evaluator import (
+    evaluate_heuristically,
+    evaluate_with_llm,
+    generate_followup_question,
+    analyze_technical_complexity,
+    generate_mermaid_architecture,
+    generate_dynamic_ai_technical_question,
+    RUBRIC_CRITERIA_META,
+)
+
 __all__ = [
     "ExperienceLevel",
     "InterviewType",
@@ -36,4 +46,11 @@ __all__ = [
     "get_setting",
     "validate_secrets",
     "get_llm_config",
+    "evaluate_heuristically",
+    "evaluate_with_llm",
+    "generate_followup_question",
+    "analyze_technical_complexity",
+    "generate_mermaid_architecture",
+    "generate_dynamic_ai_technical_question",
+    "RUBRIC_CRITERIA_META",
 ]
