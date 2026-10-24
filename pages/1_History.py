@@ -93,6 +93,6 @@ else:
         if st.button("Delete this session", key="del_btn"):
             if delete_session(selected):
                 st.success("Session deleted. Refresh to see updated list.")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("Failed to delete session.")
