@@ -328,7 +328,8 @@ def render_mermaid(code: str, height: int = 240):
 
 def render_answer_revision_editor(session: InterviewSession, turn: InterviewTurn, key_prefix: str) -> None:
     """Edit, re-score, and persist a completed answer with an audit trail."""
-    with st.expander("✏️ Edit answer and refresh feedback", expanded=False):
+    with st.container(border=True):
+        st.markdown("#### ✏️ Edit answer and refresh feedback")
         st.caption(
             "Edit either response below. Saving a revision re-runs the rubric and records "
             "the previous and updated text in this session's history."
