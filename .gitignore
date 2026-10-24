@@ -6,3 +6,8 @@ __pycache__/
 .pytest_cache/
 *.db
 .DS_Store
+
+# Environment and Secrets (Never commit secrets!)
+.env
+.env.local
+.streamlit/secrets.toml

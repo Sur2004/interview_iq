@@ -332,3 +332,30 @@ class TestDatabaseAndReports:
         dyn_q = generate_dynamic_ai_technical_question(topic="Kafka Partition Rebalancing")
         assert "kafka" in dyn_q.question_text.lower() or "partition" in dyn_q.question_text.lower()
         assert len(dyn_q.rubric_hints) >= 3
+
+    def test_secret_management_and_environment_config(self, monkeypatch):
+        from backend.config import get_setting, validate_secrets, get_llm_config
+
+        # 1. Fallback to default
+        assert get_setting("NON_EXISTENT_KEY_123", default="my_fallback") == "my_fallback"
+
+        # 2. Ignore placeholder values
+        monkeypatch.setenv("GROQ_API_KEY", "replace_with_your_own_key")
+        assert get_setting("GROQ_API_KEY") is None
+
+        # 3. Read actual value from env
+        monkeypatch.setenv("GROQ_API_KEY", "gsk_test_actual_key_456")
+        assert get_setting("GROQ_API_KEY") == "gsk_test_actual_key_456"
+
+        # 4. Validate secrets helper gives readable status rather than crashing
+        status_info = validate_secrets()
+        assert "status" in status_info
+        assert "message" in status_info
+        assert status_info["status"] in ("ready", "warning")
+
+        # 5. Missing keys produce graceful warning message
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
+        monkeypatch.setenv("LLM_PROVIDER", "groq")
+        missing_info = validate_secrets()
+        assert missing_info["status"] == "warning"
+        assert "GROQ_API_KEY" in missing_info["message"]

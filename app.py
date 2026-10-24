@@ -49,6 +49,11 @@ from backend.report_generator import (
     generate_markdown_report,
     generate_html_report,
 )
+from backend.config import (
+    get_setting,
+    validate_secrets,
+    get_llm_config,
+)
 
 # Page configuration
 st.set_page_config(
@@ -384,20 +389,35 @@ with st.sidebar:
         height=90,
     )
 
-    with st.expander("🤖 AI Backend Engine Settings"):
-        eval_engine = st.radio(
-            "Evaluation Provider",
-            ["Built-In Intelligent Heuristic Engine (Offline / Instant)", "Live LLM (Gemini / OpenAI API)"],
-            index=0 if not st.session_state.api_key else 1,
+    llm_conf = get_llm_config()
+    secret_val = validate_secrets()
+
+    with st.expander("🤖 AI Engine & Secret Settings", expanded=False):
+        st.caption(f"Status: {secret_val['message']}")
+
+        provider_opts = [
+            "Auto (Configured via .env / Secrets)",
+            "Groq Cloud (Llama 3.3 70B)",
+            "Google Gemini (1.5 Flash)",
+            "OpenAI (GPT-4o Mini)",
+            "Built-In Offline Engine (No Key Required)",
+        ]
+        chosen_provider = st.selectbox(
+            "Active LLM Provider",
+            provider_opts,
+            index=0,
+            help="Select provider. Keys can be set in .env (local) or Streamlit Secrets (cloud).",
         )
-        api_key_input = st.text_input(
-            "API Key (Optional)",
-            value=st.session_state.api_key,
+
+        manual_key = st.text_input(
+            "API Key Override (Optional)",
+            value="",
             type="password",
-            help="Gemini or OpenAI API key. Leave blank to run 100% offline with zero dependencies.",
+            placeholder="Paste key to override .env / secrets...",
+            help="Never committed or logged. Overrides active session only.",
         )
-        if api_key_input != st.session_state.api_key:
-            st.session_state.api_key = api_key_input
+        if manual_key:
+            st.session_state.api_key = manual_key
 
     st.markdown("---")
     if st.button("🚀 Initialize AI Interview Round", type="primary", use_container_width=True):
@@ -686,19 +706,12 @@ with tab_studio:
                         turn.initial_answer = full_content
 
                         with st.spinner(f"{st.session_state.interviewer_persona.split('(')[0]} is analyzing your architecture and formulating a follow-up..."):
-                            if "Live LLM" in eval_engine and st.session_state.api_key:
-                                init_eval = evaluate_with_llm(
-                                    q_item,
-                                    turn.initial_answer,
-                                    candidate_context=session.candidate_context,
-                                    api_key=st.session_state.api_key,
-                                )
-                            else:
-                                init_eval = evaluate_heuristically(
-                                    q_item,
-                                    turn.initial_answer,
-                                    candidate_context=session.candidate_context,
-                                )
+                            init_eval = evaluate_with_llm(
+                                q_item,
+                                turn.initial_answer,
+                                candidate_context=session.candidate_context,
+                                api_key=st.session_state.api_key or None,
+                            )
 
                             turn.initial_evaluation = init_eval
                             if init_eval.suggested_followup_question:
@@ -744,21 +757,13 @@ with tab_studio:
                 if st.button("Submit Follow-Up & Score Turn 🎯", type="primary", use_container_width=True):
                     turn.followup_answer = followup_input.strip()
                     with st.spinner("Executing full 4-part rubric and complexity telemetry..."):
-                        if "Live LLM" in eval_engine and st.session_state.api_key:
-                            full_eval = evaluate_with_llm(
-                                q_item,
-                                turn.initial_answer,
-                                followup_answer=turn.followup_answer,
-                                candidate_context=session.candidate_context,
-                                api_key=st.session_state.api_key,
-                            )
-                        else:
-                            full_eval = evaluate_heuristically(
-                                q_item,
-                                turn.initial_answer,
-                                followup_answer=turn.followup_answer,
-                                candidate_context=session.candidate_context,
-                            )
+                        full_eval = evaluate_with_llm(
+                            q_item,
+                            turn.initial_answer,
+                            followup_answer=turn.followup_answer,
+                            candidate_context=session.candidate_context,
+                            api_key=st.session_state.api_key or None,
+                        )
                         turn.turn_evaluation = full_eval
                         turn.completed = True
                         session.in_followup = False

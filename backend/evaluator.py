@@ -414,13 +414,25 @@ def evaluate_with_llm(
     followup_answer: Optional[str] = None,
     candidate_context: str = "",
     api_key: Optional[str] = None,
-    provider: str = "gemini",
+    provider: Optional[str] = None,
+    model_name: Optional[str] = None,
 ) -> EvaluationResult:
     """
-    Evaluates responses using an LLM API (Google Gemini or OpenAI).
+    Evaluates responses using a hosted LLM API (Groq, Google Gemini, or OpenAI).
     Falls back gracefully to the heuristic evaluator if the API call fails or no key is provided.
     """
-    api_key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    from .config import get_setting
+
+    provider = (provider or get_setting("LLM_PROVIDER") or "groq").lower()
+    api_key = (
+        api_key
+        or (get_setting("GROQ_API_KEY") if provider == "groq" else None)
+        or get_setting("GEMINI_API_KEY")
+        or get_setting("OPENAI_API_KEY")
+        or get_setting("GROQ_API_KEY")
+    )
+    model_name = model_name or get_setting("MODEL_NAME")
+
     if not api_key:
         logger.info("No LLM API key provided; using intelligent heuristic evaluation engine.")
         return evaluate_heuristically(question, candidate_answer, followup_answer, candidate_context)
@@ -482,7 +494,29 @@ Format output as pure JSON:
     try:
         import requests
 
-        if provider.lower() == "gemini" or "AIza" in (api_key or ""):
+        # Groq API endpoint (fastest inference for interviews)
+        if provider == "groq" or (api_key and api_key.startswith("gsk_")):
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            model = model_name or "llama-3.3-70b-versatile"
+            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                "temperature": 0.2,
+                "response_format": {"type": "json_object"}
+            }
+            resp = requests.post(url, headers=headers, json=payload, timeout=12)
+            if resp.status_code == 200:
+                raw_text = resp.json()["choices"][0]["message"]["content"]
+                data = json.loads(raw_text)
+                return _parse_llm_json(data, question, candidate_answer=candidate_answer)
+            else:
+                logger.warning(f"Groq API returned status {resp.status_code}; falling back to heuristic.")
+
+        elif provider == "gemini" or "AIza" in (api_key or ""):
             # Call Google Gemini API (v1beta)
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
             payload = {
@@ -498,15 +532,17 @@ Format output as pure JSON:
             if resp.status_code == 200:
                 raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                 data = json.loads(raw_text)
-                return _parse_llm_json(data, question)
+                return _parse_llm_json(data, question, candidate_answer=candidate_answer)
             else:
                 logger.warning(f"Gemini API returned status {resp.status_code}; falling back to heuristic.")
+
         else:
             # OpenAI compatible endpoint
             url = "https://api.openai.com/v1/chat/completions"
+            model = model_name or "gpt-4o-mini"
             headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
             payload = {
-                "model": "gpt-4o-mini",
+                "model": model,
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -518,7 +554,7 @@ Format output as pure JSON:
             if resp.status_code == 200:
                 raw_text = resp.json()["choices"][0]["message"]["content"]
                 data = json.loads(raw_text)
-                return _parse_llm_json(data, question)
+                return _parse_llm_json(data, question, candidate_answer=candidate_answer)
             else:
                 logger.warning(f"OpenAI API returned status {resp.status_code}; falling back to heuristic.")
 
@@ -710,7 +746,29 @@ def generate_dynamic_ai_technical_question(
                 "Return JSON matching: "
                 '{"question_text": "...", "competency_or_topic": "...", "rubric_hints": ["...", "...", "..."], "default_followup": "..."}'
             )
-            if "AIza" in api_key or "gemini" in api_key.lower():
+            if api_key.startswith("gsk_") or "groq" in (provider or ""):
+                url = "https://api.groq.com/openai/v1/chat/completions"
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                payload = {
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.3,
+                    "response_format": {"type": "json_object"}
+                }
+                resp = requests.post(url, headers=headers, json=payload, timeout=8)
+                if resp.status_code == 200:
+                    raw = resp.json()["choices"][0]["message"]["content"]
+                    data = json.loads(raw)
+                    return QuestionItem(
+                        id=f"dyn_ai_{int(time.time())}",
+                        category=QuestionCategory.TECHNICAL,
+                        role=role,
+                        question_text=data.get("question_text", f"Explain the core technical mechanics and trade-offs of {clean_topic}."),
+                        competency_or_topic=data.get("competency_or_topic", clean_topic),
+                        rubric_hints=data.get("rubric_hints", ["Time and space complexity", "Concurrency safety", "Trade-offs"]),
+                        default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
+                    )
+            elif "AIza" in api_key or "gemini" in (provider or ""):
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
                 payload = {
                     "contents": [{"parts": [{"text": prompt}]}],

@@ -16,6 +16,12 @@ from .models import (
     RUBRIC_DISCLAIMER,
 )
 
+from .config import (
+    get_setting,
+    validate_secrets,
+    get_llm_config,
+)
+
 __all__ = [
     "ExperienceLevel",
     "InterviewType",
@@ -27,4 +33,7 @@ __all__ = [
     "InterviewTurn",
     "InterviewSession",
     "RUBRIC_DISCLAIMER",
+    "get_setting",
+    "validate_secrets",
+    "get_llm_config",
 ]
