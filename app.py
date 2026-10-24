@@ -344,16 +344,17 @@ def render_answer_revision_editor(session: InterviewSession, turn: InterviewTurn
         )
         st.caption(f"Saved revisions: {len(turn.answer_revisions)}")
         if turn.answer_revisions:
-            with st.expander("View revision history", expanded=False):
-                for revision_number, revision in enumerate(reversed(turn.answer_revisions), start=1):
-                    edited_at = revision.get("edited_at", time.time())
-                    st.markdown(
-                        f"**Revision {revision_number} · {revision.get('field', 'answer')} · "
-                        f"{time.strftime('%Y-%m-%d %H:%M', time.localtime(edited_at))}**"
-                    )
-                    st.markdown("**Previous version**")
+            st.markdown("**Revision history (newest first)**")
+            for revision_number, revision in enumerate(reversed(turn.answer_revisions), start=1):
+                edited_at = revision.get("edited_at", time.time())
+                st.markdown(
+                    f"**Revision {revision_number} · {revision.get('field', 'answer')} · "
+                    f"{time.strftime('%Y-%m-%d %H:%M', time.localtime(edited_at))}**"
+                )
+                with st.container(border=True):
+                    st.caption("Previous version")
                     st.code(revision.get("previous", ""), language=None)
-                    st.markdown("**Updated version**")
+                    st.caption("Updated version")
                     st.code(revision.get("updated", ""), language=None)
 
         if st.button("Save revision and re-score", key=f"{key_prefix}_save_revision", type="primary"):
@@ -942,6 +943,8 @@ with tab_studio:
                     st.caption(r_crit.feedback)
 
             st.markdown(t_eval.stronger_answer_outline)
+
+            render_answer_revision_editor(session, turn, f"current_turn_{curr_idx}")
 
             st.markdown("---")
             is_last = (curr_idx + 1) >= session.total_questions
