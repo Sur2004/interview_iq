@@ -359,3 +359,87 @@ class TestDatabaseAndReports:
         missing_info = validate_secrets()
         assert missing_info["status"] == "warning"
         assert "GROQ_API_KEY" in missing_info["message"]
+
+
+class TestRegressionFixes:
+    """Regression tests for provider isolation and analytics correctness."""
+
+    def test_llm_provider_never_uses_another_providers_key(self, monkeypatch):
+        from backend.evaluator import evaluate_with_llm
+
+        question = QuestionItem(
+            id="provider-isolation",
+            category=QuestionCategory.TECHNICAL,
+            role=TargetRole.SOFTWARE_ENGINEERING.value,
+            question_text="Explain a hash map.",
+            competency_or_topic="Data Structures",
+        )
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.setenv("GROQ_API_KEY", "gsk_test_key_that_must_not_be_used")
+        monkeypatch.setenv("LLM_PROVIDER", "gemini")
+
+        # Missing Gemini key must trigger offline evaluation, never send the Groq
+        # key to Google's endpoint. A successful return proves fallback was used.
+        result = evaluate_with_llm(
+            question,
+            "A hash map stores key-value pairs and uses hashing to find buckets.",
+            provider="gemini",
+        )
+        assert 1.0 <= result.overall_score <= 5.0
+        assert set(result.rubric_scores) == {"relevance", "structure", "evidence", "clarity"}
+
+    def test_analytics_include_unscored_sessions_without_weighting_session_means(self):
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tf:
+            db_path = tf.name
+
+        try:
+            from backend.database import get_aggregate_analytics
+
+            # One completed session with two turns, one scored turn; and one
+            # new session with no score. Both sessions must appear in the count.
+            scored_session = InterviewSession(
+                session_id="analytics-scored",
+                candidate_name="Candidate A",
+                target_role=TargetRole.SOFTWARE_ENGINEERING.value,
+                experience_level=ExperienceLevel.INTERNSHIP.value,
+                interview_type=InterviewType.COMPREHENSIVE.value,
+                total_questions=2,
+            )
+            question = QuestionItem(
+                id="analytics-q",
+                category=QuestionCategory.TECHNICAL,
+                role=TargetRole.SOFTWARE_ENGINEERING.value,
+                question_text="Explain a hash map.",
+                competency_or_topic="Data Structures",
+            )
+            scored_turn = InterviewTurn(
+                question_index=0,
+                question=question,
+                initial_answer="A hash map stores key-value pairs.",
+                completed=True,
+            )
+            scored_turn.turn_evaluation = evaluate_heuristically(
+                question, scored_turn.initial_answer
+            )
+            scored_session.turns = [scored_turn]
+            scored_session.overall_session_score = scored_turn.turn_evaluation.overall_score
+            save_session(scored_session, db_path=db_path)
+
+            unscored_session = InterviewSession(
+                session_id="analytics-unscored",
+                candidate_name="Candidate B",
+                target_role=TargetRole.SOFTWARE_ENGINEERING.value,
+                experience_level=ExperienceLevel.INTERNSHIP.value,
+                interview_type=InterviewType.COMPREHENSIVE.value,
+                total_questions=5,
+            )
+            save_session(unscored_session, db_path=db_path)
+
+            analytics = get_aggregate_analytics(db_path=db_path)
+            assert analytics["total_sessions"] == 2
+            assert analytics["total_answers_submitted"] == 1
+            assert analytics["avg_session_score"] == scored_session.overall_session_score
+        finally:
+            if os.path.exists(db_path):
+                os.remove(db_path)
