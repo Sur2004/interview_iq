@@ -104,7 +104,6 @@ interview_iq/
 │   └── test_interview_iq.py    # 15 automated acceptance and unit tests
 ├── .streamlit/
 │   └── config.toml             # Streamlit server protections and telemetry settings
-│   └── credentials.toml        # Headless execution configuration
 ├── .env.example                # Placeholder environment variable template
 ├── .gitignore                  # Git exclusion rules (.env and secrets ignored)
 ├── requirements.txt            # Pinned Python package dependencies
@@ -171,7 +170,9 @@ Open your browser at **`http://localhost:8501`**.
 3. **Step 1 (Primary Answer):** Read the prompt on the animated question card. Type your response in the text area. Optionally toggle the code box to provide a Python/Go snippet. Click **"Submit Answer"**.
 4. **Step 2 (Contextual Follow-Up):** The AI formulates an unscripted follow-up question in the black-and-blue callout box. Type your answer explaining edge cases or trade-offs and click **"Submit Follow-Up & Score Turn"**.
 5. **Step 3 (Diagnostic Results):** Review your 4-part rubric scores (*Relevance, Structure, Evidence, Clarity*), Big-O complexity detection, and the live Mermaid architecture diagram.
-6. **Step 4 (Export):** Navigate to the **"Export Practice Report"** tab to download your customized Markdown summary, printable HTML/PDF, or JSON transcript.
+6. **Revise an Answer:** Use **Edit answer and refresh feedback** beneath the current turn or completed transcript to revise the main and/or follow-up response and re-score it. The app records previous and updated text with timestamps.
+7. **Review Earlier Answers:** While answering a later question, open **Review or edit previous answers** to revisit a completed turn.
+8. **Step 4 (Export):** Navigate to the **"Export Practice Report"** tab to download your customized Markdown summary, printable HTML/PDF, or JSON transcript.
 
 ---
 
