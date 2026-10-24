@@ -120,6 +120,7 @@ class InterviewTurn:
     turn_evaluation: Optional[EvaluationResult] = None
     completed: bool = False
     timestamp: float = field(default_factory=time.time)
+    answer_revisions: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -136,6 +137,7 @@ class InterviewTurn:
             ),
             "completed": self.completed,
             "timestamp": self.timestamp,
+            "answer_revisions": self.answer_revisions,
         }
 
 
