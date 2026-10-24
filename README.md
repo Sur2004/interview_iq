@@ -101,7 +101,7 @@ interview_iq/
 │   └── report_generator.py     # Markdown and standalone HTML/PDF export builders
 ├── tests/
 │   ├── __init__.py
-│   └── test_interview_iq.py    # 15 automated acceptance and unit tests
+│   └── test_interview_iq.py    # Automated unit and regression tests
 ├── .streamlit/
 │   └── config.toml             # Streamlit server protections and telemetry settings
 ├── .env.example                # Placeholder environment variable template
