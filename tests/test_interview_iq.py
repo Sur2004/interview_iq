@@ -396,7 +396,7 @@ class TestRegressionFixes:
         try:
             from backend.database import get_aggregate_analytics
 
-            # One completed session with two turns, one scored turn; and one
+            # One completed session with one scored turn; and one
             # new session with no score. Both sessions must appear in the count.
             scored_session = InterviewSession(
                 session_id="analytics-scored",
