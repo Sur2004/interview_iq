@@ -4,7 +4,7 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit App](https://img.shields.io/badge/frontend-Streamlit-FF4B4B.svg)](https://streamlit.io)
-[![Tests Passing](https://img.shields.io/badge/tests-15%20passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-pytest-blue.svg)]()
 [![Ethics](https://img.shields.io/badge/ethical%20feedback-anti--fabrication-success.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -124,7 +124,7 @@ interview_iq/
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/interview_iq.git
+   git clone https://github.com/Sur2004/interview_iq.git
    cd interview_iq
    ```
 
@@ -186,7 +186,7 @@ Environment variables can be configured in a local `.env` file or in Streamlit C
 | `GEMINI_API_KEY` | No | None | Google Gemini API key (optional alternative) |
 | `OPENAI_API_KEY` | No | None | OpenAI API key (optional alternative) |
 
-> **Secret Safety Rule:** Never commit real API keys to Git. The `.env` file and `.streamlit/secrets.toml` are strictly ignored by `.gitignore`.
+> **Secret Safety Rule:** Never commit real API keys to Git. The `.env` file and `.streamlit/secrets.toml` are ignored by `.gitignore`. Do not commit API keys or credentials. Streamlit's CSRF protection is enabled by default in this project.
 
 ---
 
