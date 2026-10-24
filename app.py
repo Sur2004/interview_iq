@@ -325,6 +325,90 @@ def render_mermaid(code: str, height: int = 240):
 
 
 
+
+def render_answer_revision_editor(session: InterviewSession, turn: InterviewTurn, key_prefix: str) -> None:
+    """Edit, re-score, and persist a completed answer with an audit trail."""
+    with st.expander("✏️ Edit answer and refresh feedback", expanded=False):
+        st.caption(
+            "Edit either response below. Saving a revision re-runs the rubric and records "
+            "the previous and updated text in this session's history."
+        )
+        revised_initial = st.text_area(
+            "Main answer", value=turn.initial_answer, height=180,
+            key=f"{key_prefix}_initial_revision",
+        )
+        old_followup_value = turn.followup_answer if turn.followup_answer != "[Skipped]" else ""
+        revised_followup = st.text_area(
+            "Follow-up answer", value=old_followup_value, height=130,
+            key=f"{key_prefix}_followup_revision",
+        )
+        st.caption(f"Saved revisions: {len(turn.answer_revisions)}")
+        if turn.answer_revisions:
+            with st.expander("View revision history", expanded=False):
+                for revision_number, revision in enumerate(reversed(turn.answer_revisions), start=1):
+                    edited_at = revision.get("edited_at", time.time())
+                    st.markdown(
+                        f"**Revision {revision_number} · {revision.get('field', 'answer')} · "
+                        f"{time.strftime('%Y-%m-%d %H:%M', time.localtime(edited_at))}**"
+                    )
+                    st.markdown("**Previous version**")
+                    st.code(revision.get("previous", ""), language=None)
+                    st.markdown("**Updated version**")
+                    st.code(revision.get("updated", ""), language=None)
+
+        if st.button("Save revision and re-score", key=f"{key_prefix}_save_revision", type="primary"):
+            revised_initial = revised_initial.strip()
+            revised_followup = revised_followup.strip()
+            if not revised_initial:
+                st.warning("The main answer cannot be empty.")
+                return
+            if revised_initial == turn.initial_answer and revised_followup == old_followup_value:
+                st.info("No changes detected. Edit an answer before saving.")
+                return
+
+            now = time.time()
+            if revised_initial != turn.initial_answer:
+                turn.answer_revisions.append({
+                    "field": "main answer", "previous": turn.initial_answer,
+                    "updated": revised_initial, "edited_at": now,
+                })
+            if revised_followup != old_followup_value:
+                turn.answer_revisions.append({
+                    "field": "follow-up answer", "previous": old_followup_value,
+                    "updated": revised_followup, "edited_at": now,
+                })
+
+            turn.initial_answer = revised_initial
+            turn.followup_answer = revised_followup or "[Skipped]"
+            with st.spinner("Re-scoring your revised answer..."):
+                turn.initial_evaluation = evaluate_with_llm(
+                    turn.question, turn.initial_answer,
+                    candidate_context=session.candidate_context,
+                    api_key=st.session_state.api_key or None,
+                )
+                if turn.followup_answer != "[Skipped]":
+                    turn.turn_evaluation = evaluate_with_llm(
+                        turn.question, turn.initial_answer,
+                        followup_answer=turn.followup_answer,
+                        candidate_context=session.candidate_context,
+                        api_key=st.session_state.api_key or None,
+                    )
+                else:
+                    turn.turn_evaluation = turn.initial_evaluation
+                turn.completed = True
+                turn.timestamp = now
+                scored_turns = [item.turn_evaluation for item in session.turns if item.turn_evaluation]
+                session.overall_session_score = (
+                    round(sum(item.overall_score for item in scored_turns) / len(scored_turns), 1)
+                    if scored_turns else None
+                )
+                save_session(session)
+            st.success("Revision saved to session history and feedback updated.")
+            st.rerun()
+
+
+
+
 # ==============================================================================
 # SIDEBAR CONTROLS  (single clean block – no duplicates)
 # ==============================================================================
@@ -656,6 +740,7 @@ with tab_studio:
                                 st.metric(r_crit.display_name, f"{r_crit.score} / 5.0")
                                 st.caption(r_crit.feedback)
                         st.markdown(t_eval.stronger_answer_outline)
+                    render_answer_revision_editor(session, turn, f"finished_turn_{i}")
         else:
             st.warning("Session completed without submitted responses.")
 
@@ -668,6 +753,28 @@ with tab_studio:
         curr_idx = session.current_turn_index
         turn = session.turns[curr_idx]
         q_item = turn.question
+
+        previous_turns = [
+            (idx, previous_turn)
+            for idx, previous_turn in enumerate(session.turns[:curr_idx])
+            if previous_turn.completed
+        ]
+        if previous_turns:
+            with st.expander("🗂️ Review or edit previous answers", expanded=False):
+                for previous_idx, previous_turn in previous_turns:
+                    previous_score = (
+                        f"{previous_turn.turn_evaluation.overall_score:.1f}/5"
+                        if previous_turn.turn_evaluation else "Not scored"
+                    )
+                    st.markdown(
+                        f"**Question {previous_idx + 1}:** "
+                        f"{previous_turn.question.question_text} · Score: {previous_score}"
+                    )
+                    st.write(f"Your answer: {previous_turn.initial_answer[:400] or 'No answer'}")
+                    render_answer_revision_editor(
+                        session, previous_turn, f"previous_turn_{previous_idx}"
+                    )
+                    st.divider()
 
         progress_val = curr_idx / session.total_questions
         st.progress(progress_val)
