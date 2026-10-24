@@ -423,17 +423,23 @@ def evaluate_with_llm(
     """
     from .config import get_setting
 
-    provider = (provider or get_setting("LLM_PROVIDER") or "groq").lower()
-    api_key = (
-        api_key
-        or (get_setting("GROQ_API_KEY") if provider == "groq" else None)
-        or get_setting("GEMINI_API_KEY")
-        or get_setting("OPENAI_API_KEY")
-        or get_setting("GROQ_API_KEY")
-    )
+    provider = (provider or get_setting("LLM_PROVIDER") or "groq").strip().lower()
+    supported_providers = {"groq", "gemini", "openai", "heuristic"}
+    if provider not in supported_providers:
+        logger.warning("Unsupported LLM provider %r; using heuristic evaluation.", provider)
+        provider = "heuristic"
+
+    # Never send a key for one provider to another provider's endpoint.
+    provider_key_names = {
+        "groq": "GROQ_API_KEY",
+        "gemini": "GEMINI_API_KEY",
+        "openai": "OPENAI_API_KEY",
+    }
+    if api_key is None and provider in provider_key_names:
+        api_key = get_setting(provider_key_names[provider])
     model_name = model_name or get_setting("MODEL_NAME")
 
-    if not api_key:
+    if provider == "heuristic" or not api_key:
         logger.info("No LLM API key provided; using intelligent heuristic evaluation engine.")
         return evaluate_heuristically(question, candidate_answer, followup_answer, candidate_context)
 
