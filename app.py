@@ -324,110 +324,128 @@ def render_mermaid(code: str, height: int = 240):
     components.html(html_content, height=height, scrolling=True)
 
 
+
 # ==============================================================================
-# SIDEBAR CONTROLS
+# SIDEBAR CONTROLS  (single clean block – no duplicates)
 # ==============================================================================
 with st.sidebar:
-    st.markdown('<span class="ai-online-badge">● AI ENGINE ONLINE</span>', unsafe_allow_html=True)
-    st.title("InterviewIQ Studio")
-    st.caption("AI-Powered Technical & Behavioral Interview Simulator")
-    st.markdown("---")
+    st.markdown("""
+    <div style="background:linear-gradient(135deg,#000,#03182e);border:1.5px solid #0ea5e9;
+         border-radius:12px;padding:14px 16px;margin-bottom:12px;">
+        <div style="font-size:1.35rem;font-weight:800;color:#fff;letter-spacing:-0.01em;">
+            \U0001f3af InterviewIQ Studio
+        </div>
+        <div style="font-size:0.82rem;color:#bae6fd;margin-top:4px;">
+            Technical &amp; Behavioural Interview Practice Platform
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.subheader("⚙️ Session Configuration")
+    st.subheader("\u2699\ufe0f Session Setup")
 
     candidate_name = st.text_input(
-        "Candidate Name",
+        "Your Name",
         value="Student Candidate",
-        help="Personalizes practice reports and rubric summaries",
+        help="Personalises practice reports and rubric summaries.",
+        key="sb_candidate_name",
     )
 
     target_role = st.selectbox(
-        "Target Role",
+        "\U0001f3ad Target Role",
         [r.value for r in TargetRole],
         index=0,
-        help="Calibrates technical depth, systems questions, and rubric expectations",
+        help="Sets technical depth, domain questions and rubric expectations.",
+        key="sb_target_role",
     )
 
     experience_level = st.selectbox(
-        "Experience Level",
+        "\U0001f4c8 Experience Level",
         [e.value for e in ExperienceLevel],
         index=0,
-        help="Tailors scoring criteria and question complexity",
+        help="Tailors question difficulty and scoring criteria.",
+        key="sb_experience_level",
     )
 
     interview_type = st.selectbox(
-        "Interview Type",
+        "\U0001f5c2\ufe0f Interview Type",
         [t.value for t in InterviewType],
         index=0,
-        help="Select between Comprehensive (Mixed), Technical Deep-Dive, Behavioral, or Architecture",
+        help="Comprehensive Mix, Technical Deep-Dive, Behavioural, or Architecture.",
+        key="sb_interview_type",
     )
 
     interviewer_persona = st.selectbox(
-        "AI Interviewer Persona",
+        "\U0001f935 Interviewer Persona",
         [
-            "Jordan (Principal Architect / Scale, Latency & Failure Modes)",
-            "Alex (Staff Engineer / Algorithmic Trade-offs & Clean Code)",
-            "Taylor (VP of Engineering / System Vision & Culture Fit)",
+            "Jordan — Principal Architect (Scale & Failure Modes)",
+            "Alex — Staff Engineer (Algorithms & Clean Code)",
+            "Taylor — VP Engineering (Vision & Culture Fit)",
         ],
         index=0,
-        help="Shapes the style, tone, and technical rigor of follow-up questions",
+        help="Shapes tone and technical rigour of follow-up questions.",
+        key="sb_interviewer_persona",
     )
     st.session_state.interviewer_persona = interviewer_persona
 
     num_questions = st.slider(
-        "Questions in Round",
+        "\U0001f522 Questions in Round",
         min_value=5,
         max_value=8,
         value=6,
-        help="5–8 questions simulate the stamina of an actual 45-minute technical loop",
+        help="5-8 questions to simulate a 45-minute technical loop.",
+        key="sb_num_questions",
     )
 
     candidate_context = st.text_area(
-        "Your Real Projects / Coursework (Optional)",
-        placeholder="e.g. Distributed Key-Value Store in Go; Virtual Memory Manager in C; React & PostgreSQL e-commerce capstone; PyTorch RAG pipeline...",
-        help="Anchors AI outlines and follow-ups to your genuine technical background without fabricating experience.",
+        "\U0001f4dd Your Projects / Coursework (Optional)",
+        placeholder=(
+            "e.g. Distributed KV-Store in Go; Virtual Memory Manager in C; "
+            "React & PostgreSQL e-commerce; PyTorch RAG pipeline..."
+        ),
+        help="Grounds AI feedback in your real background - no fabrication.",
         height=90,
+        key="sb_candidate_context",
     )
 
+    st.markdown("---")
     llm_conf = get_llm_config()
     secret_val = validate_secrets()
 
-    with st.expander("🤖 AI Engine & Secret Settings", expanded=False):
+    with st.expander("\U0001f511 LLM Provider & API Key", expanded=False):
         st.caption(f"Status: {secret_val['message']}")
-
         provider_opts = [
-            "Auto (Configured via .env / Secrets)",
-            "Groq Cloud (Llama 3.3 70B)",
-            "Google Gemini (1.5 Flash)",
-            "OpenAI (GPT-4o Mini)",
-            "Built-In Offline Engine (No Key Required)",
+            "Auto (via .env / Secrets)",
+            "Groq Cloud — Llama 3.3 70B",
+            "Google Gemini 1.5 Flash",
+            "OpenAI GPT-4o Mini",
+            "Built-In Offline Engine",
         ]
         chosen_provider = st.selectbox(
-            "Active LLM Provider",
+            "Provider",
             provider_opts,
             index=0,
-            help="Select provider. Keys can be set in .env (local) or Streamlit Secrets (cloud).",
+            help="Keys live in .env locally or Streamlit Secrets on Cloud.",
+            key="sb_provider",
         )
-
         manual_key = st.text_input(
-            "API Key Override (Optional)",
+            "API Key Override",
             value="",
             type="password",
-            placeholder="Paste key to override .env / secrets...",
-            help="Never committed or logged. Overrides active session only.",
+            placeholder="Paste key to override...",
+            help="Never committed or logged.",
+            key="sb_manual_key",
         )
         if manual_key:
             st.session_state.api_key = manual_key
 
     st.markdown("---")
-    if st.button("🚀 Initialize AI Interview Round", type="primary", use_container_width=True):
+    if st.button("\U0001f680 Start Interview Round", type="primary", use_container_width=True):
         questions = build_interview_plan(
             target_role=target_role,
             experience_level=experience_level,
             interview_type=interview_type,
             num_questions=num_questions,
         )
-
         turns = [
             InterviewTurn(
                 question_index=i,
@@ -436,7 +454,6 @@ with st.sidebar:
             )
             for i, q in enumerate(questions)
         ]
-
         new_sess = InterviewSession(
             session_id=str(uuid.uuid4())[:8],
             candidate_name=candidate_name.strip() or "Student Candidate",
@@ -452,42 +469,71 @@ with st.sidebar:
         )
         st.session_state.session = new_sess
         save_session(new_sess)
-        st.success(f"AI Round Initialized with {len(questions)} balanced questions!")
+        st.success(f"\u2705 Round started - {len(questions)} questions queued!")
         st.rerun()
 
     if st.session_state.session and not st.session_state.session.is_finished:
-        if st.button("⏹️ Conclude Session Early", use_container_width=True):
+        st.markdown("---")
+        if st.button("\u23f9\ufe0f End Session Early", use_container_width=True):
             st.session_state.session.is_finished = True
             st.session_state.session.completed_at = time.time()
             save_session(st.session_state.session)
             st.rerun()
 
+    st.markdown("---")
+    st.page_link("pages/1_History.py", label="\U0001f4da History & Performance", icon="\U0001f4ca")
+
 
 # ==============================================================================
-# HERO HEADER BANNER (SKY BLUE, WHITE, BLACK)
+# HERO HEADER BANNER  (sky-blue / white / black)
 # ==============================================================================
 st.markdown("""
 <div class="hero-banner-sky">
-    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
         <div>
-            <div class="hero-title">⚡ InterviewIQ: AI Technical Studio</div>
+            <div class="hero-title">\U0001f3af InterviewIQ — Practice. Diagnose. Improve.</div>
             <div class="hero-subtitle">
-                High-fidelity, repeatable technical interview practice with automated Big-O complexity analysis,
-                live follow-up probing, and transparent rubric diagnostics. Built for ambitious students & engineers.
+                Repeatable mock interview rounds with Big-O complexity telemetry,
+                contextual follow-up probing &amp; a transparent 4-part rubric.
+                Built for students targeting their first or next engineering role.
             </div>
         </div>
-        <span class="ai-online-badge">⚡ NEURAL ENGINE ACTIVE</span>
+        <div style="text-align:right;white-space:nowrap;">
+            <span class="ai-online-badge">\u25cf LIVE</span>
+        </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# Transparent Notices
+# Dynamic Role Selector Cards
+roles_meta = [
+    ("\U0001f4bb", "Software Engineering", "#0ea5e9"),
+    ("\U0001f3a8", "Frontend / UI", "#6366f1"),
+    ("\U0001f4ca", "Data Science & ML", "#10b981"),
+    ("\U0001f916", "AI / LLM Engineering", "#f59e0b"),
+    ("\U0001f512", "Cybersecurity", "#ef4444"),
+    ("\U0001f680", "DevOps / Platform", "#8b5cf6"),
+    ("\U0001f4e6", "Product Management", "#ec4899"),
+]
+role_cols = st.columns(len(roles_meta))
+for col, (icon, label, color) in zip(role_cols, roles_meta):
+    with col:
+        st.markdown(f"""
+        <div style="background:#000;border:1.5px solid {color};border-radius:10px;
+                    padding:10px 6px;text-align:center;
+                    box-shadow:0 0 10px {color}44;margin-bottom:6px;">
+            <div style="font-size:1.4rem;">{icon}</div>
+            <div style="font-size:0.72rem;font-weight:700;color:{color};
+                        margin-top:4px;line-height:1.2;">{label}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
 st.markdown(
-    f'<div class="notice-card-sky"><strong>ℹ️ Transparent Rubric Notice:</strong> {RUBRIC_DISCLAIMER}</div>',
+    f'<div class="notice-card-sky"><strong>\u2139\ufe0f Rubric Notice:</strong> {RUBRIC_DISCLAIMER}</div>',
     unsafe_allow_html=True,
 )
 st.markdown(
-    f'<div class="ethics-card-sky"><strong>🛡️ Anti-Fabrication Guarantee:</strong> {ETHICAL_OUTLINE_GUIDELINE}</div>',
+    f'<div class="ethics-card-sky"><strong>\U0001f6e1\ufe0f Anti-Fabrication:</strong> {ETHICAL_OUTLINE_GUIDELINE}</div>',
     unsafe_allow_html=True,
 )
 
@@ -496,15 +542,15 @@ st.markdown(
 # MAIN NAVIGATION TABS
 # ==============================================================================
 tab_studio, tab_dynamic_ai, tab_flaw_game, tab_star_builder, tab_bank, tab_playbook, tab_analytics, tab_report, tab_rubric = st.tabs([
-    "🎯 Mock Interview Studio",
-    "⚡ AI Technical Generator",
-    "🎮 Spot the Flaw Game",
-    "🛠️ STAR Story Builder",
-    "📚 Question Bank",
-    "📖 System Design Playbooks",
-    "📊 Practice Analytics",
-    "📑 Export Practice Report",
-    "⚖️ Transparent Rubric",
+    "\U0001f3af Mock Interview Studio",
+    "\u26a1 Technical Generator",
+    "\U0001f3ae Spot the Flaw",
+    "\U0001f6e0\ufe0f STAR Builder",
+    "\U0001f4da Question Bank",
+    "\U0001f4d6 Design Playbooks",
+    "\U0001f4ca Practice Analytics",
+    "\U0001f4d1 Export Report",
+    "\u2696\ufe0f Rubric Guide",
 ])
 
 
@@ -559,17 +605,10 @@ with tab_studio:
             """, unsafe_allow_html=True)
 
         st.markdown("---")
-        st.markdown("#### ⚡ Architecture Visualizer Preview")
-        st.caption("When you describe your system, InterviewIQ automatically maps your components into a live Mermaid graph:")
-        sample_mermaid = """graph TD
-    Client ["Client (Browser / Mobile)"] --> Gateway ["API Gateway / Reverse Proxy"]
-    Gateway --> Service ["Backend Application Service (FastAPI)"]
-    Service -.->|Cache-Aside Check| Cache [("In-Memory Cache (Redis)")]
-    Service -->|Persistent Queries| DB [("Primary Database (PostgreSQL)")]"""
-        render_mermaid(sample_mermaid, height=240)
+# ==============================================================================
 
     elif session.is_finished:
-        st.success("🎉 **Interview Round Completed!** Full diagnostic transcript compiled below.")
+        st.success("\U0001f389 **Interview Round Completed!** Full diagnostic transcript compiled below.")
 
         valid_turns = [t for t in session.turns if t.turn_evaluation]
         if valid_turns:
@@ -586,7 +625,7 @@ with tab_studio:
             with col_sc3:
                 st.markdown(f"**Round Overview:** Completed {len(valid_turns)} of {session.total_questions} questions for **{session.target_role}**.")
 
-            st.markdown("### 📝 Turn-by-Turn Diagnostic Review")
+            st.markdown("### \U0001f4dd Turn-by-Turn Diagnostic Review")
             for i, turn in enumerate(session.turns):
                 t_eval = turn.turn_evaluation or turn.initial_evaluation
                 score_str = f"{t_eval.overall_score}/5.0" if t_eval else "N/A"
@@ -596,12 +635,10 @@ with tab_studio:
                     if turn.followup_question:
                         st.markdown(f"**Follow-Up Question:**\n> *\"{turn.followup_question}\"*")
                         st.markdown(f"**Your Follow-Up Answer:**\n```\n{turn.followup_answer or 'N/A'}\n```")
-
                     if t_eval:
-                        # Technical Telemetry
                         if t_eval.technical_breakdown:
                             tb = t_eval.technical_breakdown
-                            st.markdown("#### 🔬 Technical Depth Telemetry")
+                            st.markdown("#### \U0001f52c Technical Depth Telemetry")
                             col_t1, col_t2, col_t3 = st.columns(3)
                             with col_t1:
                                 st.write("**Time Complexity:**", ", ".join(tb.get("time_complexity", [])) or "None explicit")
@@ -609,23 +646,20 @@ with tab_studio:
                                 st.write("**Concurrency:**", ", ".join(tb.get("concurrency_primitives", [])) or "None explicit")
                             with col_t3:
                                 st.write("**Patterns:**", ", ".join(tb.get("architectural_patterns", [])) or "None explicit")
-
                         if t_eval.architecture_diagram_mermaid:
-                            st.markdown("#### 🗺️ Architecture Diagram (Derived from Answer)")
+                            st.markdown("#### \U0001f5fa\ufe0f Architecture Diagram")
                             render_mermaid(t_eval.architecture_diagram_mermaid, height=240)
-
-                        st.markdown("#### ⚖️ Rubric Breakdown")
+                        st.markdown("#### \u2696\ufe0f Rubric Breakdown")
                         cols_r = st.columns(4)
                         for idx, (k, r_crit) in enumerate(t_eval.rubric_scores.items()):
                             with cols_r[idx]:
                                 st.metric(r_crit.display_name, f"{r_crit.score} / 5.0")
                                 st.caption(r_crit.feedback)
-
                         st.markdown(t_eval.stronger_answer_outline)
         else:
             st.warning("Session completed without submitted responses.")
 
-        if st.button("🔄 Start Fresh Practice Round"):
+        if st.button("\U0001f504 Start Fresh Practice Round"):
             st.session_state.session = None
             st.rerun()
 
@@ -635,20 +669,18 @@ with tab_studio:
         turn = session.turns[curr_idx]
         q_item = turn.question
 
-        # Animated progress bar
-        progress_val = (curr_idx) / session.total_questions
+        progress_val = curr_idx / session.total_questions
         st.progress(progress_val)
         col_p1, col_p2 = st.columns([3, 1])
         with col_p1:
-            st.caption(f"Question {curr_idx + 1} of {session.total_questions} | {session.target_role} • {session.experience_level}")
+            st.caption(f"Question {curr_idx + 1} of {session.total_questions} | {session.target_role} \u2022 {session.experience_level}")
         with col_p2:
             st.markdown(f"<span class='tech-tag'>{q_item.category.value.upper()}</span>", unsafe_allow_html=True)
 
-        # Dynamic Animated Question Card (White with Sky-Blue Glow)
         st.markdown(f"""
         <div class="animated-question-card">
             <span style="font-size:0.8rem; font-weight:700; text-transform:uppercase; color:#0284c7; letter-spacing:0.05em;">
-                ⚡ Question {curr_idx + 1} • Focus: {q_item.competency_or_topic}
+                \u26a1 Question {curr_idx + 1} \u2022 Focus: {q_item.competency_or_topic}
             </span>
             <p style="font-size:1.26rem; font-weight:700; color:#000000; margin-top:8px; line-height:1.5;">
                 {q_item.question_text}
@@ -656,88 +688,77 @@ with tab_studio:
         </div>
         """, unsafe_allow_html=True)
 
-        # Scaffolding Guidance Expander
-        with st.expander("💡 Technical Expectations & Evaluation Hints", expanded=False):
+        with st.expander("\U0001f4a1 Technical Expectations & Evaluation Hints", expanded=False):
             st.markdown("**What Interviewers Look For:**")
             for h in q_item.rubric_hints:
                 st.markdown(f"- {h}")
-
             if q_item.category == QuestionCategory.BEHAVIORAL:
-                st.info("**STAR Framework:**\n- **S (Situation):** Context, timeline & constraints (15%)\n- **T (Task):** Your specific mandate (10%)\n- **A (Action):** What YOU decided, coded, and did (60%)\n- **R (Result):** Observable outcome, metrics, and retrospective (15%)")
+                st.info("**STAR Framework:**\n- **S:** Situation (15%)\n- **T:** Task (10%)\n- **A:** Action YOU took (60%)\n- **R:** Result + metrics (15%)")
             elif q_item.category == QuestionCategory.TECHNICAL:
-                st.info("**Technical Architecture Flow:**\n1. Core definition\n2. Internal mechanics & complexity (O-notation)\n3. Real-world trade-offs (space vs time, write vs read)\n4. Concrete example from your own codebase")
+                st.info("**Technical Flow:**\n1. Core definition\n2. Internal mechanics & complexity\n3. Real-world trade-offs\n4. Concrete example from your codebase")
             else:
-                st.info("**Project Architecture Flow:**\n1. Problem & topology\n2. Stack choices vs alternatives\n3. Hardest technical bug or bottleneck YOU solved\n4. Hindsight redesign")
+                st.info("**Project Flow:**\n1. Problem & topology\n2. Stack choices vs alternatives\n3. Hardest bug YOU solved\n4. Hindsight redesign")
 
-        # STAGE A: PRIMARY ANSWER SUBMISSION
         if not session.in_followup and not turn.completed:
-            st.markdown("#### ✍️ Type Your Response")
-
+            st.markdown("#### \u270d\ufe0f Type Your Response")
             user_input = st.text_area(
                 "Your Answer:",
                 value=turn.initial_answer,
                 height=180,
-                placeholder="State your answer clearly. Explain your technical choices, complexity trade-offs, and use 'I' to highlight your individual agency...",
+                placeholder="State your answer clearly. Explain technical choices, complexity trade-offs, and use 'I' to highlight your individual contribution...",
                 key=f"ans_input_{curr_idx}",
             )
-
             word_count = len(user_input.strip().split()) if user_input.strip() else 0
             pacing_chip = get_word_pacing_chip(word_count)
             st.markdown(f"**Word Count:** `{word_count} words` {pacing_chip}", unsafe_allow_html=True)
 
-            # Optional Code Snippet input for technical depth
-            with st.expander("💻 Include Code Snippet / Pseudocode (Optional)"):
+            with st.expander("\U0001f4bb Include Code Snippet (Optional)"):
                 code_input = st.text_area(
-                    "Code / Implementation Snippet:",
+                    "Code / Pseudocode:",
                     height=110,
-                    placeholder="def solve(stream):\n    cache = {}\n    # Mutex lock / atomic CAS...",
+                    placeholder="def solve(stream):\n    cache = {}\n    ...",
                     key=f"code_snippet_{curr_idx}",
                 )
 
             col_sub1, col_sub2 = st.columns([1, 4])
             with col_sub1:
-                if st.button("Submit Answer 💬", type="primary", use_container_width=True):
+                if st.button("Submit Answer \U0001f4ac", type="primary", use_container_width=True):
                     if not user_input.strip():
                         st.warning("Please type your response before submitting.")
                     else:
                         full_content = user_input.strip()
                         if code_input.strip():
-                            full_content += f"\n\n[Candidate Code Implementation]:\n```\n{code_input.strip()}\n```"
+                            full_content += f"\n\n[Code]:\n```\n{code_input.strip()}\n```"
                         turn.initial_answer = full_content
-
-                        with st.spinner(f"{st.session_state.interviewer_persona.split('(')[0]} is analyzing your architecture and formulating a follow-up..."):
+                        with st.spinner("Analysing your answer and generating follow-up..."):
                             init_eval = evaluate_with_llm(
                                 q_item,
                                 turn.initial_answer,
                                 candidate_context=session.candidate_context,
                                 api_key=st.session_state.api_key or None,
                             )
-
                             turn.initial_evaluation = init_eval
                             if init_eval.suggested_followup_question:
                                 turn.followup_question = init_eval.suggested_followup_question
-
                             session.in_followup = True
                             save_session(session)
                             st.rerun()
 
-        # STAGE B: FOLLOW-UP QUESTION & TURN COMPLETION
         elif session.in_followup and not turn.completed:
-            with st.expander("📄 Review Your Initial Response", expanded=False):
+            with st.expander("\U0001f4c4 Review Your Initial Response", expanded=False):
                 st.markdown(turn.initial_answer)
 
-            persona_name = st.session_state.interviewer_persona.split("(")[0].strip()
-            # High-tech Black & Sky Blue Follow-up Card
+            persona_name = st.session_state.interviewer_persona.split("\u2014")[0].strip()
             st.markdown(f"""
             <div class="animated-followup-card">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:0.8rem; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.06em;">
-                        ⚡ {persona_name}'s Follow-Up Challenge
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:0.8rem;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.06em;">
+                        \u26a1 {persona_name}'s Follow-Up Challenge
                     </span>
                     <span class="ai-online-badge">PROBING TRADE-OFFS</span>
                 </div>
-                <p style="font-size:1.22rem; font-weight:700; color:#ffffff; margin-top:8px; margin-bottom:0; line-height:1.5;">
-                    "{turn.followup_question or q_item.default_followup}"
+                <p style="font-size:1.22rem;font-weight:700;color:#ffffff;margin-top:8px;margin-bottom:0;line-height:1.5;">
+                    \"{turn.followup_question or q_item.default_followup}\"
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -746,7 +767,7 @@ with tab_studio:
                 "Your Follow-Up Response:",
                 value=turn.followup_answer,
                 height=140,
-                placeholder="Elaborate on the specific failure modes, concurrency race conditions, or edge case trade-offs...",
+                placeholder="Elaborate on failure modes, concurrency race conditions, or edge case trade-offs...",
                 key=f"followup_input_{curr_idx}",
             )
             f_word_count = len(followup_input.strip().split()) if followup_input.strip() else 0
@@ -754,9 +775,9 @@ with tab_studio:
 
             col_f1, col_f2 = st.columns([2, 1])
             with col_f1:
-                if st.button("Submit Follow-Up & Score Turn 🎯", type="primary", use_container_width=True):
+                if st.button("Submit Follow-Up & Score Turn \U0001f3af", type="primary", use_container_width=True):
                     turn.followup_answer = followup_input.strip()
-                    with st.spinner("Executing full 4-part rubric and complexity telemetry..."):
+                    with st.spinner("Executing full 4-part rubric scoring..."):
                         full_eval = evaluate_with_llm(
                             q_item,
                             turn.initial_answer,
@@ -769,21 +790,18 @@ with tab_studio:
                         session.in_followup = False
                         save_session(session)
                         st.rerun()
-
             with col_f2:
                 if st.button("Skip Follow-Up", use_container_width=True):
-                    turn.followup_answer = "[Candidate skipped follow-up]"
+                    turn.followup_answer = "[Skipped]"
                     turn.turn_evaluation = turn.initial_evaluation
                     turn.completed = True
                     session.in_followup = False
                     save_session(session)
                     st.rerun()
 
-        # STAGE C: DIAGNOSTIC RUBRIC FEEDBACK & TELEMETRY
         elif turn.completed and turn.turn_evaluation:
             t_eval = turn.turn_evaluation
-
-            st.markdown("### 📊 Turn Diagnostic Results")
+            st.markdown("### \U0001f4ca Turn Diagnostic Results")
             col_sc, col_badge = st.columns([1, 2])
             with col_sc:
                 st.metric("Turn Practice Score", f"{t_eval.overall_score} / 5.0")
@@ -791,76 +809,36 @@ with tab_studio:
                 st.markdown("**Mastery Level:**")
                 st.markdown(get_performance_badge(t_eval.overall_score), unsafe_allow_html=True)
 
-            # Dynamic Technical Telemetry Dashboard
             if t_eval.technical_breakdown:
                 tb = t_eval.technical_breakdown
-                st.markdown("#### 🔬 Dynamic Technical Telemetry")
+                st.markdown("#### \U0001f52c Technical Telemetry")
                 col_m1, col_m2, col_m3 = st.columns(3)
                 with col_m1:
-                    time_comp = ", ".join(tb.get("time_complexity", [])) or "None explicitly detected"
-                    st.markdown(f"""
-                    <div class="telemetry-card">
-                        <span style="color:#38bdf8; font-size:0.8rem; font-weight:700;">ALGORITHMIC COMPLEXITY</span>
-                        <div style="font-size:1.1rem; font-weight:700; color:#ffffff; margin:4px 0;">{time_comp}</div>
-                        <span style="font-size:0.75rem; color:#94a3b8;">Space analysis: {'✅ Detected' if tb.get('space_complexity_detected') else '⚪ Omitted'}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-
+                    time_comp = ", ".join(tb.get("time_complexity", [])) or "None detected"
+                    st.markdown(f'<div class="telemetry-card"><span style="color:#38bdf8;font-size:0.75rem;">TIME COMPLEXITY</span><h4 style="color:#fff;margin:6px 0;">{time_comp}</h4></div>', unsafe_allow_html=True)
                 with col_m2:
-                    concurrency = ", ".join(tb.get("concurrency_primitives", [])) or "No concurrency terms"
-                    st.markdown(f"""
-                    <div class="telemetry-card">
-                        <span style="color:#38bdf8; font-size:0.8rem; font-weight:700;">CONCURRENCY PRIMITIVES</span>
-                        <div style="font-size:1.05rem; font-weight:700; color:#ffffff; margin:4px 0;">{concurrency}</div>
-                        <span style="font-size:0.75rem; color:#94a3b8;">Race condition safety analysis</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-
+                    concurrency = ", ".join(tb.get("concurrency_primitives", [])) or "None detected"
+                    st.markdown(f'<div class="telemetry-card"><span style="color:#38bdf8;font-size:0.75rem;">CONCURRENCY</span><h4 style="color:#fff;margin:6px 0;">{concurrency}</h4></div>', unsafe_allow_html=True)
                 with col_m3:
-                    arch_pats = ", ".join(tb.get("architectural_patterns", [])) or "No patterns detected"
-                    st.markdown(f"""
-                    <div class="telemetry-card">
-                        <span style="color:#38bdf8; font-size:0.8rem; font-weight:700;">SYSTEM PATTERNS</span>
-                        <div style="font-size:1.05rem; font-weight:700; color:#ffffff; margin:4px 0;">{arch_pats}</div>
-                        <span style="font-size:0.75rem; color:#94a3b8;">Depth Rating: {tb.get('depth_score', 3.0)}/5.0</span>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    patterns = ", ".join(tb.get("architectural_patterns", [])) or "None detected"
+                    st.markdown(f'<div class="telemetry-card"><span style="color:#38bdf8;font-size:0.75rem;">PATTERNS</span><h4 style="color:#fff;margin:6px 0;">{patterns}</h4></div>', unsafe_allow_html=True)
 
-            # Dynamic Mermaid Architecture Diagram
             if t_eval.architecture_diagram_mermaid:
-                st.markdown("#### 🗺️ AI-Derived Architecture Diagram")
-                render_mermaid(t_eval.architecture_diagram_mermaid, height=240)
+                st.markdown("#### \U0001f5fa\ufe0f Architecture Diagram")
+                render_mermaid(t_eval.architecture_diagram_mermaid, height=260)
 
-            # Rubric Breakdown Grid
-            st.markdown("#### 4-Part Visible Rubric Breakdown")
-            c_r1, c_r2, c_r3, c_r4 = st.columns(4)
-            r_keys = ["relevance", "structure", "evidence", "clarity"]
-            cols_list = [c_r1, c_r2, c_r3, c_r4]
-            for idx, k in enumerate(r_keys):
-                if k in t_eval.rubric_scores:
-                    crit = t_eval.rubric_scores[k]
-                    with cols_list[idx]:
-                        st.metric(crit.display_name, f"{crit.score} / 5.0")
-                        st.caption(crit.feedback)
+            st.markdown("#### \u2696\ufe0f Rubric Breakdown")
+            cols_r = st.columns(4)
+            for idx, (k, r_crit) in enumerate(t_eval.rubric_scores.items()):
+                with cols_r[idx]:
+                    st.metric(r_crit.display_name, f"{r_crit.score} / 5.0")
+                    st.caption(r_crit.feedback)
 
-            # Strengths & Actionable Growth
-            col_str, col_imp = st.columns(2)
-            with col_str:
-                st.markdown("#### 🌟 Key Strengths")
-                for s in t_eval.key_strengths:
-                    st.markdown(f"- {s}")
-            with col_imp:
-                st.markdown("#### 🚀 Actionable Growth Advice")
-                for imp in t_eval.actionable_improvements:
-                    st.markdown(f"- {imp}")
-
-            # Stronger Answer Structural Blueprint
-            with st.expander("🧭 View Stronger Answer Structural Blueprint (Authentic Scaffolding)", expanded=True):
-                st.markdown(t_eval.stronger_answer_outline)
+            st.markdown(t_eval.stronger_answer_outline)
 
             st.markdown("---")
             is_last = (curr_idx + 1) >= session.total_questions
-            btn_label = "Conclude Round & Export Report 🎉" if is_last else "Proceed to Next Question ➡️"
+            btn_label = "Conclude Round & Export Report \U0001f389" if is_last else "Next Question \u27a1\ufe0f"
             if st.button(btn_label, type="primary", use_container_width=True):
                 if is_last:
                     session.is_finished = True
@@ -874,7 +852,6 @@ with tab_studio:
                     st.rerun()
 
 
-# ==============================================================================
 # TAB 2: AI TECHNICAL GENERATOR & DEEP-DIVE STUDIO (NEW & TECHNICAL)
 # ==============================================================================
 with tab_dynamic_ai:
@@ -937,27 +914,6 @@ with tab_dynamic_ai:
             st.markdown(f"- `{h}`")
 
         st.markdown("---")
-        st.subheader("🧪 Test Your Response Against the AI Evaluator")
-        test_ans = st.text_area("Draft your technical answer:", height=150, placeholder="Explain data structures, complexity, trade-offs...")
-        if st.button("Evaluate Against Technical Rubric"):
-            if not test_ans.strip():
-                st.warning("Type a response to evaluate.")
-            else:
-                with st.spinner("Analyzing technical complexity and generating architecture..."):
-                    res = evaluate_heuristically(dq, test_ans)
-                    st.metric("Rubric Score", f"{res.overall_score} / 5.0")
-                    st.markdown(get_performance_badge(res.overall_score), unsafe_allow_html=True)
-
-                    if res.technical_breakdown:
-                        tb = res.technical_breakdown
-                        st.write("**Detected Complexities:**", ", ".join(tb.get("time_complexity", [])) or "None")
-                        st.write("**Architectural Concepts:**", ", ".join(tb.get("architectural_patterns", [])) or "None")
-
-                    if res.architecture_diagram_mermaid:
-                        st.markdown("#### 🗺️ Architecture Derived:")
-                        render_mermaid(res.architecture_diagram_mermaid, height=240)
-
-
 # ==============================================================================
 # TAB 3: SPOT THE FLAW INTERACTIVE GAME
 # ==============================================================================
@@ -1337,45 +1293,6 @@ with tab_analytics:
         st.metric("Structure Average", f"{analytics['avg_structure']} / 5.0")
 
     st.markdown("---")
-
-    if analytics["total_sessions"] > 0:
-        st.subheader("📈 Rubric Dimension Breakdown")
-        rubric_df = pd.DataFrame({
-            "Rubric Dimension": ["Relevance", "Structure", "Evidence", "Clarity"],
-            "Average Score (1.0 to 5.0)": [
-                analytics["avg_relevance"],
-                analytics["avg_structure"],
-                analytics["avg_evidence"],
-                analytics["avg_clarity"],
-            ]
-        })
-        st.bar_chart(rubric_df.set_index("Rubric Dimension"))
-
-    st.subheader("📜 Recorded Practice Sessions")
-    past_sessions = list_sessions(limit=30)
-    if not past_sessions:
-        st.info("No recorded sessions found yet. Start a session to build your history!")
-    else:
-        table_data = []
-        for s_row in past_sessions:
-            table_data.append({
-                "Session ID": s_row["session_id"],
-                "Candidate": s_row["candidate_name"],
-                "Target Role": s_row["target_role"].split("(")[0],
-                "Interview Type": s_row["interview_type"].split("(")[0],
-                "Score": f"{s_row['overall_score'] or 'N/A'}",
-                "Status": "Completed" if s_row["is_finished"] else "In Progress",
-            })
-        st.dataframe(pd.DataFrame(table_data), use_container_width=True)
-
-        st.markdown("#### 🔍 Load & Inspect Past Transcript")
-        select_sess_id = st.selectbox("Select Session ID:", [s["session_id"] for s in past_sessions])
-        if st.button("Load Full Session Transcript"):
-            sess_data = get_session(select_sess_id)
-            if sess_data:
-                st.json(sess_data)
-
-
 # ==============================================================================
 # TAB 8: EXPORT PRACTICE REPORT
 # ==============================================================================
@@ -1418,10 +1335,6 @@ with tab_report:
             )
 
         st.markdown("---")
-        st.subheader("Live Report Preview")
-        st.markdown(md_report)
-
-
 # ==============================================================================
 # TAB 9: TRANSPARENT RUBRIC & ETHICAL GUARDRAILS
 # ==============================================================================
@@ -1441,19 +1354,3 @@ with tab_rubric:
                 st.markdown(f"- **Level {lvl}:** {text}")
 
     st.markdown("---")
-    st.subheader("2. Formative Practice vs Predictive Hiring Notice")
-    st.warning(f"**Official Disclaimer:**\n\n{RUBRIC_DISCLAIMER}")
-    st.write("""
-    **Why this distinction matters:** Real hiring decisions depend on team culture, specific tech stack nuances,
-    unconscious biases, and hiring manager preferences that no AI can or should attempt to predict. InterviewIQ
-    functions strictly as a **skill-building gym**, helping you communicate clearly and organize your authentic experiences.
-    """)
-
-    st.markdown("---")
-    st.subheader("3. Ethical Anti-Fabrication Commitment")
-    st.success(f"**Our Pledge:**\n\n{ETHICAL_OUTLINE_GUIDELINE}")
-    st.write("""
-    - **No Fake Employers:** We never invent fictional companies or unearned internships in our answer outlines.
-    - **No Inflated Metrics:** We never advise inventing false metrics (e.g., claiming you improved enterprise revenue by $5M).
-    - **Scaffolding Real Work:** Outlines guide you on how to slot in your **actual course projects, open-source work, and hackathons**, teaching you how to communicate genuine technical trade-offs.
-    """)
