@@ -194,14 +194,13 @@ def get_aggregate_analytics(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
             SELECT
                 COUNT(DISTINCT s.session_id) as total_sessions,
                 COUNT(t.id) as total_answers_submitted,
-                AVG(s.overall_score) as avg_session_score,
+                (SELECT AVG(overall_score) FROM sessions WHERE overall_score IS NOT NULL) as avg_session_score,
                 AVG(t.relevance_score) as avg_relevance,
                 AVG(t.structure_score) as avg_structure,
                 AVG(t.evidence_score) as avg_evidence,
                 AVG(t.clarity_score) as avg_clarity
             FROM sessions s
             LEFT JOIN turns t ON s.session_id = t.session_id
-            WHERE s.overall_score IS NOT NULL
         """)
         row = cursor.fetchone()
 
