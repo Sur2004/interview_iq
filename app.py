@@ -672,48 +672,26 @@ with st.sidebar:
 
 
 # ==============================================================================
-# HERO HEADER BANNER  (sky-blue / white / black)
-# ==============================================================================
+# Minimal product header
 st.markdown("""
 <div class="hero-banner-sky">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;">
         <div>
-            <div class="hero-title">\U0001f3af InterviewIQ</div>
+            <div class="hero-title">InterviewIQ</div>
             <div class="hero-subtitle">
-                Practice realistic technical, behavioral, and project interviews.
-                Get structured feedback, follow-up challenges, and a clear improvement plan.
+                Build interview confidence through realistic practice, focused follow-up questions,
+                and feedback you can act on.
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;">
-                <span class="tech-tag">4-part feedback rubric</span>
-                <span class="tech-tag">5–8 questions per round</span>
-                <span class="tech-tag">Offline practice available</span>
+            <div style="margin-top:12px;">
+                <span class="tech-tag">Structured feedback</span>
+                <span class="tech-tag">Technical &amp; behavioral</span>
+                <span class="tech-tag">Offline mode available</span>
             </div>
         </div>
-        <div style="text-align:right;white-space:nowrap;">
-            <span class="ai-online-badge">INTERVIEW PRACTICE</span>
-        </div>
+        <div><span class="ai-online-badge">PRACTICE WORKSPACE</span></div>
     </div>
 </div>
 """, unsafe_allow_html=True)
-
-# Dynamic Role Selector Cards
-roles_meta = [
-    ("\U0001f4bb", "Software Engineering", "#0ea5e9"),
-    ("\U0001f3a8", "Frontend / UI", "#6366f1"),
-    ("\U0001f4ca", "Data Science & ML", "#10b981"),
-    ("\U0001f916", "AI / LLM Engineering", "#f59e0b"),
-    ("\U0001f512", "Cybersecurity", "#ef4444"),
-    ("\U0001f680", "DevOps / Platform", "#8b5cf6"),
-    ("\U0001f4e6", "Product Management", "#ec4899"),
-]
-role_cards_html = "".join(
-    f'<div class="role-card" style="border-color:{color}">'
-    f'<div class="role-card-icon" aria-hidden="true">{icon}</div>'
-    f'<div class="role-card-label">{label}</div>'
-    f'</div>'
-    for icon, label, color in roles_meta
-)
-st.markdown(f'<div class="role-grid">{role_cards_html}</div>', unsafe_allow_html=True)
 
 st.markdown(
     f'<div class="notice-card-sky"><strong>\u2139\ufe0f Rubric Notice:</strong> {RUBRIC_DISCLAIMER}</div>',
@@ -727,21 +705,20 @@ st.markdown(
 
 # ==============================================================================
 # MAIN NAVIGATION TABS
-# ==============================================================================
-tab_studio, tab_dynamic_ai, tab_flaw_game, tab_star_builder, tab_bank, tab_playbook, tab_analytics, tab_report, tab_rubric = st.tabs([
-    "\U0001f3af Mock Interview Studio",
-    "\u26a1 Technical Generator",
-    "\U0001f3ae Spot the Flaw",
-    "\U0001f6e0\ufe0f STAR Builder",
+# Group the workflow in the order most users need: practice, learn, review, export.
+tab_studio, tab_dynamic_ai, tab_bank, tab_playbook, tab_star_builder, tab_flaw_game, tab_analytics, tab_report, tab_rubric = st.tabs([
+    "\U0001f3af Mock Interview",
+    "\u26a1 Technical Challenge",
     "\U0001f4da Question Bank",
-    "\U0001f4d6 Design Playbooks",
-    "\U0001f4ca Practice Analytics",
+    "\U0001f4d6 System Design",
+    "\U0001f6e0\ufe0f STAR Builder",
+    "\U0001f3ae Spot the Flaw",
+    "\U0001f4ca Analytics",
     "\U0001f4d1 Export Report",
     "\u2696\ufe0f Rubric Guide",
 ])
 
 
-# ==============================================================================
 # TAB 1: MOCK INTERVIEW STUDIO
 # ==============================================================================
 with tab_studio:
