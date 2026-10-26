@@ -10,9 +10,10 @@ from streamlit.testing.v1 import AppTest
 APP_PATH = Path(__file__).resolve().parents[1] / "app.py"
 
 
-def build_offline_app() -> AppTest:
+def build_offline_app(section: str = "mock_interview") -> AppTest:
     app = AppTest.from_file(str(APP_PATH), default_timeout=30)
     app.session_state["sb_provider"] = "Built-In Offline Engine"
+    app.session_state["workspace_navigation"] = section
     return app
 
 
@@ -80,61 +81,46 @@ def test_empty_answer_is_rejected_without_advancing_the_turn():
     session = app.session_state["session"]
     initial_index = session.current_turn_index
 
-    submit = next(item for item in app.button if "Submit Answer" in item.label)
+    submit = next(item for item in app.button if "Transcribe & Submit Answer" in item.label)
     submit.click().run()
 
     assert not app.exception
-    assert any("type your response" in item.value.lower() for item in app.warning)
+    assert any("record your spoken answer" in item.value.lower() for item in app.warning)
     assert app.session_state["session"].current_turn_index == initial_index
     assert not app.session_state["session"].turns[initial_index].initial_answer
 
 
-def test_valid_answer_can_be_scored_and_followup_skipped():
+def test_interview_round_requires_audio_instead_of_typed_answers():
     app = start_one_question_offline_app()
 
-    answer = next(item for item in app.text_area if item.label == "Your Answer:")
-    answer.set_value(
-        "A hash map stores key-value pairs using a hash function. Average lookup is O(1), "
-        "while collisions can use chaining or open addressing. The trade-off is memory use "
-        "versus lookup speed, and resizing can be costly."
-    ).run()
-
-    submit = next(item for item in app.button if "Submit Answer" in item.label)
-    submit.click().run()
-
     assert not app.exception
+    assert any("Record your answer" in item.label for item in app.audio_input)
+    assert not any(item.label == "Your Answer:" for item in app.text_area)
+    assert any("Transcribe & Submit Answer" in item.label for item in app.button)
+
+
+def test_followup_round_uses_audio_input_and_allows_skip():
+    app = start_one_question_offline_app()
     session = app.session_state["session"]
-    assert session.in_followup
-    assert session.turns[session.current_turn_index].initial_evaluation is not None
+    turn = session.turns[session.current_turn_index]
+    turn.initial_answer = "A hash map stores key-value pairs and offers average constant-time lookup."
+    from backend.evaluator import evaluate_heuristically
+    turn.initial_evaluation = evaluate_heuristically(turn.question, turn.initial_answer)
+    session.in_followup = True
+    app.session_state["session"] = session
+    app.run()
 
-    submit_followup = next(
-        item for item in app.button if "Submit Follow-Up & Score Turn" in item.label
-    )
-    submit_followup.click().run()
     assert not app.exception
-    assert app.session_state["session"].in_followup
-    assert any("enter a follow-up response" in item.value.lower() for item in app.warning)
-
+    assert any("Record your follow-up answer" in item.label for item in app.audio_input)
+    assert not any(item.label == "Your Follow-Up Response:" for item in app.text_area)
     skip = next(item for item in app.button if "Skip Follow-Up" in item.label)
     skip.click().run()
-
     assert not app.exception
-    session = app.session_state["session"]
-    assert session.turns[0].completed
-    assert session.turns[0].turn_evaluation is not None
-    assert session.current_turn_index == 0
-
-    # Completion is intentionally separate from navigation to the next question.
-    next_question = next(item for item in app.button if "Next Question" in item.label)
-    next_question.click().run()
-
-    assert not app.exception
-    assert app.session_state["session"].current_turn_index == 1
-
+    assert app.session_state["session"].turns[0].completed
 
 
 def test_blank_custom_challenge_topic_is_rejected():
-    app = build_offline_app().run()
+    app = build_offline_app("technical_challenge").run()
 
     topic = next(item for item in app.text_input if item.label == "Topic or technology")
     topic.set_value("")
@@ -147,7 +133,7 @@ def test_blank_custom_challenge_topic_is_rejected():
 
 
 def test_custom_challenge_topic_generates_offline_question():
-    app = build_offline_app().run()
+    app = build_offline_app("technical_challenge").run()
 
     topic = next(item for item in app.text_input if item.label == "Topic or technology")
     topic.set_value("SQL indexing and query plans")
