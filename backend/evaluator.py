@@ -524,7 +524,7 @@ Format output as pure JSON:
 
         elif provider == "gemini":
             # Call Google Gemini API (v1beta)
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or "gemini-3.8-flash"}:generateContent?key={api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or 'gemini-3.8-flash'}:generateContent?key={api_key}"
             payload = {
                 "contents": [
                     {"parts": [{"text": f"{system_prompt}\n\n{user_prompt}"}]}
