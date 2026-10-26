@@ -50,7 +50,7 @@ from backend.report_generator import (
     generate_html_report,
 )
 from backend.config import get_llm_config
-from backend.career_review import extract_resume_pdf, fetch_public_repository, evaluate_candidate_materials
+from backend.career_review import (extract_resume_pdf, fetch_public_repository, evaluate_candidate_materials, calculate_ats_score, generate_resume_based_questions)
 
 # Page configuration
 st.set_page_config(
@@ -1478,7 +1478,11 @@ with tab_profile_review:
                         "openai_api_key": active.get("api_key") if active.get("provider") == "openai" else None,
                     }
                     review_result = evaluate_candidate_materials(resume_text, repo_data, review_role, review_config)
+                    ats_result = calculate_ats_score(resume_text, review_role) if resume_text else None
+                    resume_questions = generate_resume_based_questions(resume_text, review_role, repo_data) if resume_text else []
                     st.session_state["career_review_result"] = review_result
+                    st.session_state["career_review_ats_result"] = ats_result
+                    st.session_state["career_review_resume_questions"] = resume_questions
                     st.session_state["career_review_repo_meta"] = (
                         {k: v for k, v in repo_data.items() if k != "files"} if repo_data else None
                     )
@@ -1495,6 +1499,39 @@ with tab_profile_review:
         st.caption(f"Evaluation method: {review_result.get('provider', 'Unknown')}")
         st.write(review_result.get("summary", ""))
         st.info(review_result.get("role_fit", ""))
+
+        ats_result = st.session_state.get("career_review_ats_result")
+        if ats_result and ats_result.get("score") is not None:
+            st.markdown("### ATS readiness score")
+            ats_col1, ats_col2 = st.columns([1, 3])
+            with ats_col1:
+                st.metric("Checklist score", f"{ats_result['score']}/100")
+                st.caption(ats_result.get("label", "Heuristic estimate"))
+            with ats_col2:
+                st.progress(min(100, max(0, int(ats_result["score"]))) / 100)
+                st.caption(ats_result.get("method", "Heuristic checklist; not an employer ATS score"))
+            st.markdown("**Score breakdown**")
+            breakdown_df = pd.DataFrame([
+                {"Category": item["category"], "Score": f"{item['score']}/{item['max_score']}", "What was checked": item["detail"]}
+                for item in ats_result.get("breakdown", [])
+            ])
+            st.dataframe(breakdown_df, use_container_width=True, hide_index=True)
+            with st.expander("ATS improvement checklist", expanded=True):
+                for suggestion in ats_result.get("suggestions", []):
+                    st.markdown(f"- {suggestion}")
+            if ats_result.get("matched_keywords"):
+                st.markdown("**Detected role keywords:** " + ", ".join(ats_result["matched_keywords"]))
+            if ats_result.get("missing_keywords"):
+                st.markdown("**Potentially relevant missing keywords:** " + ", ".join(ats_result["missing_keywords"]))
+            st.caption("This is a transparent heuristic checklist, not a score from an employer's ATS. Match your resume to the actual job description and never add skills you do not have.")
+
+        resume_questions = st.session_state.get("career_review_resume_questions", [])
+        if resume_questions:
+            st.markdown("### Resume-based interview questions")
+            st.caption("Questions below are generated from extracted resume claims, project descriptions, metrics, and skills. Be ready to explain every claim.")
+            for idx, question in enumerate(resume_questions, 1):
+                st.markdown(f"**{idx}.** {question}")
+
         review_repo_meta = st.session_state.get("career_review_repo_meta")
         if review_repo_meta:
             st.markdown(f"**Repository:** [{review_repo_meta.get('name', 'GitHub repository')}]({review_repo_meta.get('url', '')})")
