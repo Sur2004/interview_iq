@@ -30,9 +30,12 @@ class ExperienceLevel(str, Enum):
 
 class InterviewType(str, Enum):
     COMPREHENSIVE = "Comprehensive Mixed (Behavioral + Tech + Project)"
-    BEHAVIORAL = "Behavioral Focus (STAR Framework)"
-    TECHNICAL = "Role-Specific Technical Deep-Dive"
-    PROJECT_EXPLANATION = "Project Architecture & Trade-Offs"
+    BEHAVIORAL = "HR & Behavioral (STAR Framework)"
+    MANAGERIAL = "Managerial & Leadership"
+    SITUATIONAL = "Situational Judgment & Case"
+    COMMUNICATION = "Communication & Stakeholders"
+    TECHNICAL = "Technical Deep-Dive"
+    PROJECT_EXPLANATION = "Project Deep-Dive & Trade-Offs"
 
 
 class TargetRole(str, Enum):
