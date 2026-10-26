@@ -415,8 +415,16 @@ def render_auth_gate() -> None:
                 st.session_state.otp_last_sent_at = time.time()
                 st.session_state.auth_pending_name = name_input.strip()
                 st.success("Verification code sent. It expires in 5 minutes.")
-            except Exception as exc:
-                st.error(f"Could not send the verification email. Check the deployment's SMTP settings. Details: {exc}")
+            except Exception:
+                # Avoid exposing SMTP host/authentication details in the public UI.
+                st.error(
+                    "We couldn't send the code, so the verification box will not appear yet. "
+                    "Check the app's SMTP secrets and provider settings, then try again."
+                )
+                st.caption(
+                    "For Gmail, use smtp.gmail.com with port 587 (STARTTLS) or 465 (SSL), "
+                    "your full Gmail address, and a Google App Password—not your normal password."
+                )
     if st.session_state.get("otp_email"):
         st.caption(f"Code sent to {st.session_state.otp_email}.")
         entered_code = st.text_input("6-digit verification code", max_chars=6, key="auth_otp", type="password")
