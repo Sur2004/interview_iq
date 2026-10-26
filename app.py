@@ -73,6 +73,43 @@ st.markdown("""
     .block-container { max-width:1240px; padding-top:2rem; padding-bottom:3rem; }
     [data-testid="stSidebar"] { border-right:1px solid var(--iq-border); }
     [data-testid="stSidebar"] > div:first-child { padding-top:1.4rem; }
+    /* Clear, scrollable workspace navigation */
+    [data-testid="stTabs"] { margin-top: 1rem; }
+    [data-testid="stTabs"] [role="tablist"] {
+        position: sticky; top: 0; z-index: 20;
+        display: flex; flex-wrap: nowrap; gap: .35rem;
+        overflow-x: auto; overflow-y: hidden;
+        padding: .55rem .5rem; margin: 0 0 1.15rem;
+        background: rgba(255,255,255,.96);
+        border: 1px solid var(--iq-border); border-radius: 14px;
+        box-shadow: 0 3px 12px rgba(15,23,42,.04);
+        scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent;
+        -webkit-overflow-scrolling: touch;
+    }
+    [data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar { height: 5px; }
+    [data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    [data-testid="stTabs"] button[role="tab"] {
+        flex: 0 0 auto; white-space: nowrap;
+        min-height: 40px; padding: .55rem .85rem;
+        border: 1px solid transparent; border-radius: 9px;
+        color: var(--iq-muted); font-size: .88rem; font-weight: 600;
+        transition: background .15s ease, color .15s ease, border-color .15s ease;
+    }
+    [data-testid="stTabs"] button[role="tab"]:hover {
+        background: var(--iq-soft); color: var(--iq-ink);
+        border-color: var(--iq-border);
+    }
+    [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+        color: var(--iq-accent); background: var(--iq-accent-soft);
+        border-color: #c7d2fe;
+    }
+    [data-testid="stTabs"] button[role="tab"]:focus-visible {
+        outline: 2px solid var(--iq-accent); outline-offset: 2px;
+    }
+    @media (max-width: 700px) {
+        [data-testid="stTabs"] [role="tablist"] { top: 0; padding: .4rem; }
+        [data-testid="stTabs"] button[role="tab"] { min-height: 38px; padding: .5rem .7rem; font-size: .82rem; }
+    }
     .hero-banner-sky { background:var(--iq-surface); border:1px solid var(--iq-border); border-radius:18px; padding:30px 34px; color:var(--iq-ink); margin:0 0 22px; box-shadow:0 8px 28px rgba(15,23,42,.04); }
     .hero-title { font-size:clamp(1.9rem,3vw,2.5rem); line-height:1.15; font-weight:700; letter-spacing:-.045em; color:var(--iq-ink); margin-bottom:8px; }
     .hero-subtitle { font-size:1rem; color:var(--iq-muted); max-width:760px; line-height:1.65; }
@@ -494,19 +531,20 @@ st.markdown(
 
 
 # ==============================================================================
-# MAIN NAVIGATION TABS
-# Group the workflow in the order most users need: practice, learn, review, export.
+# MAIN NAVIGATION
+# A sticky, horizontally scrollable workspace menu; labels are grouped by user goal.
+st.caption("WORKSPACE NAVIGATION  ·  Practice  ·  Learn  ·  Track progress  ·  Review your resume")
 tab_studio, tab_dynamic_ai, tab_bank, tab_playbook, tab_star_builder, tab_flaw_game, tab_analytics, tab_report, tab_rubric, tab_profile_review = st.tabs([
-    "\U0001f3af Mock Interview",
-    "\u26a1 Technical Challenge",
-    "\U0001f4da Question Bank",
-    "\U0001f4d6 System Design",
-    "\U0001f6e0\ufe0f STAR Builder",
-    "\U0001f3ae Spot the Flaw",
-    "\U0001f4ca Progress",
-    "\U0001f4d1 Export Report",
-    "\u2696\ufe0f Rubric Guide",
-    "\U0001f4c4 Resume & Project Review",
+    "🎯 Practice · Mock Interview",
+    "⚡ Practice · Tech Challenge",
+    "📚 Learn · Question Bank",
+    "📖 Learn · System Design",
+    "🛠️ Practice · STAR Builder",
+    "🎮 Practice · Spot the Flaw",
+    "📊 Progress",
+    "📑 Reports · Export",
+    "⚖️ Learn · Rubric Guide",
+    "📄 Resume & Project Review",
 ])
 
 
