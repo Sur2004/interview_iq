@@ -159,7 +159,7 @@ ROLE_KEYWORDS = {
 }
 
 
-def calculate_ats_score(resume_text: str, target_role: str) -> Dict[str, Any]:
+def calculate_ats_score(resume_text: str, target_role: str, job_description: str = "") -> Dict[str, Any]:
     """Transparent heuristic resume-readiness score; not a real employer ATS result."""
     text = (resume_text or "").strip()
     if not text:
@@ -201,12 +201,17 @@ def calculate_ats_score(resume_text: str, target_role: str) -> Dict[str, Any]:
 
     role_key = (target_role or "").lower()
     role_group = next((key for key in ROLE_KEYWORDS if key in role_key), "software engineering")
-    keywords = ROLE_KEYWORDS[role_group]
+    keywords = list(ROLE_KEYWORDS[role_group])
+    jd_lower = (job_description or "").lower()
+    if jd_lower.strip():
+        known_keywords = list(dict.fromkeys(keyword for group in ROLE_KEYWORDS.values() for keyword in group))
+        job_keywords = [keyword for keyword in known_keywords if keyword in jd_lower]
+        keywords = list(dict.fromkeys(job_keywords + keywords))[:20]
     matched = [keyword for keyword in keywords if keyword in lower]
     missing = [keyword for keyword in keywords if keyword not in lower]
     keyword_score = round(len(matched) / len(keywords) * 25)
     breakdown.append({"category": "Target-role keywords", "score": keyword_score, "max_score": 25,
-                      "detail": f"{len(matched)} of {len(keywords)} suggested {role_group} keywords detected. Add only those that accurately describe your experience."})
+                      "detail": f"{len(matched)} of {len(keywords)} relevant keywords detected from the job description and/or role profile. Add only those that accurately describe your experience."})
 
     action_verbs = ["built", "developed", "designed", "implemented", "analyzed", "automated", "optimized", "led", "created", "deployed", "improved", "delivered", "tested", "reduced", "increased"]
     verb_count = sum(bool(re.search(r"\b" + re.escape(verb) + r"\b", lower)) for verb in action_verbs)
