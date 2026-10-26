@@ -1460,6 +1460,12 @@ with tab_profile_review:
         if st.session_state.get("sb_target_role", TargetRole.SOFTWARE_ENGINEERING.value) in [r.value for r in TargetRole] else 0,
         key="career_review_role",
     )
+    review_job_description = st.text_area(
+        "Job description (optional, improves ATS keyword matching)",
+        placeholder="Paste the job description here to compare relevant skills and keywords with your resume.",
+        height=150,
+        key="career_review_job_description",
+    )
 
     if st.button("Review Resume & Project", type="primary", use_container_width=True, key="run_career_review"):
         if not review_resume and not review_repo_url.strip():
@@ -1478,7 +1484,7 @@ with tab_profile_review:
                         "openai_api_key": active.get("api_key") if active.get("provider") == "openai" else None,
                     }
                     review_result = evaluate_candidate_materials(resume_text, repo_data, review_role, review_config)
-                    ats_result = calculate_ats_score(resume_text, review_role) if resume_text else None
+                    ats_result = calculate_ats_score(resume_text, review_role, review_job_description) if resume_text else None
                     resume_questions = generate_resume_based_questions(resume_text, review_role, repo_data) if resume_text else []
                     st.session_state["career_review_result"] = review_result
                     st.session_state["career_review_ats_result"] = ats_result
