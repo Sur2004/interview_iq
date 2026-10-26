@@ -40,9 +40,17 @@ def send_email_otp(email: str, code: str) -> None:
         f"Your InterviewIQ verification code is {code}. It expires in 5 minutes. "
         "If you did not request this code, you can ignore this email."
     )
-    with smtplib.SMTP(host, port, timeout=15) as server:
-        server.ehlo()
-        server.starttls()
-        server.ehlo()
-        server.login(username, password)
-        server.send_message(message)
+
+    # Port 465 uses implicit TLS; port 587 normally uses STARTTLS.
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port, timeout=15) as server:
+            server.ehlo()
+            server.login(username, password)
+            server.send_message(message)
+    else:
+        with smtplib.SMTP(host, port, timeout=15) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(username, password)
+            server.send_message(message)
