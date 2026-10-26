@@ -62,247 +62,36 @@ st.set_page_config(
 # Initialize database
 init_db()
 
-# High-Tech Sky Blue, White, and Black Aesthetic with Animated Cards
+# Minimal, accessible visual system
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-    
-    html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', sans-serif;
-    }
-    
-    code, pre {
-        font-family: 'JetBrains Mono', monospace !important;
-    }
-
-    /* Keyframe Animations */
-    @keyframes skyPulse {
-        0% { box-shadow: 0 0 12px rgba(14, 165, 233, 0.25); border-color: rgba(14, 165, 233, 0.45); }
-        50% { box-shadow: 0 0 30px rgba(14, 165, 233, 0.7); border-color: #38bdf8; }
-        100% { box-shadow: 0 0 12px rgba(14, 165, 233, 0.25); border-color: rgba(14, 165, 233, 0.45); }
-    }
-
-    @keyframes liveGlow {
-        0% { opacity: 0.6; transform: scale(0.96); }
-        50% { opacity: 1; transform: scale(1.04); }
-        100% { opacity: 0.6; transform: scale(0.96); }
-    }
-
-    @keyframes scanLine {
-        0% { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
-    }
-
-    /* Sky Blue Hero Banner */
-    .hero-banner-sky {
-        background: linear-gradient(135deg, #000000 0%, #03182e 50%, #0369a1 100%);
-        border: 2px solid #0ea5e9;
-        border-radius: 16px;
-        padding: 30px 36px;
-        color: #ffffff;
-        margin-bottom: 22px;
-        box-shadow: 0 14px 34px -8px rgba(14, 165, 233, 0.4);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .hero-banner-sky::after {
-        content: "";
-        position: absolute;
-        top: 0; left: 0; right: 0; height: 3px;
-        background: linear-gradient(90deg, transparent, #38bdf8, #ffffff, #38bdf8, transparent);
-        background-size: 200% 100%;
-        animation: scanLine 3.5s linear infinite;
-    }
-
-    .hero-title {
-        font-size: 2.3rem;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-        color: #ffffff;
-        margin-bottom: 6px;
-    }
-
-    .hero-subtitle {
-        font-size: 1.05rem;
-        color: #bae6fd;
-        max-width: 860px;
-        line-height: 1.5;
-    }
-
-    /* Animated Question Card */
-    .animated-question-card {
-        background: #ffffff;
-        border: 2px solid #0ea5e9;
-        border-radius: 14px;
-        padding: 26px 30px;
-        color: #000000;
-        box-shadow: 0 8px 26px rgba(14, 165, 233, 0.2);
-        animation: skyPulse 3.5s infinite ease-in-out;
-        margin-bottom: 20px;
-    }
-
-    /* Animated Follow-Up Card */
-    .animated-followup-card {
-        background: #000000;
-        border: 2px solid #38bdf8;
-        border-radius: 14px;
-        padding: 24px 28px;
-        color: #ffffff;
-        box-shadow: 0 8px 24px rgba(14, 165, 233, 0.35);
-        margin: 20px 0;
-    }
-
-    /* Dynamic Telemetry Metric Cards */
-    .telemetry-card {
-        background: #000000;
-        border: 1px solid #0284c7;
-        border-radius: 12px;
-        padding: 18px 20px;
-        color: #ffffff;
-        box-shadow: 0 4px 14px rgba(0,0,0,0.5);
-        margin-bottom: 14px;
-        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .telemetry-card:hover {
-        transform: translateY(-3px);
-        border-color: #38bdf8;
-        box-shadow: 0 8px 24px rgba(14, 165, 233, 0.35);
-    }
-
-    /* Status Pill */
-    .ai-online-badge {
-        display: inline-block;
-        background: #000000;
-        color: #38bdf8;
-        border: 1px solid #0284c7;
-        padding: 4px 12px;
-        border-radius: 9999px;
-        font-size: 0.8rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        animation: liveGlow 2.5s infinite ease-in-out;
-    }
-
-    .notice-card-sky {
-        background: #ffffff;
-        border-left: 5px solid #0284c7;
-        border-top: 1px solid #e0f2fe;
-        border-right: 1px solid #e0f2fe;
-        border-bottom: 1px solid #e0f2fe;
-        padding: 14px 18px;
-        border-radius: 8px;
-        font-size: 0.88rem;
-        color: #000000;
-        margin-bottom: 14px;
-    }
-
-    .ethics-card-sky {
-        background: #000000;
-        border-left: 5px solid #38bdf8;
-        border: 1px solid #0369a1;
-        padding: 12px 18px;
-        border-radius: 8px;
-        font-size: 0.86rem;
-        color: #e0f2fe;
-        margin-bottom: 22px;
-    }
-
-    .score-badge-sky {
-        font-size: 1rem;
-        font-weight: 700;
-        padding: 5px 14px;
-        border-radius: 9999px;
-        display: inline-block;
-        background: #000000;
-        color: #38bdf8;
-        border: 1px solid #0ea5e9;
-    }
-
-    .tech-tag {
-        display: inline-block;
-        background: #000000;
-        color: #7dd3fc;
-        border: 1px solid #0284c7;
-        border-radius: 6px;
-        padding: 3px 8px;
-        font-size: 0.78rem;
-        font-family: 'JetBrains Mono', monospace;
-        margin-right: 6px;
-        margin-bottom: 6px;
-    }
-
-    /* Pacing Indicator */
-    .pacing-chip {
-        display: inline-block;
-        font-size: 0.82rem;
-        font-weight: 600;
-        padding: 3px 10px;
-        border-radius: 6px;
-        margin-left: 8px;
-    }
-    .pacing-ok { background: #000000; color: #38bdf8; border: 1px solid #0284c7; }
-    .pacing-warn { background: #000000; color: #f87171; border: 1px solid #ef4444; }
-
-    /* Responsive layout, accessible focus states, and reduced-motion support */
-    .role-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-        gap: 10px;
-        margin: 8px 0 18px;
-    }
-    .role-card {
-        min-height: 92px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 5px;
-        padding: 12px 8px;
-        background: #050b14;
-        border: 1px solid #155e85;
-        border-radius: 12px;
-        text-align: center;
-        transition: border-color .18s ease, transform .18s ease;
-    }
-    .role-card:hover { border-color: #7dd3fc; transform: translateY(-2px); }
-    .role-card-icon { font-size: 1.45rem; line-height: 1.2; }
-    .role-card-label { color: #e0f2fe; font-size: .78rem; font-weight: 700; line-height: 1.3; }
-    button[kind="primary"] { border-radius: 10px; font-weight: 700; }
-    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible {
-        outline: 3px solid #38bdf8 !important;
-        outline-offset: 2px !important;
-    }
-    [data-testid="stTabs"] [role="tab"] { font-weight: 650; }
-    [data-testid="stMetric"] {
-        background: rgba(14, 165, 233, .06);
-        border: 1px solid rgba(14, 165, 233, .24);
-        border-radius: 12px;
-        padding: 12px 14px;
-    }
-    @media (max-width: 900px) {
-        .hero-banner-sky { padding: 24px 22px; }
-        .hero-title { font-size: clamp(1.45rem, 4vw, 2rem); line-height: 1.18; }
-        .hero-subtitle { font-size: .96rem; }
-        .role-grid { grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); }
-    }
-    @media (max-width: 600px) {
-        .hero-banner-sky { padding: 20px 16px; border-radius: 12px; }
-        .hero-title { font-size: 1.5rem; }
-        .hero-subtitle { font-size: .9rem; }
-        .role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-        .role-card { min-height: 78px; }
-        .telemetry-card { padding: 14px; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-        *, *::before, *::after {
-            animation-duration: .01ms !important;
-            animation-iteration-count: 1 !important;
-            scroll-behavior: auto !important;
-            transition-duration: .01ms !important;
-        }
-    }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+    :root { --iq-ink:#172033; --iq-muted:#667085; --iq-border:#e5e7eb; --iq-surface:#fff; --iq-soft:#f8fafc; --iq-accent:#3157d5; --iq-accent-soft:#eef2ff; }
+    html, body, [class*="css"], [data-testid="stAppViewContainer"] { font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif; }
+    code, pre, [data-testid="stCode"] { font-family:'IBM Plex Mono',ui-monospace,monospace !important; }
+    .block-container { max-width:1240px; padding-top:2rem; padding-bottom:3rem; }
+    [data-testid="stSidebar"] { border-right:1px solid var(--iq-border); }
+    [data-testid="stSidebar"] > div:first-child { padding-top:1.4rem; }
+    .hero-banner-sky { background:var(--iq-surface); border:1px solid var(--iq-border); border-radius:18px; padding:30px 34px; color:var(--iq-ink); margin:0 0 22px; box-shadow:0 8px 28px rgba(15,23,42,.04); }
+    .hero-title { font-size:clamp(1.9rem,3vw,2.5rem); line-height:1.15; font-weight:700; letter-spacing:-.045em; color:var(--iq-ink); margin-bottom:8px; }
+    .hero-subtitle { font-size:1rem; color:var(--iq-muted); max-width:760px; line-height:1.65; }
+    .tech-tag { display:inline-block; background:var(--iq-soft); color:#475467; border:1px solid var(--iq-border); border-radius:999px; padding:5px 10px; font-size:.76rem; margin:5px 5px 0 0; }
+    .ai-online-badge { display:inline-block; background:var(--iq-accent-soft); color:var(--iq-accent); border:1px solid #dbe3ff; padding:6px 11px; border-radius:999px; font-size:.74rem; font-weight:700; letter-spacing:.04em; }
+    .animated-question-card, .animated-followup-card, .telemetry-card { background:var(--iq-surface); border:1px solid var(--iq-border); border-radius:14px; padding:22px 24px; color:var(--iq-ink); box-shadow:0 4px 16px rgba(15,23,42,.035); margin-bottom:16px; animation:none !important; }
+    .animated-followup-card { background:var(--iq-soft); }
+    .telemetry-card h4 { color:var(--iq-ink) !important; } .telemetry-card p { color:var(--iq-muted) !important; }
+    .notice-card-sky { background:#f8fafc; border:1px solid var(--iq-border); border-left:3px solid #94a3b8; padding:13px 16px; border-radius:10px; font-size:.88rem; color:#475467; margin:12px 0; }
+    .ethics-card-sky { background:#f8fafc; border:1px solid var(--iq-border); border-left:3px solid #64748b; padding:13px 16px; border-radius:10px; font-size:.86rem; color:#475467; margin:12px 0 22px; }
+    .score-badge-sky { font-size:.92rem; font-weight:700; padding:6px 12px; border-radius:999px; display:inline-block; background:var(--iq-accent-soft); color:var(--iq-accent); border:1px solid #dbe3ff; }
+    .pacing-chip { display:inline-block; font-size:.8rem; font-weight:600; padding:4px 9px; border-radius:7px; margin-left:6px; }
+    .pacing-ok { background:#ecfdf3; color:#027a48; border:1px solid #abefc6; } .pacing-warn { background:#fff7ed; color:#b54708; border:1px solid #fed7aa; }
+    button[kind="primary"] { border-radius:10px; font-weight:650; min-height:2.65rem; }
+    [data-testid="stTabs"] [role="tab"] { font-weight:600; padding-top:.75rem; padding-bottom:.75rem; }
+    [data-testid="stMetric"] { background:var(--iq-soft); border:1px solid var(--iq-border); border-radius:12px; padding:12px 14px; }
+    input, textarea, [data-baseweb="select"] > div { border-radius:9px !important; }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline:3px solid #a5b4fc !important; outline-offset:2px !important; }
+    @media (max-width:800px) { .block-container { padding-top:1rem; padding-left:1rem; padding-right:1rem; } .hero-banner-sky { padding:22px 20px; } .hero-title { font-size:1.8rem; } }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; transition-duration:.01ms !important; } }
 </style>
 """, unsafe_allow_html=True)
 
