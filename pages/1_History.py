@@ -12,6 +12,7 @@ from datetime import datetime
 st.set_page_config(page_title="InterviewIQ – History & Performance", layout="wide")
 
 st.title("📚 Interview History & Performance")
+st.caption("Review practice trends, inspect a saved session, or remove a session you no longer need.")
 
 # ---------------------------------------------------------------------------
 # Theme selector (mirrors the main app)
@@ -43,14 +44,22 @@ col3.metric("Avg Session Score", analytics.get("avg_session_score", 0.0))
 st.subheader("🧩 Category‑wise Average Scores")
 cat_breakdown = analytics.get("category_breakdown", {})
 if cat_breakdown:
-    cat_df = {
-        "Category": list(cat_breakdown.keys()),
-        "Avg Score": [v["avg"] for v in cat_breakdown.values()],
-        "Answers": [v["count"] for v in cat_breakdown.values()],
-    }
-    st.table(cat_df)
+    import pandas as pd
+    cat_df = pd.DataFrame([
+        {"Category": category, "Average score": values["avg"], "Answers": values["count"]}
+        for category, values in cat_breakdown.items()
+    ])
+    st.dataframe(
+        cat_df,
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            "Average score": st.column_config.NumberColumn(format="%.1f / 5.0"),
+            "Answers": st.column_config.NumberColumn(format="%d"),
+        },
+    )
 else:
-    st.info("No category data yet – run a few interview rounds first.")
+    st.info("No category data yet. Complete a practice round to see your strengths and growth areas.")
 
 # ---------------------------------------------------------------------------
 # Session table with actions
@@ -87,12 +96,30 @@ else:
         sess_data = get_session(selected)
         if sess_data:
             st.subheader(f"🔎 Session {selected[:8]} Details")
-            st.json(sess_data)
+            summary_cols = st.columns(3)
+            summary_cols[0].metric("Role", sess_data.get("target_role", "—"))
+            summary_cols[1].metric("Experience", sess_data.get("experience_level", "—"))
+            summary_cols[2].metric("Questions", sess_data.get("total_questions", 0))
+            st.caption("Expand the raw session record only when you need debugging details.")
+            with st.expander("Raw session data", expanded=False):
+                st.json(sess_data)
         else:
             st.warning("Session data could not be loaded.")
-        if st.button("Delete this session", key="del_btn"):
-            if delete_session(selected):
-                st.success("Session deleted. Refresh to see updated list.")
-                st.rerun()
-            else:
-                st.error("Failed to delete session.")
+        confirm_key = f"confirm_delete_{selected}"
+        if st.button("Delete this session", key="del_btn", type="secondary"):
+            st.session_state[confirm_key] = True
+        if st.session_state.get(confirm_key, False):
+            st.warning("This permanently deletes the selected session and its saved answers.")
+            confirm_col, cancel_col = st.columns(2)
+            with confirm_col:
+                if st.button("Confirm delete", key=f"confirm_btn_{selected}", type="primary"):
+                    if delete_session(selected):
+                        st.session_state.pop(confirm_key, None)
+                        st.success("Session deleted.")
+                        st.rerun()
+                    else:
+                        st.error("Failed to delete session.")
+            with cancel_col:
+                if st.button("Cancel", key=f"cancel_btn_{selected}"):
+                    st.session_state.pop(confirm_key, None)
+                    st.rerun()
