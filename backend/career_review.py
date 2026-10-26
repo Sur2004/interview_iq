@@ -142,12 +142,12 @@ def fetch_public_repository(url: str) -> Dict[str, Any]:
 
 
 ATS_SECTION_PATTERNS = {
-    "Contact details": [r"\\b[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}\\b", r"(?:\\+?\\d[\\d ()-]{7,}\\d)"],
-    "Professional summary": [r"\\b(summary|objective|profile)\\b"],
-    "Education": [r"\\b(education|academic|bachelor|master|b\\.?tech|b\\.?e\\.?|degree|university|college)\\b"],
-    "Skills": [r"\\b(skills|technical skills|technologies|toolkit|programming languages)\\b"],
-    "Experience": [r"\\b(experience|employment|internship|work history)\\b"],
-    "Projects": [r"\\b(projects?|selected projects|academic projects)\\b"],
+    "Contact details": [r"\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b", r"(?:\+?\d[\d ()-]{7,}\d)"],
+    "Professional summary": [r"\b(summary|objective|profile)\b"],
+    "Education": [r"\b(education|academic|bachelor|master|b\.?tech|b\.?e\.?|degree|university|college)\b"],
+    "Skills": [r"\b(skills|technical skills|technologies|toolkit|programming languages)\b"],
+    "Experience": [r"\b(experience|employment|internship|work history)\b"],
+    "Projects": [r"\b(projects?|selected projects|academic projects)\b"],
 }
 
 ROLE_KEYWORDS = {
@@ -209,25 +209,25 @@ def calculate_ats_score(resume_text: str, target_role: str) -> Dict[str, Any]:
                       "detail": f"{len(matched)} of {len(keywords)} suggested {role_group} keywords detected. Add only those that accurately describe your experience."})
 
     action_verbs = ["built", "developed", "designed", "implemented", "analyzed", "automated", "optimized", "led", "created", "deployed", "improved", "delivered", "tested", "reduced", "increased"]
-    verb_count = sum(bool(re.search(r"\\b" + re.escape(verb) + r"\\b", lower)) for verb in action_verbs)
+    verb_count = sum(bool(re.search(r"\b" + re.escape(verb) + r"\b", lower)) for verb in action_verbs)
     action_score = min(15, verb_count * 2)
     breakdown.append({"category": "Action-oriented bullets", "score": action_score, "max_score": 15,
                       "detail": f"{verb_count} distinct action verbs detected; use specific verbs to describe your own contribution."})
 
-    quantified = bool(re.search(r"\\b\\d+(?:\\.\\d+)?\\s*(?:%|x|ms|seconds?|minutes?|hours?|users?|records?|samples?|accuracy|f1|days?|weeks?)\\b", lower))
+    quantified = bool(re.search(r"\b\d+(?:\.\d+)?\s*(?:%|x|ms|seconds?|minutes?|hours?|users?|records?|samples?|accuracy|f1|days?|weeks?)\b", lower))
     metric_score = 10 if quantified else 3
     breakdown.append({"category": "Measurable outcomes", "score": metric_score, "max_score": 10,
                       "detail": "At least one numeric outcome was detected." if quantified else "No clear numeric outcomes detected; add real metrics where available, never invented numbers."})
 
     formatting_score = 10
     formatting_notes = []
-    if len(re.findall(r"\\b[A-Z]{5,}\\b", text)) > 15:
+    if len(re.findall(r"\b[A-Z]{5,}\b", text)) > 15:
         formatting_score -= 3
         formatting_notes.append("many all-caps tokens")
-    if len(re.findall(r"[^\\x00-\\x7F]", text)) > max(30, len(text) * 0.08):
+    if len(re.findall(r"[^\x00-\x7F]", text)) > max(30, len(text) * 0.08):
         formatting_score -= 2
         formatting_notes.append("many non-standard characters")
-    if len(re.findall(r"\\n\\s*[-•*]\\s+", text)) < 2 and word_count > 250:
+    if len(re.findall(r"\n\s*[-•*]\s+", text)) < 2 and word_count > 250:
         formatting_score -= 2
         formatting_notes.append("few detectable bullet points")
     breakdown.append({"category": "Text extraction and readability signals", "score": max(3, formatting_score), "max_score": 10,
@@ -266,22 +266,22 @@ def generate_resume_based_questions(resume_text: str, target_role: str, repo: Op
     text = (resume_text or "").strip()
     questions: List[str] = []
     if text:
-        lines = [re.sub(r"^\\s*[-•*]+\\s*", "", line).strip() for line in text.splitlines()]
+        lines = [re.sub(r"^\s*[-•*]+\s*", "", line).strip() for line in text.splitlines()]
         lines = [line for line in lines if 35 <= len(line) <= 240]
         project_lines = [line for line in lines if re.search(r"project|built|developed|implemented|created|designed", line, re.I)]
-        metric_lines = [line for line in lines if re.search(r"\\d+(?:\\.\\d+)?\\s*(?:%|x|ms|seconds?|users?|records?|accuracy|f1)", line, re.I)]
-        skill_lines = [line for line in lines if re.search(r"\\b(skills|technologies|tools|programming languages)\\b", line, re.I)]
+        metric_lines = [line for line in lines if re.search(r"\d+(?:\.\d+)?\s*(?:%|x|ms|seconds?|users?|records?|accuracy|f1)", line, re.I)]
+        skill_lines = [line for line in lines if re.search(r"\b(skills|technologies|tools|programming languages)\b", line, re.I)]
         for line in project_lines[:2]:
             questions.append(f"Your resume says: “{line[:180]}” — walk me through the problem, your personal contribution, and how you validated the result.")
         if metric_lines:
             questions.append(f"Your resume includes this measurable claim: “{metric_lines[0][:180]}” — how was it measured, what was the baseline, and what evidence supports it?")
         if skill_lines:
             questions.append(f"Which skill listed here is most relevant to {target_role}, and can you explain a challenging problem where you used it? Resume section: “{skill_lines[0][:160]}”")
-        if re.search(r"\\b(internship|intern)\\b", text, re.I):
+        if re.search(r"\b(internship|intern)\b", text, re.I):
             questions.append("Describe your internship's most important deliverable, what you personally owned, and how your contribution was reviewed.")
-        if re.search(r"\\b(lead|leader|team lead|class representative|managed|coordinated)\\b", text, re.I):
+        if re.search(r"\b(lead|leader|team lead|class representative|managed|coordinated)\b", text, re.I):
             questions.append("Your resume mentions leadership or coordination. Describe a difficult decision, how you handled disagreement, and what outcome followed.")
-        if re.search(r"\\b(certification|certified|certificate)\\b", text, re.I):
+        if re.search(r"\b(certification|certified|certificate)\b", text, re.I):
             questions.append("Choose one certification on your resume. What practical concept from it have you applied in a project?")
     if repo and len(questions) < 5:
         questions.append(f"Your public repository {repo.get('name', 'project')} is listed for review. Explain its architecture, the main design trade-off, and what you would improve next.")
