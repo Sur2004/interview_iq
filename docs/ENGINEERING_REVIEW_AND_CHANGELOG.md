@@ -1,7 +1,7 @@
 # InterviewIQ — Engineering Notes, Changes, and Verification
 
 **Repository:** [Sur2004/interview_iq](https://github.com/Sur2004/interview_iq)  
-**Last reviewed:** 24 October 2026  
+**Last reviewed:** 26 October 2026  
 **Purpose:** Record the application architecture, answer-revision feature, reliability/security changes, review findings, verification steps, and known limitations.
 
 ## 1. Product overview
@@ -61,7 +61,7 @@ Revision history is serialized by `InterviewTurn.to_dict()`, so the existing ses
 
 ### 3.3 Reports
 
-Markdown reports now identify the response as the latest response and include revision entries with the previous and updated text and timestamp. HTML report export wraps the Markdown report in a printable page. JSON export should be checked against the current implementation before relying on it for a formal audit workflow.
+Markdown reports include answer revision entries with previous and updated text and timestamps. HTML export now renders Markdown headings, lists, code blocks, and tables into a printable HTML report, then sanitizes the generated markup to reduce script-injection risk. JSON export should still be checked against the current implementation before relying on it for a formal audit workflow.
 
 ### 3.4 Provider selection and key isolation
 
@@ -69,7 +69,9 @@ The sidebar's selected provider is now resolved into a single settings helper. M
 
 - Supported provider names are `groq`, `gemini`, `openai`, and `heuristic`.
 - The helper selects the matching key name for the chosen provider.
-- A provider-specific default model is used when the configured model belongs to a different provider.
+- A provider-specific default model is used when the configured model belongs to a different provider; Gemini defaults to the currently documented `gemini-3.8-flash` model.
+- Gemini requests send the API key in the `x-goog-api-key` header rather than placing it in the URL.
+- Evaluator and dynamic-question paths both use the selected provider's model name instead of accidentally reusing a model configured for another provider.
 - Evaluation and dynamic question generation route by the explicit provider, not by guessing the provider from the API-key prefix.
 - If no key is available, the evaluation engine uses the offline heuristic path.
 
@@ -131,7 +133,7 @@ streamlit run app.py
 
 On Windows, activate the environment with `.venv\\Scripts\\activate.bat` or `.venv\\Scripts\\Activate.ps1`.
 
-The suite includes checks for question banks, interview plan construction, rubric/evaluator behavior, SQLite CRUD/analytics, secret configuration, provider-key isolation, and answer revision persistence. GitHub Actions runs the same test command. The latest successful run should be checked on the [Actions page](https://github.com/Sur2004/interview_iq/actions) rather than assuming a newly pushed commit has passed.
+The suite includes checks for question banks, interview plan construction, rubric/evaluator behavior, SQLite CRUD/analytics, secret configuration, provider-key isolation, answer revision persistence, mocked Gemini model routing, and sanitized HTML report rendering. The latest reviewed GitHub Actions run passed **19 tests**. Check the [Actions page](https://github.com/Sur2004/interview_iq/actions) for the status of any later commit.
 
 ### Manual smoke-test checklist
 
@@ -159,17 +161,17 @@ These items should be treated as follow-up work, not as verified fixes:
 4. **Concurrent writes:** SQLite is suitable for small single-instance practice use; simultaneous multi-user production traffic may need a managed database and explicit concurrency testing.
 5. **External dependencies:** Mermaid rendering depends on a browser-accessible CDN. Network restrictions can prevent diagrams from rendering while the rest of the page works.
 6. **Live deployment:** A successful GitHub Actions run validates the automated tests but does not prove that Streamlit Community Cloud has completed deployment or that every UI interaction works in a browser. Perform the manual smoke test after deployment.
-7. **Report formatting:** The HTML export is a printable wrapper around Markdown text, not a full Markdown-to-HTML renderer. It is readable and printable, but Markdown syntax may remain visible. A proper Markdown renderer can be added if polished HTML/PDF output is required.
+7. **Report formatting:** HTML export now uses Markdown rendering and sanitization, but should still be visually checked with long answers, unusual Markdown, and different browsers.
 8. **UI test coverage:** The current CI suite is primarily unit/regression tests. It does not automate browser-based Streamlit interaction testing.
 
 ## 8. Suggested next improvements
 
 Prioritized by reliability and user impact:
 
-1. Add automated tests for provider endpoint selection and offline fallback using mocked HTTP requests.
+1. Extend mocked HTTP tests to cover Groq, OpenAI, Gemini dynamic-question generation, malformed provider responses, and offline fallback.
 2. Add Streamlit AppTest or browser smoke tests for the main interview, revision editor, and technical challenge generator.
 3. Preserve each prior evaluation alongside each answer revision for true before/after score comparison.
-4. Render reports with a Markdown library and add a dedicated JSON export regression test.
+4. Add a dedicated JSON export regression test and check HTML/PDF output with long answers and unusual characters.
 5. Add safe session recovery/loading if users need to resume saved sessions after a browser refresh.
 6. Consider a persistent database for deployed multi-user use and add database backup/export controls.
 
@@ -184,7 +186,9 @@ Prioritized by reliability and user impact:
 | Technical challenge | Added an editable answer box and re-scoring flow |
 | Mock interview | Added editing for current, previous, and completed answers |
 | Persistence | Added timestamped answer revision records to session JSON |
-| Reports | Included answer revision history in Markdown output |
+| Reports | Included answer revision history in Markdown and rendered/sanitized HTML output |
+| Gemini integration | Updated default model and moved API key to request headers |
+| Regression tests | Added mocked Gemini routing and HTML sanitization checks; latest reviewed run passed 19 tests |
 | Code hygiene | Removed three obsolete app-rewrite scripts |
 | CI | Added GitHub Actions pytest workflow and regression coverage |
 | Documentation | Updated README and added this engineering/change guide |
