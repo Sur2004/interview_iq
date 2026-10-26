@@ -49,11 +49,7 @@ from backend.report_generator import (
     generate_markdown_report,
     generate_html_report,
 )
-from backend.config import (
-    get_setting,
-    validate_secrets,
-    get_llm_config,
-)
+from backend.config import get_llm_config
 
 # Page configuration
 st.set_page_config(
@@ -592,9 +588,6 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    llm_conf = get_llm_config()
-    secret_val = validate_secrets()
-
     with st.expander("\U0001f511 LLM Provider & API Key", expanded=False):
         provider_opts = [
             "Auto (via .env / Secrets)",
