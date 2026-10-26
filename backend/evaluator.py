@@ -804,7 +804,8 @@ def generate_dynamic_ai_technical_question(
                         default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
                     )
             elif provider == "gemini":
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or "gemini-3.8-flash"}:generateContent?key={api_key}"
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or 'gemini-3.8-flash'}:generateContent"
+                headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
                 payload = {
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {"responseMimeType": "application/json", "temperature": 0.3}
