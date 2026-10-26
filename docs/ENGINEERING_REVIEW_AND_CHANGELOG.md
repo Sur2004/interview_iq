@@ -87,6 +87,15 @@ Keep API keys in environment variables or Streamlit Secrets. Do not commit real 
 - Improved the History page with a sortable category score table, compact session summary metrics, collapsed raw session JSON, and a confirmation step before deleting saved answers.
 - Added Streamlit AppTest smoke tests for first render, offline-mode status, changing the target role, and starting a practice round.
 
+### 3.6 Presentation-readiness and input robustness pass
+
+- Refined the hero headline and first-run workspace copy to explain the product's core workflow, offline availability, and practice-only scoring in a clearer demo-friendly sequence.
+- Added a parameterized offline-evaluator input matrix covering empty and short answers, irrelevant responses, relevant technical explanations, code snippets, STAR-style behavioral answers, filler-heavy and long answers, Unicode/symbols, prompt-injection wording, and a provided follow-up answer.
+- Added UI journey tests that reject an empty answer without advancing the interview, and submit a valid technical answer, enter the follow-up stage, skip the follow-up, and verify the scored turn advances.
+- Existing UI tests also cover role, experience level, interview type, and the maximum supported question count.
+- The offline tests are deterministic and do not require a live provider key. They check score bounds, all four rubric dimensions, non-empty feedback, and presence of ethical disclaimers.
+- Automated AppTest is not a substitute for visual inspection in a real browser; mobile screenshots, cross-browser layout, hosted-provider failure behavior, and the deployed Streamlit URL remain separate manual/browser verification tasks.
+
 ### 3.5 Security and reliability changes made earlier
 
 - Enabled Streamlit CORS and XSRF protection in `.streamlit/config.toml`.
@@ -143,7 +152,7 @@ streamlit run app.py
 
 On Windows, activate the environment with `.venv\\Scripts\\activate.bat` or `.venv\\Scripts\\Activate.ps1`.
 
-The suite includes checks for question banks, interview plan construction, rubric/evaluator behavior, SQLite CRUD/analytics, secret configuration, provider-key isolation, answer revision persistence, mocked Gemini model routing, sanitized HTML report rendering, and Streamlit UI smoke journeys. The last confirmed code-only run passed **19 tests** before the UI smoke tests were added; the new test suite's result is pending on the [Actions page](https://github.com/Sur2004/interview_iq/actions).
+The suite includes checks for question banks, interview plan construction, rubric/evaluator behavior, SQLite CRUD/analytics, secret configuration, provider-key isolation, answer revision persistence, mocked Gemini model routing, sanitized HTML report rendering, and Streamlit UI smoke journeys plus a parameterized robustness matrix for varied answer inputs. See the current [Actions page](https://github.com/Sur2004/interview_iq/actions) for the latest test count and commit-specific result.
 
 ### Manual smoke-test checklist
 
