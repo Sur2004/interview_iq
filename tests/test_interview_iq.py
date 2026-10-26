@@ -511,3 +511,60 @@ def test_answer_revision_history_persists():
     finally:
         if os.path.exists(db_path):
             os.remove(db_path)
+
+def test_gemini_provider_uses_configured_model_and_header(monkeypatch):
+    import json
+    import requests
+    from backend.evaluator import evaluate_with_llm
+
+    captured = {}
+    response_payload = {
+        "overall_score": 4.0,
+        "rubric_scores": {
+            key: {"score": 4.0, "feedback": "Clear explanation."}
+            for key in ("relevance", "structure", "evidence", "clarity")
+        },
+        "key_strengths": ["Clear explanation"],
+        "actionable_improvements": ["Add an example"],
+        "stronger_answer_outline": "Explain the concept, then give an example.",
+    }
+
+    class FakeResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {
+                "candidates": [{
+                    "content": {
+                        "parts": [{"text": json.dumps(response_payload)}]
+                    }
+                }]
+            }
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured.update(url=url, headers=headers, payload=json, timeout=timeout)
+        return FakeResponse()
+
+    monkeypatch.setattr(requests, "post", fake_post)
+    question = QuestionItem(
+        id="gemini-model-test",
+        category=QuestionCategory.TECHNICAL,
+        role=TargetRole.SOFTWARE_ENGINEERING.value,
+        question_text="Explain a hash map.",
+        competency_or_topic="Data Structures",
+    )
+
+    result = evaluate_with_llm(
+        question,
+        "A hash map stores key-value pairs and uses a hash function.",
+        api_key="test-gemini-key",
+        provider="gemini",
+        model_name="gemini-3.8-flash",
+    )
+
+    assert result.overall_score == 4.0
+    assert captured["url"].endswith("/models/gemini-3.8-flash:generateContent")
+    assert captured["headers"]["x-goog-api-key"] == "test-gemini-key"
+    assert "key=" not in captured["url"]
+
