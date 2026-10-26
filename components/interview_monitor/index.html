@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{margin:0;font:14px system-ui,-apple-system,sans-serif;color:#172033;background:transparent}
+  .wrap{border:1px solid #dbe2ea;border-radius:14px;padding:12px;background:#fff}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+  .status{font-size:12px;font-weight:650;border-radius:999px;padding:5px 9px;background:#fef3c7;color:#92400e}
+  .status.live{background:#dcfce7;color:#166534}
+  video{display:block;width:100%;max-height:210px;object-fit:cover;background:#0f172a;border-radius:10px}
+  .hint{font-size:12px;line-height:1.45;color:#667085;margin:8px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><strong>Camera check</strong><span id="status" class="status">Requesting permission…</span></div>
+  <video id="preview" autoplay playsinline muted></video>
+  <p id="hint" class="hint">Your camera preview stays on this page. This component does not record or save video.</p>
+</div>
+<script>
+(function(){
+  const video=document.getElementById("preview");
+  const status=document.getElementById("status");
+  const hint=document.getElementById("hint");
+  let instanceId=null, stream=null, tabSwitches=0, lastHiddenAt=0, cameraState="starting", lastSent="";
+  function send(eventName){
+    if(!instanceId) return;
+    const payload={camera:cameraState,tab_switches:tabSwitches,event:eventName,visible:document.visibilityState==="visible",timestamp:Date.now()};
+    const serialized=JSON.stringify(payload);
+    if(serialized===lastSent && eventName!=="heartbeat") return;
+    lastSent=serialized;
+    window.parent.postMessage({type:"streamlit:setComponentValue",dataType:"json",value:payload,componentInstanceId:instanceId},"*");
+  }
+  function setStatus(text,live){status.textContent=text;status.className=live?"status live":"status";}
+  async function startCamera(){
+    try{
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("Camera access is not supported in this browser.");
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"},audio:false});
+      video.srcObject=stream; cameraState="active"; setStatus("Camera on",true);
+      hint.textContent="Camera preview is active. Video is not recorded or stored by InterviewIQ.";
+      send("camera_started");
+    }catch(err){
+      cameraState="denied"; setStatus("Camera unavailable",false);
+      hint.textContent="Camera access is required for this practice round. Allow camera permission in your browser and reload this section. "+(err && err.message ? err.message : "");
+      send("camera_denied");
+    }
+  }
+  window.addEventListener("message",function(event){
+    const data=event.data||{};
+    if(data.type==="streamlit:render"){
+      instanceId=data.componentInstanceId||instanceId;
+      window.parent.postMessage({type:"streamlit:componentReady",apiVersion:1},"*");
+      window.parent.postMessage({type:"streamlit:setFrameHeight",height:330,componentInstanceId:instanceId},"*");
+      if(cameraState==="starting") startCamera();
+    }
+  });
+  document.addEventListener("visibilitychange",function(){
+    if(document.visibilityState==="hidden"){lastHiddenAt=Date.now();return;}
+    if(lastHiddenAt && Date.now()-lastHiddenAt>250){tabSwitches+=1;send("tab_switch_detected");}
+    lastHiddenAt=0;
+  });
+  window.addEventListener("blur",function(){if(document.visibilityState==="visible") send("window_blur");});
+  window.addEventListener("beforeunload",function(){if(stream) stream.getTracks().forEach(track=>track.stop());});
+  window.parent.postMessage({type:"streamlit:componentReady",apiVersion:1},"*");
+})();
+</script>
+</body>
+</html>
