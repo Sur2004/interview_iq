@@ -66,6 +66,13 @@ if isinstance(_browser_read, dict) and not st.session_state.get("browser_data_lo
     st.session_state.browser_data_loaded = True
 elif "browser_data" not in st.session_state:
     st.session_state.browser_data = {"profiles": {}, "sessions": {}}
+if st.session_state.get("browser_data_dirty"):
+    browser_store(
+        action="write",
+        payload=json.dumps(st.session_state.get("browser_data", {"profiles": {}, "sessions": {}}), ensure_ascii=False),
+        key="browser_store_writer",
+    )
+    st.session_state.browser_data_dirty = False
 
 # Minimal, accessible visual system
 st.markdown("""
@@ -350,8 +357,7 @@ def render_answer_revision_editor(session: InterviewSession, turn: InterviewTurn
 
 def persist_browser_data() -> None:
     """Write the current user's data to browser localStorage, not a server database."""
-    payload = json.dumps(st.session_state.get("browser_data", {"profiles": {}, "sessions": {}}), ensure_ascii=False)
-    browser_store(action="write", payload=payload, key="browser_store_writer")
+    st.session_state.browser_data_dirty = True
 
 
 def persist_browser_session(session: InterviewSession) -> None:
@@ -770,7 +776,7 @@ if active_section == "mock_interview":
             ]
             if turn_scores:
                 st.markdown("#### Score by question")
-                st.line_chart(pd.DataFrame(turn_scores).set_index("Question"), y="Score", y_label="Score / 5", use_container_width=True)
+                st.line_chart(pd.DataFrame(turn_scores).set_index("Question"), y="Score", use_container_width=True)
 
             st.markdown("### \U0001f4dd Turn-by-Turn Diagnostic Review")
             for i, turn in enumerate(session.turns):
@@ -799,7 +805,7 @@ if active_section == "mock_interview":
                         st.markdown("#### Rubric breakdown")
             rubric_rows = [{"Criterion": item.display_name, "Score": item.score} for item in t_eval.rubric_scores.values()]
             if rubric_rows:
-                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", y_label="Score / 5", use_container_width=True)
+                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
                 for item in t_eval.rubric_scores.values():
                     st.markdown(f"**{item.display_name}: {item.score:.1f}/5** — {item.feedback}")
                         st.markdown(t_eval.stronger_answer_outline)
@@ -1079,7 +1085,7 @@ if active_section == "mock_interview":
             st.markdown("#### Rubric breakdown")
             rubric_rows = [{"Criterion": item.display_name, "Score": item.score} for item in t_eval.rubric_scores.values()]
             if rubric_rows:
-                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", y_label="Score / 5", use_container_width=True)
+                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
                 for item in t_eval.rubric_scores.values():
                     st.markdown(f"**{item.display_name}: {item.score:.1f}/5** — {item.feedback}")
 
@@ -1233,7 +1239,7 @@ if active_section == "technical_challenge":
             if result.rubric_scores:
                 st.markdown("**Rubric breakdown**")
                 rubric_rows = [{"Criterion": rubric.display_name, "Score": rubric.score} for rubric in result.rubric_scores.values()]
-                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", y_label="Score / 5", use_container_width=True)
+                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
                 for rubric in result.rubric_scores.values():
                     st.markdown(f"**{rubric.display_name}: {rubric.score:.1f}/5** — {rubric.feedback}")
 
@@ -1651,15 +1657,15 @@ if active_section == "progress":
             st.subheader("Score trend by practice session")
             trend = pd.DataFrame(session_chart_rows)
             trend["Session label"] = trend["Date"] + " · " + trend["Session"]
-            st.line_chart(trend.set_index("Session label")[["Score"]], y="Score", y_label="Score / 5", use_container_width=True)
+            st.line_chart(trend.set_index("Session label")[["Score"]], y="Score", use_container_width=True)
         if rubric_chart_rows:
             st.subheader("Rubric strengths and improvement areas")
             rubric_df = pd.DataFrame(rubric_chart_rows).groupby("Criterion", as_index=False)["Score"].mean().sort_values("Score")
-            st.bar_chart(rubric_df.set_index("Criterion"), y="Score", y_label="Average score / 5", use_container_width=True)
+            st.bar_chart(rubric_df.set_index("Criterion"), y="Score", use_container_width=True)
         if category_chart_rows:
             st.subheader("Performance by interview category")
             category_df = pd.DataFrame(category_chart_rows).groupby("Category", as_index=False)["Score"].mean().sort_values("Score")
-            st.bar_chart(category_df.set_index("Category"), y="Score", y_label="Average score / 5", use_container_width=True)
+            st.bar_chart(category_df.set_index("Category"), y="Score", use_container_width=True)
         st.subheader("Session history")
         for saved in reversed(history_rows):
             created = time.strftime("%d %b %Y, %H:%M", time.localtime(float(saved.get("created_at") or 0)))
