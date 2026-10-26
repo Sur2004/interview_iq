@@ -77,6 +77,16 @@ The sidebar's selected provider is now resolved into a single settings helper. M
 
 Keep API keys in environment variables or Streamlit Secrets. Do not commit real keys.
 
+### 3.5 UI and usability improvements
+
+- Replaced the seven fixed-width role tiles with a responsive grid that adapts to narrow screens.
+- Added visible keyboard-focus styles and reduced-motion handling for users who disable animation.
+- Replaced the misleading “LIVE” hero badge with a neutral “PRACTICE STUDIO” label.
+- Made provider status contextual: offline mode is clearly identified, configured providers show the selected model, and missing provider keys produce a warning.
+- Corrected the empty-state instruction to match the actual “Start Interview Round” button label.
+- Improved the History page with a sortable category score table, compact session summary metrics, collapsed raw session JSON, and a confirmation step before deleting saved answers.
+- Added Streamlit AppTest smoke tests for first render, offline-mode status, changing the target role, and starting a practice round.
+
 ### 3.5 Security and reliability changes made earlier
 
 - Enabled Streamlit CORS and XSRF protection in `.streamlit/config.toml`.
@@ -133,7 +143,7 @@ streamlit run app.py
 
 On Windows, activate the environment with `.venv\\Scripts\\activate.bat` or `.venv\\Scripts\\Activate.ps1`.
 
-The suite includes checks for question banks, interview plan construction, rubric/evaluator behavior, SQLite CRUD/analytics, secret configuration, provider-key isolation, answer revision persistence, mocked Gemini model routing, and sanitized HTML report rendering. The latest reviewed GitHub Actions run passed **19 tests**. Check the [Actions page](https://github.com/Sur2004/interview_iq/actions) for the status of any later commit.
+The suite includes checks for question banks, interview plan construction, rubric/evaluator behavior, SQLite CRUD/analytics, secret configuration, provider-key isolation, answer revision persistence, mocked Gemini model routing, sanitized HTML report rendering, and Streamlit UI smoke journeys. The last confirmed code-only run passed **19 tests** before the UI smoke tests were added; the new test suite's result is pending on the [Actions page](https://github.com/Sur2004/interview_iq/actions).
 
 ### Manual smoke-test checklist
 
@@ -192,6 +202,8 @@ Prioritized by reliability and user impact:
 | Code hygiene | Removed three obsolete app-rewrite scripts |
 | CI | Added GitHub Actions pytest workflow and regression coverage |
 | Documentation | Updated README and added this engineering/change guide |
+| UI polish | Responsive role cards, accessible focus/reduced motion, clearer provider status, and safer history deletion |
+| UI testing | Added Streamlit AppTest smoke tests for rendering and an offline interview flow |
 
 ## 10. Safety and privacy
 
