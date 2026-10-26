@@ -544,25 +544,35 @@ st.markdown(
 
 # ==============================================================================
 # MAIN NAVIGATION
-# A sticky, horizontally scrollable workspace menu; labels are grouped by user goal.
-st.caption("WORKSPACE NAVIGATION  ·  Swipe or scroll sideways to see all sections  ·  Practice · Learn · Progress · Reports · Resume Review")
-tab_studio, tab_dynamic_ai, tab_bank, tab_playbook, tab_star_builder, tab_flaw_game, tab_analytics, tab_report, tab_rubric, tab_profile_review = st.tabs([
-    "🎯 Practice · Mock Interview",
-    "⚡ Practice · Tech Challenge",
-    "📚 Learn · Question Bank",
-    "📖 Learn · System Design",
-    "🛠️ Practice · STAR Builder",
-    "🎮 Practice · Spot the Flaw",
-    "📊 Progress",
-    "📑 Reports · Export",
-    "⚖️ Learn · Rubric Guide",
-    "📄 Resume & Project Review",
-])
-
+# Sidebar radio provides a clear vertical navigation that works on desktop and mobile.
+with st.sidebar:
+    st.markdown("---")
+    st.subheader("🧭 Navigate InterviewIQ")
+    st.caption("Choose where you want to go. Sections are grouped by task.")
+    section_labels = {
+        "mock_interview": "🎯  Practice: Mock Interview",
+        "technical_challenge": "⚡  Practice: Technical Challenge",
+        "question_bank": "📚  Learn: Question Bank",
+        "system_design": "📖  Learn: System Design",
+        "star_builder": "🛠️  Practice: STAR Builder",
+        "spot_the_flaw": "🎮  Practice: Spot the Flaw",
+        "progress": "📊  Progress & Performance",
+        "export_report": "📑  Reports: Export Results",
+        "rubric_guide": "⚖️  Learn: Scoring Rubric",
+        "resume_review": "📄  Resume & Project Review",
+    }
+    active_section = st.radio(
+        "Navigation menu",
+        options=list(section_labels.keys()),
+        format_func=lambda key: section_labels[key],
+        key="workspace_navigation",
+        label_visibility="collapsed",
+    )
+    st.caption("Tip: Your current section is highlighted. Select another item to switch sections.")
 
 # TAB 1: MOCK INTERVIEW STUDIO
 # ==============================================================================
-with tab_studio:
+if active_section == "mock_interview":
     session: InterviewSession = st.session_state.session
 
     if session is None:
@@ -898,7 +908,7 @@ with tab_studio:
 
 # TAB 2: AI TECHNICAL GENERATOR & DEEP-DIVE STUDIO (NEW & TECHNICAL)
 # ==============================================================================
-with tab_dynamic_ai:
+if active_section == "technical_challenge":
     st.header("⚡ Build and Practice a Technical Challenge")
     st.write(
         "Choose a topic and difficulty, generate a question, write your answer, "
@@ -1043,7 +1053,7 @@ with tab_dynamic_ai:
 # ==============================================================================
 # TAB 3: SPOT THE FLAW INTERACTIVE GAME
 # ==============================================================================
-with tab_flaw_game:
+if active_section == "spot_the_flaw":
     st.header("🎮 Spot the Interview Flaw: Interviewer Eye Training")
     st.markdown("""
     The fastest way to sharpen your own answers is learning to spot common red flags in other candidates' responses.
@@ -1193,7 +1203,7 @@ with tab_flaw_game:
 # ==============================================================================
 # TAB 4: INTERACTIVE STAR STORY BUILDER
 # ==============================================================================
-with tab_star_builder:
+if active_section == "star_builder":
     st.header("🛠️ Interactive STAR Story Builder & Workshop")
     st.markdown("""
     Convert your raw class assignments, hackathons, and personal projects into powerful, structured STAR stories.
@@ -1279,7 +1289,7 @@ with tab_star_builder:
 # ==============================================================================
 # TAB 5: COMPREHENSIVE QUESTION BANK
 # ==============================================================================
-with tab_bank:
+if active_section == "question_bank":
     st.header("📚 Comprehensive Interview Question Bank")
     st.markdown("Explore curated behavioral, technical, and project architecture questions across key disciplines.")
 
@@ -1325,7 +1335,7 @@ with tab_bank:
 # ==============================================================================
 # TAB 6: SYSTEM DESIGN & ENGINEERING PLAYBOOKS
 # ==============================================================================
-with tab_playbook:
+if active_section == "system_design":
     st.header("📖 System Design & Engineering Playbooks")
     st.markdown("Actionable reference guides to elevate your technical communication and interview confidence.")
 
@@ -1402,7 +1412,7 @@ with tab_playbook:
 # ==============================================================================
 # TAB 7: PRACTICE ANALYTICS & HISTORY
 # ==============================================================================
-with tab_analytics:
+if active_section == "progress":
     st.header("📊 Student Practice Analytics & Local History")
     st.caption("All practice history is saved securely in your local SQLite database (`interview_iq.db`).")
 
@@ -1422,7 +1432,7 @@ with tab_analytics:
 # ==============================================================================
 # TAB 8: EXPORT PRACTICE REPORT
 # ==============================================================================
-with tab_report:
+if active_section == "export_report":
     st.header("📑 Export Practice Report")
     st.caption("Generate professional Markdown, printable HTML / PDF, and JSON summaries of your session.")
 
@@ -1464,7 +1474,7 @@ with tab_report:
 # ==============================================================================
 # TAB 9: TRANSPARENT RUBRIC & ETHICAL GUARDRAILS
 # ==============================================================================
-with tab_rubric:
+if active_section == "rubric_guide":
     st.header("⚖️ Transparent Rubric & Ethical Guardrails")
     st.markdown("""
     InterviewIQ believes that AI should empower students through **transparent criteria**
@@ -1485,7 +1495,7 @@ with tab_rubric:
 # ==============================================================================
 # TAB 10: RESUME + PUBLIC PROJECT REVIEW
 # ==============================================================================
-with tab_profile_review:
+if active_section == "resume_review":
     st.header("Resume & Project Review")
     st.markdown("Upload a resume PDF, add a **public GitHub repository**, or use both. InterviewIQ reviews role alignment, project evidence, engineering practices, and likely interview follow-ups.")
     st.caption("Private repositories and access tokens are not supported. Repository files are read as text only; code is not executed.")
