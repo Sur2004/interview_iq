@@ -8,6 +8,7 @@ import hashlib
 import os
 import smtplib
 from email.message import EmailMessage
+from .config import get_setting
 
 
 def normalize_email(email: str) -> str:
@@ -21,11 +22,11 @@ def otp_digest(email: str, code: str, secret: str) -> str:
 
 def send_email_otp(email: str, code: str) -> None:
     """Send a one-time sign-in code; fail closed when SMTP is not configured."""
-    host = os.getenv("SMTP_HOST", "").strip()
-    username = os.getenv("SMTP_USER", "").strip()
-    password = os.getenv("SMTP_PASSWORD", "")
-    sender = os.getenv("SMTP_FROM", username).strip()
-    port = int(os.getenv("SMTP_PORT", "587"))
+    host = (get_setting("SMTP_HOST") or "").strip()
+    username = (get_setting("SMTP_USER") or "").strip()
+    password = get_setting("SMTP_PASSWORD") or ""
+    sender = (get_setting("SMTP_FROM", username) or username).strip()
+    port = int(get_setting("SMTP_PORT", "587") or "587")
     if not all((host, username, password, sender)):
         raise RuntimeError(
             "Email OTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, "
