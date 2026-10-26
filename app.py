@@ -693,6 +693,21 @@ if active_section == "mock_interview":
 
     else:
         # ACTIVE INTERVIEW ROUND IN PROGRESS
+        st.markdown("### 🎙️ Voice interview mode")
+        st.info("This practice round requests camera access and tracks browser-tab visibility changes. You can review the monitoring status below. Browser monitoring is not foolproof proctoring.")
+        monitor_status = interview_monitor(key="interviewiq_monitor", default={"camera": "starting", "tab_switches": 0})
+        if isinstance(monitor_status, dict):
+            camera_status = monitor_status.get("camera", "starting")
+            switch_count = int(monitor_status.get("tab_switches", 0) or 0)
+            if camera_status == "active":
+                st.success("Camera is on")
+            elif camera_status == "denied":
+                st.warning("Camera permission is unavailable. Allow camera permission and reload.")
+            else:
+                st.caption("Waiting for camera permission…")
+            st.metric("Tab switches detected", switch_count)
+            if switch_count:
+                st.warning(f"Focus reminder: {switch_count} browser visibility change(s) detected.")
         curr_idx = session.current_turn_index
         turn = session.turns[curr_idx]
         q_item = turn.question
