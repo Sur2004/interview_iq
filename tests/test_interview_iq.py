@@ -565,7 +565,7 @@ def test_gemini_provider_uses_configured_model_and_header(monkeypatch):
     )
 
     assert result.overall_score == 4.0
-    assert captured["url"].endswith("/models/gemini-3.8-flash:generateContent")
+    assert captured["url"].endswith("/models/gemini-2.5-flash:generateContent")
     assert captured["headers"]["x-goog-api-key"] == "test-gemini-key"
     assert "key=" not in captured["url"]
     prompt_text = captured["payload"]["contents"][0]["parts"][0]["text"]
