@@ -58,14 +58,16 @@ Furthermore, existing automated tools often function as opaque "pass/fail" filte
 - **Spot the Flaw Interactive Game:** Train an "interviewer's eye" by diagnosing classic candidate errors (*The 'We' Trap*, *Unsubstantiated Metrics*, *The Defensive Blame Game*, *Buzzword Salad*).
 - **Interactive STAR Story Builder:** Step-by-step wizard converting raw coursework into structured 90-second interview pitch cards.
 - **Local Persistence (SQLite):** Session history, follow-up answers, answer revision history, and historical rubric performance stored in `interview_iq.db`.
-- **Answer Revision Workflow:** Edit completed answers, re-score revised responses, and inspect timestamped previous/updated versions in the session transcript and exported reports.
+- **Voice-First Interview Round:** Record primary and follow-up answers using Streamlit audio input; supported Gemini/Groq configurations transcribe audio before scoring.
+- **Basic Interview Monitoring:** A browser component requests camera permission for a live preview and counts certain tab/window visibility changes. It does not save video or prevent switching tabs; it is not a complete proctoring system.
+- **Answer Revision Workflow:** Edit completed answers where supported, re-score revised responses, and inspect timestamped previous/updated versions in the session transcript and exported reports.
 - **Multi-Format Report Export:** Downloadable comprehensive practice summaries in Markdown (`.md`), standalone printable HTML / PDF (`.html`), and machine-readable JSON (`.json`).
 
 ---
 
 ## 4. Technology Stack
 - **Language & Runtime:** Python 3.10+ (Standard Library: `sqlite3`, `dataclasses`, `re`, `json`)
-- **Frontend Framework:** Streamlit 1.35+
+- **Frontend Framework:** Streamlit 1.39+ (for `st.audio_input`)
 - **Styling & Visuals:** Sky Blue, White, and Black Cyber-Engineering theme with dynamic CSS animations
 - **AI Providers Supported:** Groq Cloud (`llama-3.3-70b-versatile`), Google Gemini (`gemini-3.8-flash`), OpenAI (`gpt-4o-mini`), and Built-In Offline Diagnostic Engine
 - **Data & Visualization:** Pandas, Altair, and Mermaid.js for architecture diagrams
@@ -87,9 +89,10 @@ flowchart TD
     
     UI --> TurnEngine["Interview Turn State Machine"]
     TurnEngine --> PrimaryPrompt["Step 1: Deliver Primary Question"]
-    PrimaryPrompt --> UserAns["Step 2: Collect Typed Response + Code"]
-    UserAns --> FollowupGen["Step 3: Synthesize Contextual Follow-Up"]
-    FollowupGen --> FollowupAns["Step 4: Collect Follow-Up Response"]
+    PrimaryPrompt --> UserAns["Step 2: Record Voice Answer"]
+    UserAns --> Speech["Speech Transcription (Gemini / Groq)"]
+    Speech --> FollowupGen["Step 3: Synthesize Contextual Follow-Up"]
+    FollowupGen --> FollowupAns["Step 4: Record Follow-Up Answer"]
     FollowupAns --> RubricEval["Step 5: Visible 4-Part Rubric Scoring"]
     
     RubricEval --> TechTelemetry["Big-O & Concurrency Analyzer"]
@@ -108,6 +111,7 @@ flowchart TD
 interview_iq/
 ├── app.py                      # Main Streamlit web application & user interface
 ├── backend/
+│   ├── speech.py               # Provider-backed voice transcription
 │   ├── __init__.py             # Backend exports
 │   ├── config.py               # Secret manager (get_setting) & environment validation
 │   ├── models.py               # Data models, RubricScore, EvaluationResult, Disclaimers
@@ -115,6 +119,9 @@ interview_iq/
 │   ├── evaluator.py            # AI evaluation engine (Groq, Gemini, OpenAI, & Offline)
 │   ├── database.py             # SQLite persistence, turn recording, & analytics
 │   └── report_generator.py     # Markdown and standalone HTML/PDF export builders
+├── components/
+│   └── interview_monitor_v2/
+│       └── index.html          # Consent-based camera preview and tab-visibility counter
 ├── tests/
 │   ├── __init__.py
 │   └── test_interview_iq.py    # Automated unit and regression tests
@@ -208,7 +215,14 @@ Environment variables can be configured in a local `.env` file or in Streamlit C
 
 ---
 
-## 12. Testing
+## 12. Team Roles
+
+- **K. V. N. Surya Teja — Backend and API Developer:** Python backend, LLM integration, question/follow-up flow, speech transcription integration, and answer evaluation.
+- **G. Tejesh — Frontend Developer:** Streamlit screens, navigation, UI-to-backend connections, and result presentation.
+- **A. Bhagyaraju — UI/UX Designer:** Layout and usability for role selection, question display, audio recording, scores, and feedback.
+- **G. Jhon — Documentation:** Project report, technology and workflow descriptions, test cases, limitations, and presentation documentation.
+
+## 13. Testing
 
 Run the automated test suite using Pytest:
 ```bash
