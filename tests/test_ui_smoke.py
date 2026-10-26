@@ -95,7 +95,8 @@ def test_interview_round_requires_audio_instead_of_typed_answers():
 
     assert not app.exception
     assert any("Record your answer" in item.label for item in app.audio_input)
-    assert not any(item.label == "Your Answer:" for item in app.text_area)
+    assert any(item.label == "Or type your answer" for item in app.text_area)
+    assert any("Submit Typed Answer" in item.label for item in app.button)
     assert any("Transcribe & Submit Answer" in item.label for item in app.button)
 
 
@@ -112,7 +113,8 @@ def test_followup_round_uses_audio_input_and_allows_skip():
 
     assert not app.exception
     assert any("Record your follow-up answer" in item.label for item in app.audio_input)
-    assert not any(item.label == "Your Follow-Up Response:" for item in app.text_area)
+    assert any(item.label == "Or type your follow-up answer" for item in app.text_area)
+    assert any("Submit Typed Follow-Up & Score Turn" in item.label for item in app.button)
     skip = next(item for item in app.button if "Skip Follow-Up" in item.label)
     skip.click().run()
     assert not app.exception
