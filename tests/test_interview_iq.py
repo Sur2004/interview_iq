@@ -546,6 +546,8 @@ def test_gemini_provider_uses_configured_model_and_header(monkeypatch):
         captured.update(url=url, headers=headers, payload=json, timeout=timeout)
         return FakeResponse()
 
+    monkeypatch.setenv("LLM_PROVIDER", "groq")
+    monkeypatch.setenv("MODEL_NAME", "llama-3.3-70b-versatile")
     monkeypatch.setattr(requests, "post", fake_post)
     question = QuestionItem(
         id="gemini-model-test",
@@ -560,7 +562,6 @@ def test_gemini_provider_uses_configured_model_and_header(monkeypatch):
         "A hash map stores key-value pairs and uses a hash function.",
         api_key="test-gemini-key",
         provider="gemini",
-        model_name="gemini-3.8-flash",
     )
 
     assert result.overall_score == 4.0
