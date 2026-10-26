@@ -42,4 +42,5 @@ Choose **Built-In Offline Engine** in the app. Resume/project review then uses a
 - A resume PDF is parsed locally into text. If a hosted LLM provider is configured and selected, that text and selected public repository snippets are sent to that provider for feedback.
 - Repository review supports **public GitHub repositories only**. It reads a limited number of text files and never runs project code.
 - Never paste API keys into the resume or repository URL field. Do not commit keys to Git.
+- Free-tier provider terms can allow submitted prompts/content to be used to improve provider products. Do not upload confidential or highly sensitive material unless you have reviewed the provider's current terms and are comfortable with them.
 - Feedback is for practice and project improvement, not a hiring decision. Confirm all findings manually.
