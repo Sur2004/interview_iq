@@ -64,7 +64,7 @@ st.set_page_config(
 # Initialize database
 init_db()
 
-interview_monitor = components.declare_component("interviewiq_interview_monitor", path="components/interview_monitor")
+interview_monitor = components.declare_component("interviewiq_interview_monitor", path="components/interview_monitor_v2")
 
 # Minimal, accessible visual system
 st.markdown("""
