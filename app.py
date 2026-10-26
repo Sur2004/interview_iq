@@ -248,6 +248,65 @@ st.markdown("""
     }
     .pacing-ok { background: #000000; color: #38bdf8; border: 1px solid #0284c7; }
     .pacing-warn { background: #000000; color: #f87171; border: 1px solid #ef4444; }
+
+    /* Responsive layout, accessible focus states, and reduced-motion support */
+    .role-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+        gap: 10px;
+        margin: 8px 0 18px;
+    }
+    .role-card {
+        min-height: 92px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        padding: 12px 8px;
+        background: #050b14;
+        border: 1px solid #155e85;
+        border-radius: 12px;
+        text-align: center;
+        transition: border-color .18s ease, transform .18s ease;
+    }
+    .role-card:hover { border-color: #7dd3fc; transform: translateY(-2px); }
+    .role-card-icon { font-size: 1.45rem; line-height: 1.2; }
+    .role-card-label { color: #e0f2fe; font-size: .78rem; font-weight: 700; line-height: 1.3; }
+    button[kind="primary"] { border-radius: 10px; font-weight: 700; }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible {
+        outline: 3px solid #38bdf8 !important;
+        outline-offset: 2px !important;
+    }
+    [data-testid="stTabs"] [role="tab"] { font-weight: 650; }
+    [data-testid="stMetric"] {
+        background: rgba(14, 165, 233, .06);
+        border: 1px solid rgba(14, 165, 233, .24);
+        border-radius: 12px;
+        padding: 12px 14px;
+    }
+    @media (max-width: 900px) {
+        .hero-banner-sky { padding: 24px 22px; }
+        .hero-title { font-size: clamp(1.45rem, 4vw, 2rem); line-height: 1.18; }
+        .hero-subtitle { font-size: .96rem; }
+        .role-grid { grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); }
+    }
+    @media (max-width: 600px) {
+        .hero-banner-sky { padding: 20px 16px; border-radius: 12px; }
+        .hero-title { font-size: 1.5rem; }
+        .hero-subtitle { font-size: .9rem; }
+        .role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .role-card { min-height: 78px; }
+        .telemetry-card { padding: 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: .01ms !important;
+            animation-iteration-count: 1 !important;
+            scroll-behavior: auto !important;
+            transition-duration: .01ms !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -537,7 +596,6 @@ with st.sidebar:
     secret_val = validate_secrets()
 
     with st.expander("\U0001f511 LLM Provider & API Key", expanded=False):
-        st.caption(f"Status: {secret_val['message']}")
         provider_opts = [
             "Auto (via .env / Secrets)",
             "Groq Cloud — Llama 3.3 70B",
@@ -562,6 +620,17 @@ with st.sidebar:
         )
         if manual_key:
             st.session_state.api_key = manual_key
+
+        active_settings = get_active_llm_settings()
+        if active_settings["provider"] == "heuristic":
+            st.info("Offline diagnostic mode is selected. No API key is required.")
+        elif active_settings.get("api_key"):
+            st.success(f"Selected provider is configured: {active_settings['provider'].upper()} · {active_settings['model_name']}")
+        else:
+            st.warning(
+                f"No API key is configured for {active_settings['provider'].upper()}. "
+                "The app will fall back to offline diagnostic feedback until a matching key is available."
+            )
 
     st.markdown("---")
     if st.button("\U0001f680 Start Interview Round", type="primary", use_container_width=True):
@@ -624,7 +693,7 @@ st.markdown("""
             </div>
         </div>
         <div style="text-align:right;white-space:nowrap;">
-            <span class="ai-online-badge">\u25cf LIVE</span>
+            <span class="ai-online-badge">PRACTICE STUDIO</span>
         </div>
     </div>
 </div>
@@ -640,18 +709,14 @@ roles_meta = [
     ("\U0001f680", "DevOps / Platform", "#8b5cf6"),
     ("\U0001f4e6", "Product Management", "#ec4899"),
 ]
-role_cols = st.columns(len(roles_meta))
-for col, (icon, label, color) in zip(role_cols, roles_meta):
-    with col:
-        st.markdown(f"""
-        <div style="background:#000;border:1.5px solid {color};border-radius:10px;
-                    padding:10px 6px;text-align:center;
-                    box-shadow:0 0 10px {color}44;margin-bottom:6px;">
-            <div style="font-size:1.4rem;">{icon}</div>
-            <div style="font-size:0.72rem;font-weight:700;color:{color};
-                        margin-top:4px;line-height:1.2;">{label}</div>
-        </div>
-        """, unsafe_allow_html=True)
+role_cards_html = "".join(
+    f'<div class="role-card" style="border-color:{color}">'
+    f'<div class="role-card-icon" aria-hidden="true">{icon}</div>'
+    f'<div class="role-card-label">{label}</div>'
+    f'</div>'
+    for icon, label, color in roles_meta
+)
+st.markdown(f'<div class="role-grid">{role_cards_html}</div>', unsafe_allow_html=True)
 
 st.markdown(
     f'<div class="notice-card-sky"><strong>\u2139\ufe0f Rubric Notice:</strong> {RUBRIC_DISCLAIMER}</div>',
@@ -687,7 +752,7 @@ with tab_studio:
 
     if session is None:
         st.markdown("### 👋 Welcome to the Technical Interview Simulator")
-        st.write("Configure your profile in the left sidebar and click **'Initialize AI Interview Round'** to begin.")
+        st.write("Configure your profile in the left sidebar, then select **Start Interview Round** to begin. You can also explore the question bank, practice games, STAR builder, and technical challenge generator below.")
 
         col_c1, col_c2, col_c3 = st.columns(3)
         with col_c1:
