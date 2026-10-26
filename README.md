@@ -56,7 +56,8 @@ Furthermore, existing automated tools often function as opaque "pass/fail" filte
   - Dynamic Mermaid Architecture graph generation derived from candidate responses.
 - **Dynamic AI Technical Challenge Generator:** Synthesize FAANG/Principal-level technical questions on any custom subsystem (e.g. Kafka, Postgres MVCC, Raft, RAG).
 - **Spot the Flaw Interactive Game:** Train an "interviewer's eye" by diagnosing classic candidate errors (*The 'We' Trap*, *Unsubstantiated Metrics*, *The Defensive Blame Game*, *Buzzword Salad*).
-- **Interactive STAR Story Builder:** Step-by-step wizard converting raw coursework into structured 90-second interview pitch cards.
+- **STAR Story Builder:** Step-by-step wizard that outputs a clean, editable Situation / Task / Action / Result narrative instead of a pitch-card layout.
+- **Email OTP Authentication:** Passwordless email verification, first-time profile creation, expiry and attempt limits. Configure SMTP before enabling hosted sign-in.
 - **Browser-Only Persistence:** Verified users' profiles, interview sessions, answers, revisions, and performance history are stored in browser `localStorage`. The app does not query a server database for personal performance data.
 - **Audio + Typed Answer Fallback:** Record primary and follow-up answers using Streamlit audio input, or type answers when microphone, internet, or speech-transcription services are unavailable. Audio transcription requires a configured supported provider.
 - **Basic Interview Integrity Monitoring:** A browser component requests camera permission for a live preview and reports browser visibility changes. A detected tab/window visibility change terminates the active round and marks it as terminated. A normal web app cannot truly prevent tab switching, browser events can be missed or triggered by benign causes, and this is not tamper-proof proctoring.
@@ -66,7 +67,7 @@ Furthermore, existing automated tools often function as opaque "pass/fail" filte
 ---
 
 ## 4. Technology Stack
-- **Language & Runtime:** Python 3.10+ (Standard Library: `sqlite3`, `dataclasses`, `re`, `json`)
+- **Language & Runtime:** Python 3.10+ (Standard Library: `dataclasses`, `re`, `json`, `smtplib`)
 - **Frontend Framework:** Streamlit 1.39+ (for `st.audio_input`)
 - **Styling & Visuals:** Sky Blue, White, and Black Cyber-Engineering theme with dynamic CSS animations
 - **AI Providers Supported:** Groq Cloud (`llama-3.3-70b-versatile`), Google Gemini (`gemini-3.8-flash`), OpenAI (`gpt-4o-mini`), and Built-In Offline Diagnostic Engine
@@ -111,6 +112,8 @@ flowchart TD
 interview_iq/
 ├── app.py                      # Main Streamlit web application & user interface
 ├── backend/
+│   ├── auth.py                 # Email OTP delivery and digest helpers
+│   ├── browser_store.py        # Browser-session serialization and chart analytics
 │   ├── speech.py               # Provider-backed voice transcription
 │   ├── __init__.py             # Backend exports
 │   ├── config.py               # Secret manager (get_setting) & environment validation
@@ -120,6 +123,8 @@ interview_iq/
 │   ├── database.py             # SQLite persistence, turn recording, & analytics
 │   └── report_generator.py     # Markdown and standalone HTML/PDF export builders
 ├── components/
+│   ├── browser_store/
+│   │   └── index.html          # Browser localStorage read/write component
 │   └── interview_monitor_v2/
 │       └── index.html          # Consent-based camera preview and tab-visibility counter
 ├── tests/
@@ -139,7 +144,9 @@ interview_iq/
 ## 7. Prerequisites
 - **Python:** 3.10 or higher (`python3 --version`)
 - **Git:** 2.20 or higher (`git --version`)
-- **API Key (Optional):** A Groq Cloud API key (`gsk_...`), Google Gemini key, or OpenAI key. If omitted, the application runs 100% locally using the built-in diagnostic engine.
+- **AI API Key (Optional):** A Groq Cloud API key, Google Gemini key, or OpenAI key. If omitted, evaluation uses the built-in diagnostic engine where supported.
+- **SMTP Credentials (Required for sign-in):** Configure a real SMTP host, username, password/app-password, and verified sender address. Without working email delivery, users cannot receive OTPs.
+- **Browser storage:** Use a normal browser profile with localStorage enabled. Private browsing or strict storage restrictions may prevent persistence.
 
 ---
 
@@ -246,14 +253,15 @@ python -m pytest tests/
 - **`test_behavioral_evaluation_detects_star_and_scores_accurately`**: Tests STAR heuristic extraction.
 - **`test_technical_evaluation_scores_and_probes_tradeoffs`**: Tests technical depth and trade-off scoring.
 - **`test_followup_question_generation`**: Validates contextual follow-up generation.
-- **`test_sqlite_session_crud_and_analytics`**: Verifies SQLite persistence, loading, and deletion.
+- **Browser-local analytics tests:** Verify local session serialization, rubric aggregation, empty states, and OTP helpers.
+- **Legacy SQLite module tests:** Verify the separate legacy persistence module; the active app workflow no longer calls it for personal history.
 - **`test_brief_answer_handling`**: Ensures short answers are graded constructively.
 - **`test_all_interview_types_generate_valid_plans`**: Tests all 4 interview modes.
 - **`test_technical_complexity_and_dynamic_generator`**: Tests Big-O analyzer, Mermaid diagram generation, and custom topic synthesis.
 - **`test_secret_management_and_environment_config`**: Validates `get_setting` fallback, secret masking, and graceful startup messages.
 - **Provider-isolation regression:** Confirms a missing selected-provider key falls back to offline evaluation rather than borrowing a different provider's key.
 - **Analytics regression:** Confirms unscored sessions are included in counts and session averages are not weighted by turn count.
-- **Answer revision persistence:** Confirms the old and revised answer text survive SQLite session save/load.
+- **Answer revision persistence:** Confirms the old and revised answer text survive serialization.
 
 ---
 
