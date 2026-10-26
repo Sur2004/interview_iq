@@ -38,8 +38,6 @@ from backend.evaluator import (
     generate_dynamic_ai_technical_question,
     RUBRIC_CRITERIA_META,
 )
-from backend.auth import normalize_email, otp_digest, send_email_otp
-from backend.config import get_setting
 from backend.browser_store import session_from_dict, session_summaries, analytics_from_sessions
 from backend.report_generator import (
     generate_markdown_report,
@@ -364,9 +362,8 @@ def persist_browser_data() -> None:
 
 def persist_browser_session(session: InterviewSession) -> None:
     """Persist a session snapshot under the verified email in browser localStorage."""
-    email = st.session_state.get("authenticated_email")
-    if not email:
-        return
+    # Keep a single local browser profile in guest mode.
+    email = st.session_state.get("authenticated_email", "local_guest")
     data = st.session_state.setdefault("browser_data", {"profiles": {}, "sessions": {}})
     all_sessions = data.setdefault("sessions", {}).setdefault(email, [])
     snapshot = session.to_dict()
@@ -385,85 +382,8 @@ def persist_browser_session(session: InterviewSession) -> None:
     persist_browser_data()
 
 
-def render_auth_gate() -> None:
-    """Email OTP sign-in and first-time registration, with bounded OTP attempts."""
-    if st.session_state.get("authenticated_email"):
-        return
-    st.title("InterviewIQ")
-    st.subheader("Sign in or create your account")
-    st.write("Use your email address to receive a one-time verification code. New verified emails are registered automatically.")
-    mode = st.radio("Account", ["Sign in", "Create account"], horizontal=True, key="auth_mode")
-    email_input = st.text_input("Email address", key="auth_email", placeholder="you@example.com")
-    name_input = ""
-    if mode == "Create account":
-        name_input = st.text_input("Your name", key="auth_name", placeholder="Name shown on your reports")
-    if st.button("Send verification code", type="primary", use_container_width=True):
-        email = normalize_email(email_input)
-        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email) or len(email) > 254:
-            st.error("Enter a valid email address.")
-        elif time.time() - float(st.session_state.get("otp_last_sent_at", 0)) < 45:
-            st.warning("Please wait before requesting another code.")
-        else:
-            code = f"{__import__('secrets').randbelow(1000000):06d}"
-            try:
-                send_email_otp(email, code)
-                secret = get_setting("OTP_SIGNING_SECRET") or st.session_state.setdefault("otp_session_secret", __import__('secrets').token_urlsafe(32))
-                st.session_state.otp_email = email
-                st.session_state.otp_digest = otp_digest(email, code, secret)
-                st.session_state.otp_expires_at = time.time() + 300
-                st.session_state.otp_attempts = 0
-                st.session_state.otp_last_sent_at = time.time()
-                st.session_state.auth_pending_name = name_input.strip()
-                st.success("Verification code sent. It expires in 5 minutes.")
-            except Exception:
-                # Avoid exposing SMTP host/authentication details in the public UI.
-                st.error(
-                    "We couldn't send the code, so the verification box will not appear yet. "
-                    "Check the app's SMTP secrets and provider settings, then try again."
-                )
-                st.caption(
-                    "For Gmail, use smtp.gmail.com with port 587 (STARTTLS) or 465 (SSL), "
-                    "your full Gmail address, and a Google App Password—not your normal password."
-                )
-    if st.session_state.get("otp_email"):
-        st.caption(f"Code sent to {st.session_state.otp_email}.")
-        entered_code = st.text_input("6-digit verification code", max_chars=6, key="auth_otp", type="password")
-        if st.button("Verify and continue", type="primary", use_container_width=True):
-            email = normalize_email(email_input)
-            if email != st.session_state.get("otp_email"):
-                st.error("The email address changed. Request a new code for this address.")
-            elif time.time() > float(st.session_state.get("otp_expires_at", 0)):
-                st.session_state.pop("otp_digest", None)
-                st.error("This code expired. Request a new one.")
-            elif int(st.session_state.get("otp_attempts", 0)) >= 5:
-                st.session_state.pop("otp_digest", None)
-                st.error("Too many incorrect attempts. Request a new code.")
-            else:
-                secret = get_setting("OTP_SIGNING_SECRET") or st.session_state.get("otp_session_secret", "")
-                expected = st.session_state.get("otp_digest", "")
-                actual = otp_digest(email, entered_code.strip(), secret) if entered_code.strip().isdigit() and len(entered_code.strip()) == 6 else ""
-                import hmac
-                if not expected or not hmac.compare_digest(actual, expected):
-                    st.session_state.otp_attempts = int(st.session_state.get("otp_attempts", 0)) + 1
-                    st.error("Incorrect verification code.")
-                else:
-                    st.session_state.authenticated_email = email
-                    data = st.session_state.setdefault("browser_data", {"profiles": {}, "sessions": {}})
-                    profile = data.setdefault("profiles", {}).setdefault(email, {})
-                    profile["name"] = st.session_state.get("auth_pending_name") or profile.get("name") or email.split("@")[0]
-                    profile["verified"] = True
-                    profile["created_at"] = profile.get("created_at", time.time())
-                    st.session_state.pop("otp_digest", None)
-                    st.session_state.pop("otp_email", None)
-                    persist_browser_data()
-                    st.rerun()
-    st.caption("Security: codes expire after 5 minutes and allow at most 5 verification attempts. Email delivery requires SMTP secrets.")
-    st.warning("Browser-only mode: your profile and interview history are stored in this browser's local storage. They do not sync across devices and can be erased by clearing browser data. Do not use a shared/public computer.")
-    st.stop()
-
-
-render_auth_gate()
-_active_email = st.session_state.get("authenticated_email", "")
+# Guest mode: no sign-in or email verification required.
+_active_email = "local_guest"
 if st.session_state.get("session") is None:
     _saved_rows = session_summaries(st.session_state.get("browser_data", {}), _active_email)
     _unfinished = [row for row in _saved_rows if not row.get("is_finished")]
@@ -517,7 +437,7 @@ with st.sidebar:
 
     st.subheader("\u2699\ufe0f Session Setup")
 
-    _active_profile = st.session_state.get("browser_data", {}).get("profiles", {}).get(st.session_state.get("authenticated_email", ""), {})
+    _active_profile = st.session_state.get("browser_data", {}).get("profiles", {}).get(st.session_state.get("authenticated_email", "local_guest"), {})
     candidate_name = st.text_input(
         "Your Name",
         value=_active_profile.get("name", "Student Candidate"),
