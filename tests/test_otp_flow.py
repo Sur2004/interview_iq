@@ -86,75 +86,15 @@ def test_send_email_otp_uses_tls_and_sends_code(monkeypatch):
     assert "5 minutes" in smtp.message.get_content()
 
 
-def test_ui_accepts_correct_otp_and_authenticates(monkeypatch):
-    import secrets
-
-    monkeypatch.setattr(auth_module, "send_email_otp", lambda email, code: None)
-    monkeypatch.setattr(secrets, "randbelow", lambda upper: 123456)
-    app = _send_code(_offline_auth_app())
-
-    otp_box = next(item for item in app.text_input if item.label == "6-digit verification code")
-    otp_box.set_value("123456")
-    verify_button = next(item for item in app.button if item.label == "Verify and continue")
-    verify_button.click().run()
+def test_app_opens_in_guest_mode_without_sign_in():
+    app = _offline_auth_app()
+    app.run()
 
     assert not app.exception
-    assert app.session_state["authenticated_email"] == "student@example.com"
-    assert "otp_digest" not in app.session_state
-    assert "otp_email" not in app.session_state
-
-
-def test_ui_rejects_wrong_otp_and_increments_attempts(monkeypatch):
-    import secrets
-
-    monkeypatch.setattr(auth_module, "send_email_otp", lambda email, code: None)
-    monkeypatch.setattr(secrets, "randbelow", lambda upper: 123456)
-    app = _send_code(_offline_auth_app())
-
-    otp_box = next(item for item in app.text_input if item.label == "6-digit verification code")
-    otp_box.set_value("000000")
-    verify_button = next(item for item in app.button if item.label == "Verify and continue")
-    verify_button.click().run()
-
-    assert not app.exception
-    assert "authenticated_email" not in app.session_state
-    assert app.session_state["otp_attempts"] == 1
-    assert any("Incorrect verification code" in item.value for item in app.error)
-
-
-def test_ui_rejects_expired_otp(monkeypatch):
-    import secrets
-
-    monkeypatch.setattr(auth_module, "send_email_otp", lambda email, code: None)
-    monkeypatch.setattr(secrets, "randbelow", lambda upper: 123456)
-    app = _send_code(_offline_auth_app())
-    app.session_state["otp_expires_at"] = 0
-
-    otp_box = next(item for item in app.text_input if item.label == "6-digit verification code")
-    otp_box.set_value("123456")
-    verify_button = next(item for item in app.button if item.label == "Verify and continue")
-    verify_button.click().run()
-
-    assert not app.exception
-    assert "authenticated_email" not in app.session_state
-    assert "otp_digest" not in app.session_state
-    assert any("expired" in item.value.lower() for item in app.error)
-
-
-def test_ui_blocks_verification_after_attempt_limit(monkeypatch):
-    import secrets
-
-    monkeypatch.setattr(auth_module, "send_email_otp", lambda email, code: None)
-    monkeypatch.setattr(secrets, "randbelow", lambda upper: 123456)
-    app = _send_code(_offline_auth_app())
-    app.session_state["otp_attempts"] = 5
-
-    otp_box = next(item for item in app.text_input if item.label == "6-digit verification code")
-    otp_box.set_value("123456")
-    verify_button = next(item for item in app.button if item.label == "Verify and continue")
-    verify_button.click().run()
-
-    assert not app.exception
-    assert "authenticated_email" not in app.session_state
-    assert "otp_digest" not in app.session_state
-    assert any("Too many incorrect attempts" in item.value for item in app.error)
+    labels = [item.label for item in app.text_input]
+    button_labels = [item.label for item in app.button]
+    assert "Email address" not in labels
+    assert "6-digit verification code" not in labels
+    assert "Send verification code" not in button_labels
+    assert "Verify and continue" not in button_labels
+    assert app.session_state.get("authenticated_email") is None
