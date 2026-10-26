@@ -120,7 +120,7 @@ interview_iq/
 │   ├── models.py               # Data models, RubricScore, EvaluationResult, Disclaimers
 │   ├── question_bank.py        # Curated technical, behavioral, & project questions
 │   ├── evaluator.py            # AI evaluation engine (Groq, Gemini, OpenAI, & Offline)
-│   ├── database.py             # SQLite persistence, turn recording, & analytics
+│   ├── database.py             # Legacy SQLite helpers (not used for app history)
 │   └── report_generator.py     # Markdown and standalone HTML/PDF export builders
 ├── components/
 │   ├── browser_store/
@@ -207,6 +207,8 @@ Open your browser at **`http://localhost:8501`**.
 ---
 
 ## 11. Configuration
+
+See [Browser Storage and Email OTP Setup](docs/BROWSER_STORAGE_AUTH.md) for SMTP setup, OTP controls, browser-storage limitations, and a deployment smoke-test checklist.
 
 Environment variables can be configured in a local `.env` file or in Streamlit Community Cloud under **Settings > Secrets**:
 
