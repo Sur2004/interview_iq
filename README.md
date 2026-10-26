@@ -10,6 +10,22 @@
 
 ---
 
+
+## Interview tracks and candidate-material review
+
+Use the **Interview Type** selector in the sidebar to focus a round on one goal:
+- **Comprehensive Mixed** — technical, behavioral, and project questions.
+- **HR & Behavioral** — motivation, strengths, conflict, feedback, and STAR stories.
+- **Managerial & Leadership** — prioritization, delegation, coaching, delivery, and stakeholders.
+- **Situational Judgment & Case** — ambiguity, ethical trade-offs, incidents, and decisions.
+- **Communication & Stakeholders** — concise explanations, delivery updates, and recommendations.
+- **Technical Deep-Dive** or **Project Deep-Dive** — role knowledge and engineering decisions.
+
+The **Resume & Project Review** tab accepts a text-based PDF resume, a public GitHub repository URL, or both. It extracts resume text, reviews a bounded selection of repository text files, suggests improvements, and generates targeted follow-up questions. It does not run repository code or access private repositories.
+
+For hosted evaluation, configure your own API key. Gemini API and Groq may offer free-tier access subject to their current account/model limits; no shared key is bundled. Without a key, the review uses an explicitly labeled offline checklist. See [Free-tier AI setup](docs/FREE_TIER_AI_SETUP.md).
+
+
 ## 1. Problem Statement
 Internship and graduate-job applicants frequently struggle during competitive technical and behavioral interview loops. The default reaction for many students is memorizing static, generic answers from question lists. However, when experienced interviewers probe deeper with unscripted follow-up questions regarding edge cases, computational complexity, and architectural trade-offs, memorized scripts quickly fall apart.
 
