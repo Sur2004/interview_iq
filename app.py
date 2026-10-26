@@ -678,15 +678,19 @@ st.markdown("""
 <div class="hero-banner-sky">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
         <div>
-            <div class="hero-title">\U0001f3af InterviewIQ — Practice. Diagnose. Improve.</div>
+            <div class="hero-title">\U0001f3af InterviewIQ</div>
             <div class="hero-subtitle">
-                Repeatable mock interview rounds with Big-O complexity telemetry,
-                contextual follow-up probing &amp; a transparent 4-part rubric.
-                Built for students targeting their first or next engineering role.
+                Practice realistic technical, behavioral, and project interviews.
+                Get structured feedback, follow-up challenges, and a clear improvement plan.
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;">
+                <span class="tech-tag">4-part feedback rubric</span>
+                <span class="tech-tag">5–8 questions per round</span>
+                <span class="tech-tag">Offline practice available</span>
             </div>
         </div>
         <div style="text-align:right;white-space:nowrap;">
-            <span class="ai-online-badge">PRACTICE STUDIO</span>
+            <span class="ai-online-badge">INTERVIEW PRACTICE</span>
         </div>
     </div>
 </div>
@@ -744,8 +748,19 @@ with tab_studio:
     session: InterviewSession = st.session_state.session
 
     if session is None:
-        st.markdown("### 👋 Welcome to the Technical Interview Simulator")
-        st.write("Configure your profile in the left sidebar, then select **Start Interview Round** to begin. You can also explore the question bank, practice games, STAR builder, and technical challenge generator below.")
+        st.markdown("### 👋 Your interview practice workspace")
+        st.write("Start with a guided mock interview or choose a focused tool below. Your answers are scored against a practice rubric—not a hiring prediction.")
+        quick_cols = st.columns(3)
+        with quick_cols[0]:
+            st.markdown("**01 · Mock interview**")
+            st.caption("A structured 5–8 question round with follow-up probing and answer review.")
+        with quick_cols[1]:
+            st.markdown("**02 · Technical challenge**")
+            st.caption("Practice a specific topic, revise your answer, and refresh the feedback.")
+        with quick_cols[2]:
+            st.markdown("**03 · Behavioral practice**")
+            st.caption("Build stronger STAR stories from your real coursework and project experience.")
+        st.info("To begin, choose your target role and experience level in the sidebar, then select **Start Interview Round**. You can also explore the other tabs without starting a round.")
 
         col_c1, col_c2, col_c3 = st.columns(3)
         with col_c1:
