@@ -9,13 +9,13 @@ InterviewIQ does not ship with a shared API key. Use your own provider key, keep
    ```dotenv
    LLM_PROVIDER=gemini
    GEMINI_API_KEY=your_key_here
-   MODEL_NAME=gemini-3.7-flash
+   MODEL_NAME=gemini-3.8-flash
    ```
 3. For Streamlit Community Cloud, open **App settings → Secrets** and add:
    ```toml
    LLM_PROVIDER = "gemini"
    GEMINI_API_KEY = "your_key_here"
-   MODEL_NAME = "gemini-3.7-flash"
+   MODEL_NAME = "gemini-3.8-flash"
    ```
 4. Save/restart the app. The app uses the provider's current free-tier quotas where available. Free-tier availability, models, and limits can change; verify your own quota in AI Studio.
 
