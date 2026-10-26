@@ -66,7 +66,7 @@ def get_llm_config() -> Dict[str, Optional[str]]:
     if provider == "groq" and not model_name:
         model_name = "llama-3.3-70b-versatile"
     elif provider == "gemini" and not model_name:
-        model_name = "gemini-3.7-flash"
+        model_name = "gemini-3.8-flash"
     elif provider == "openai" and not model_name:
         model_name = "gpt-4o-mini"
     elif provider == "heuristic" and not model_name:
