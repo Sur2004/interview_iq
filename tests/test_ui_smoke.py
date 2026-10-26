@@ -107,6 +107,14 @@ def test_valid_answer_can_be_scored_and_followup_skipped():
     assert session.in_followup
     assert session.turns[session.current_turn_index].initial_evaluation is not None
 
+    submit_followup = next(
+        item for item in app.button if "Submit Follow-Up & Score Turn" in item.label
+    )
+    submit_followup.click().run()
+    assert not app.exception
+    assert app.session_state["session"].in_followup
+    assert any("enter a follow-up response" in item.value.lower() for item in app.warning)
+
     skip = next(item for item in app.button if "Skip Follow-Up" in item.label)
     skip.click().run()
 
