@@ -368,6 +368,10 @@ def persist_browser_session(session: InterviewSession) -> None:
     else:
         all_sessions.append(snapshot)
     profile = data.setdefault("profiles", {}).setdefault(email, {})
+    profile["name"] = session.candidate_name
+    profile["target_role"] = session.target_role
+    profile["experience_level"] = session.experience_level
+    profile["interview_type"] = session.interview_type
     profile["last_seen"] = time.time()
     persist_browser_data()
 
@@ -1232,11 +1236,10 @@ if active_section == "technical_challenge":
 
             if result.rubric_scores:
                 st.markdown("**Rubric breakdown**")
-                rubric_cols = st.columns(len(result.rubric_scores))
-                for idx, rubric in enumerate(result.rubric_scores.values()):
-                    with rubric_cols[idx]:
-                        st.metric(rubric.display_name, f"{rubric.score:.1f} / 5")
-                        st.caption(rubric.feedback)
+                rubric_rows = [{"Criterion": rubric.display_name, "Score": rubric.score} for rubric in result.rubric_scores.values()]
+                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", y_label="Score / 5", use_container_width=True)
+                for rubric in result.rubric_scores.values():
+                    st.markdown(f"**{rubric.display_name}: {rubric.score:.1f}/5** — {rubric.feedback}")
 
             if result.stronger_answer_outline:
                 with st.expander("Suggested answer structure", expanded=False):
