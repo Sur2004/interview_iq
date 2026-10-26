@@ -421,9 +421,10 @@ def evaluate_with_llm(
     Evaluates responses using a hosted LLM API (Groq, Google Gemini, or OpenAI).
     Falls back gracefully to the heuristic evaluator if the API call fails or no key is provided.
     """
-    from .config import get_setting
+    from .config import get_llm_config, get_setting
 
-    provider = (provider or get_setting("LLM_PROVIDER") or "groq").strip().lower()
+    configured = get_llm_config()
+    provider = (provider or configured.get("provider") or "heuristic").strip().lower()
     supported_providers = {"groq", "gemini", "openai", "heuristic"}
     if provider not in supported_providers:
         logger.warning("Unsupported LLM provider %r; using heuristic evaluation.", provider)
@@ -437,7 +438,18 @@ def evaluate_with_llm(
     }
     if api_key is None and provider in provider_key_names:
         api_key = get_setting(provider_key_names[provider])
-    model_name = model_name or get_setting("MODEL_NAME")
+    default_models = {
+        "groq": "llama-3.3-70b-versatile",
+        "gemini": "gemini-3.8-flash",
+        "openai": "gpt-4o-mini",
+        "heuristic": "built-in-diagnostic-engine",
+    }
+    configured_model = (
+        configured.get("model_name")
+        if configured.get("provider") == provider
+        else None
+    )
+    model_name = model_name or configured_model or default_models[provider]
 
     if provider == "heuristic" or not api_key:
         logger.info("No LLM API key provided; using intelligent heuristic evaluation engine.")
@@ -752,11 +764,13 @@ def generate_dynamic_ai_technical_question(
     if api_key is None:
         key_names = {"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY"}
         api_key = get_setting(key_names[provider]) if provider in key_names else None
-    model_name = model_name or {
+    default_models = {
         "groq": "llama-3.3-70b-versatile",
         "gemini": "gemini-3.8-flash",
         "openai": "gpt-4o-mini",
-    }.get(provider)
+    }
+    configured_model = configured.get("model_name") if configured.get("provider") == provider else None
+    model_name = model_name or configured_model or default_models.get(provider)
     if api_key and provider != "heuristic":
         try:
             import requests
