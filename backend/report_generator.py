@@ -138,9 +138,33 @@ def generate_html_report(session: InterviewSession) -> str:
     """Generates a standalone, beautiful HTML report suitable for printing or PDF conversion."""
     md_content = generate_markdown_report(session)
 
-    # Basic markdown to HTML conversion with styling
+    # Render Markdown and sanitize generated HTML so answer text cannot inject scripts.
     import html
-    escaped_md = html.escape(md_content)
+    import markdown
+    import bleach
+
+    rendered_html = markdown.markdown(
+        md_content,
+        extensions=["tables", "fenced_code", "sane_lists"],
+    )
+    allowed_tags = set(bleach.sanitizer.ALLOWED_TAGS) | {
+        "h1", "h2", "h3", "h4", "h5", "h6", "p", "pre", "code",
+        "table", "thead", "tbody", "tr", "th", "td", "hr", "br",
+        "ul", "ol", "li", "blockquote", "del",
+    }
+    allowed_attributes = {
+        "a": ["href", "title"],
+        "th": ["align"],
+        "td": ["align"],
+        "code": ["class"],
+    }
+    rendered_html = bleach.clean(
+        rendered_html,
+        tags=allowed_tags,
+        attributes=allowed_attributes,
+        protocols={"http", "https", "mailto"},
+        strip=True,
+    )
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -247,7 +271,7 @@ def generate_html_report(session: InterviewSession) -> str:
     <div class="container">
         <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
         <div id="report-body">
-            <pre style="background:transparent; border:none; font-family:inherit; font-size:inherit; line-height:inherit; white-space:pre-wrap;">{escaped_md}</pre>
+            {rendered_html}
         </div>
     </div>
 </body>
