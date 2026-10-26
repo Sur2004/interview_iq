@@ -6,3 +6,4 @@ altair>=5.0.0
 python-dotenv>=1.0.0
 Markdown>=3.6
 bleach>=6.1
+pypdf>=4.2.0
