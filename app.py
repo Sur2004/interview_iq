@@ -635,7 +635,11 @@ if active_section == "mock_interview":
 # ==============================================================================
 
     elif session.is_finished:
-        st.success("\U0001f389 **Interview Round Completed!** Full diagnostic transcript compiled below.")
+        termination_reason = st.session_state.get("integrity_termination_reason")
+        if termination_reason:
+            st.error(f"**Interview session terminated:** {termination_reason}")
+        else:
+            st.success("\\U0001f389 **Interview Round Completed!** Full diagnostic transcript compiled below.")
 
         valid_turns = [t for t in session.turns if t.turn_evaluation]
         if valid_turns:
@@ -707,7 +711,17 @@ if active_section == "mock_interview":
                 st.caption("Waiting for camera permission…")
             st.metric("Tab switches detected", switch_count)
             if switch_count:
-                st.warning(f"Focus reminder: {switch_count} browser visibility change(s) detected.")
+                session.is_finished = True
+                session.completed_at = time.time()
+                st.session_state["integrity_termination_reason"] = (
+                    f"Session terminated after {switch_count} browser visibility change(s)."
+                )
+                save_session(session)
+                st.error(
+                    "Interview session terminated because a browser tab/window visibility change was detected. "
+                    "A normal browser app cannot technically block tab switching, and detection is not foolproof."
+                )
+                st.rerun()
         curr_idx = session.current_turn_index
         turn = session.turns[curr_idx]
         q_item = turn.question
@@ -765,14 +779,43 @@ if active_section == "mock_interview":
                 st.info("**Project Flow:**\n1. Problem & topology\n2. Stack choices vs alternatives\n3. Hardest bug YOU solved\n4. Hindsight redesign")
 
         if not session.in_followup and not turn.completed:
-            st.markdown("#### 🎙️ Record Your Answer")
-            st.caption("Speak naturally. Your audio is transcribed and evaluated; typed answers are disabled in interview rounds.")
-            audio_answer = st.audio_input("Record your answer", key="audio_answer_" + str(curr_idx))
+            st.markdown("#### 🎙️ Answer the Question")
+            st.caption("Record an audio answer or type your response below. Use text if your microphone, transcription, or connection to the speech provider fails.")
+            audio_answer = st.audio_input("Record your answer (optional)", key="audio_answer_" + str(curr_idx))
             if audio_answer is not None:
                 st.audio(audio_answer)
+            typed_answer = st.text_area(
+                "Or type your answer",
+                key="typed_answer_" + str(curr_idx),
+                height=140,
+                placeholder="Enter your answer here if you cannot record or transcribe audio.",
+            )
+
+            if st.button("Submit Typed Answer", use_container_width=True, key="submit_typed_" + str(curr_idx)):
+                if not typed_answer.strip():
+                    st.warning("Type an answer before submitting.")
+                else:
+                    turn.initial_answer = typed_answer.strip()
+                    try:
+                        with st.spinner("Evaluating your answer and generating a follow-up…"):
+                            init_eval = evaluate_with_llm(
+                                q_item,
+                                turn.initial_answer,
+                                candidate_context=session.candidate_context,
+                                **get_active_llm_settings(),
+                            )
+                            turn.initial_evaluation = init_eval
+                            if init_eval.suggested_followup_question:
+                                turn.followup_question = init_eval.suggested_followup_question
+                            session.in_followup = True
+                            save_session(session)
+                            st.rerun()
+                    except (ValueError, RuntimeError) as exc:
+                        st.error(f"Evaluation failed: {exc}. Check your connection/provider or try again.")
+
             if st.button("Transcribe & Submit Answer", type="primary", use_container_width=True, key="submit_audio_" + str(curr_idx)):
                 if audio_answer is None:
-                    st.warning("Record your spoken answer before submitting.")
+                    st.warning("Record an audio answer, or use the typed-answer option above.")
                 else:
                     try:
                         settings = get_active_llm_settings()
@@ -783,8 +826,6 @@ if active_section == "mock_interview":
                             settings.get("api_key"),
                             settings.get("model_name"),
                         )
-                        st.markdown("**Transcript to be evaluated**")
-                        st.write(transcript)
                         turn.initial_answer = transcript
                         with st.spinner("Evaluating your spoken answer and generating a follow-up…"):
                             init_eval = evaluate_with_llm(
@@ -800,7 +841,7 @@ if active_section == "mock_interview":
                             save_session(session)
                             st.rerun()
                     except (ValueError, RuntimeError) as exc:
-                        st.error(str(exc))
+                        st.error(f"Audio transcription or evaluation failed: {exc}. You can still submit a typed answer.")
 
         elif session.in_followup and not turn.completed:
             with st.expander("\U0001f4c4 Review Your Initial Response", expanded=False):
@@ -821,17 +862,44 @@ if active_section == "mock_interview":
             </div>
             """, unsafe_allow_html=True)
 
-            st.markdown("#### 🎙️ Record Your Follow-Up")
-            st.caption("Follow-up answers must also be spoken and transcribed.")
-            followup_audio = st.audio_input("Record your follow-up answer", key="followup_audio_" + str(curr_idx))
+            st.markdown("#### 🎙️ Answer the Follow-Up")
+            st.caption("Record a follow-up answer or type it if audio recording/transcription is unavailable.")
+            followup_audio = st.audio_input("Record your follow-up answer (optional)", key="followup_audio_" + str(curr_idx))
             if followup_audio is not None:
                 st.audio(followup_audio)
+            typed_followup = st.text_area(
+                "Or type your follow-up answer",
+                key="typed_followup_" + str(curr_idx),
+                height=120,
+                placeholder="Type your response here if audio is unavailable.",
+            )
+            if st.button("Submit Typed Follow-Up & Score Turn", use_container_width=True, key="submit_typed_followup_" + str(curr_idx)):
+                if not typed_followup.strip():
+                    st.warning("Type a follow-up answer before submitting.")
+                else:
+                    turn.followup_answer = typed_followup.strip()
+                    try:
+                        with st.spinner("Scoring your answers against the four-part rubric…"):
+                            full_eval = evaluate_with_llm(
+                                q_item,
+                                turn.initial_answer,
+                                followup_answer=turn.followup_answer,
+                                candidate_context=session.candidate_context,
+                                **get_active_llm_settings(),
+                            )
+                            turn.turn_evaluation = full_eval
+                            turn.completed = True
+                            session.in_followup = False
+                            save_session(session)
+                            st.rerun()
+                    except (ValueError, RuntimeError) as exc:
+                        st.error(f"Evaluation failed: {exc}. Check your connection/provider or try again.")
 
             col_f1, col_f2 = st.columns([2, 1])
             with col_f1:
                 if st.button("Transcribe Follow-Up & Score Turn 🎯", type="primary", use_container_width=True, key="submit_followup_audio_" + str(curr_idx)):
                     if followup_audio is None:
-                        st.warning("Record a spoken follow-up answer before submitting.")
+                        st.warning("Record a follow-up answer, or use the typed-answer option above.")
                     else:
                         try:
                             settings = get_active_llm_settings()
