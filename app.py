@@ -521,6 +521,7 @@ with st.sidebar:
             in_followup=False,
             is_finished=False,
         )
+        st.session_state.pop("integrity_termination_reason", None)
         st.session_state.session = new_sess
         save_session(new_sess)
         st.success(f"\u2705 Round started - {len(questions)} questions queued!")
