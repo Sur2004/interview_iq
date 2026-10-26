@@ -122,3 +122,32 @@ def test_valid_answer_can_be_scored_and_followup_skipped():
 
     assert not app.exception
     assert app.session_state["session"].current_turn_index == 1
+
+
+
+def test_blank_custom_challenge_topic_is_rejected():
+    app = build_offline_app().run()
+
+    topic = next(item for item in app.text_input if item.label == "Topic or technology")
+    topic.set_value("")
+    generate = next(item for item in app.button if item.label == "Generate challenge")
+    generate.click().run()
+
+    assert not app.exception
+    assert any("enter a topic" in item.value.lower() for item in app.warning)
+    assert "current_dyn_q" not in app.session_state
+
+
+def test_custom_challenge_topic_generates_offline_question():
+    app = build_offline_app().run()
+
+    topic = next(item for item in app.text_input if item.label == "Topic or technology")
+    topic.set_value("SQL indexing and query plans")
+    generate = next(item for item in app.button if item.label == "Generate challenge")
+    generate.click().run()
+
+    assert not app.exception
+    assert "current_dyn_q" in app.session_state
+    question = app.session_state["current_dyn_q"]
+    assert question.question_text.strip()
+    assert question.competency_or_topic
