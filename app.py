@@ -765,37 +765,28 @@ if active_section == "mock_interview":
                 st.info("**Project Flow:**\n1. Problem & topology\n2. Stack choices vs alternatives\n3. Hardest bug YOU solved\n4. Hindsight redesign")
 
         if not session.in_followup and not turn.completed:
-            st.markdown("#### \u270d\ufe0f Type Your Response")
-            user_input = st.text_area(
-                "Your Answer:",
-                value=turn.initial_answer,
-                height=180,
-                placeholder="State your answer clearly. Explain technical choices, complexity trade-offs, and use 'I' to highlight your individual contribution...",
-                key=f"ans_input_{curr_idx}",
-            )
-            word_count = len(user_input.strip().split()) if user_input.strip() else 0
-            pacing_chip = get_word_pacing_chip(word_count)
-            st.markdown(f"**Word Count:** `{word_count} words` {pacing_chip}", unsafe_allow_html=True)
-
-            with st.expander("\U0001f4bb Include Code Snippet (Optional)"):
-                code_input = st.text_area(
-                    "Code / Pseudocode:",
-                    height=110,
-                    placeholder="def solve(stream):\n    cache = {}\n    ...",
-                    key=f"code_snippet_{curr_idx}",
-                )
-
-            col_sub1, col_sub2 = st.columns([1, 4])
-            with col_sub1:
-                if st.button("Submit Answer \U0001f4ac", type="primary", use_container_width=True):
-                    if not user_input.strip():
-                        st.warning("Please type your response before submitting.")
-                    else:
-                        full_content = user_input.strip()
-                        if code_input.strip():
-                            full_content += f"\n\n[Code]:\n```\n{code_input.strip()}\n```"
-                        turn.initial_answer = full_content
-                        with st.spinner("Analysing your answer and generating follow-up..."):
+            st.markdown("#### 🎙️ Record Your Answer")
+            st.caption("Speak naturally. Your audio is transcribed and evaluated; typed answers are disabled in interview rounds.")
+            audio_answer = st.audio_input("Record your answer", key="audio_answer_" + str(curr_idx))
+            if audio_answer is not None:
+                st.audio(audio_answer)
+            if st.button("Transcribe & Submit Answer", type="primary", use_container_width=True, key="submit_audio_" + str(curr_idx)):
+                if audio_answer is None:
+                    st.warning("Record your spoken answer before submitting.")
+                else:
+                    try:
+                        settings = get_active_llm_settings()
+                        transcript = transcribe_audio(
+                            audio_answer.getvalue(),
+                            getattr(audio_answer, "type", None) or "audio/wav",
+                            settings.get("provider", "heuristic"),
+                            settings.get("api_key"),
+                            settings.get("model_name"),
+                        )
+                        st.markdown("**Transcript to be evaluated**")
+                        st.write(transcript)
+                        turn.initial_answer = transcript
+                        with st.spinner("Evaluating your spoken answer and generating a follow-up…"):
                             init_eval = evaluate_with_llm(
                                 q_item,
                                 turn.initial_answer,
@@ -808,6 +799,8 @@ if active_section == "mock_interview":
                             session.in_followup = True
                             save_session(session)
                             st.rerun()
+                    except (ValueError, RuntimeError) as exc:
+                        st.error(str(exc))
 
         elif session.in_followup and not turn.completed:
             with st.expander("\U0001f4c4 Review Your Initial Response", expanded=False):
