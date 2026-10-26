@@ -61,3 +61,57 @@ def test_provider_panel_explains_offline_mode():
         "Offline diagnostic mode is selected" in item.value
         for item in app.info
     )
+
+
+
+def start_one_question_offline_app():
+    """Start a deterministic offline round and return its rendered AppTest."""
+    app = build_offline_app().run()
+    slider = next(item for item in app.slider if "Questions in Round" in item.label)
+    slider.set_value(5).run()
+    start = next(item for item in app.button if "Start Interview Round" in item.label)
+    start.click().run()
+    assert not app.exception
+    return app
+
+
+def test_empty_answer_is_rejected_without_advancing_the_turn():
+    app = start_one_question_offline_app()
+    session = app.session_state["session"]
+    initial_index = session.current_turn_index
+
+    submit = next(item for item in app.button if "Submit Answer" in item.label)
+    submit.click().run()
+
+    assert not app.exception
+    assert any("type your response" in item.value.lower() for item in app.warning)
+    assert app.session_state["session"].current_turn_index == initial_index
+    assert not app.session_state["session"].turns[initial_index].initial_answer
+
+
+def test_valid_answer_can_be_scored_and_followup_skipped():
+    app = start_one_question_offline_app()
+
+    answer = next(item for item in app.text_area if item.label == "Your Answer:")
+    answer.set_value(
+        "A hash map stores key-value pairs using a hash function. Average lookup is O(1), "
+        "while collisions can use chaining or open addressing. The trade-off is memory use "
+        "versus lookup speed, and resizing can be costly."
+    ).run()
+
+    submit = next(item for item in app.button if "Submit Answer" in item.label)
+    submit.click().run()
+
+    assert not app.exception
+    session = app.session_state["session"]
+    assert session.in_followup
+    assert session.turns[session.current_turn_index].initial_evaluation is not None
+
+    skip = next(item for item in app.button if "Skip Follow-Up" in item.label)
+    skip.click().run()
+
+    assert not app.exception
+    session = app.session_state["session"]
+    assert session.turns[0].completed
+    assert session.turns[0].turn_evaluation is not None
+    assert session.current_turn_index == 1
