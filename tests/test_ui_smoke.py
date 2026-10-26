@@ -85,7 +85,7 @@ def test_empty_answer_is_rejected_without_advancing_the_turn():
     submit.click().run()
 
     assert not app.exception
-    assert any("record your spoken answer" in item.value.lower() for item in app.warning)
+    assert any("typed-answer option above" in item.value.lower() for item in app.warning)
     assert app.session_state["session"].current_turn_index == initial_index
     assert not app.session_state["session"].turns[initial_index].initial_answer
 
