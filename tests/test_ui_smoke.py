@@ -34,7 +34,7 @@ def test_user_can_change_role_and_start_an_offline_round():
     experience_selector.select("Graduate / Entry-Level (0-1 yrs)").run()
 
     type_selector = next(item for item in app.selectbox if "Interview Type" in item.label)
-    type_selector.select("Behavioral Focus (STAR Framework)").run()
+    type_selector.select("HR & Behavioral (STAR Framework)").run()
 
     question_slider = next(item for item in app.slider if "Questions in Round" in item.label)
     question_slider.set_value(8).run()
@@ -49,7 +49,7 @@ def test_user_can_change_role_and_start_an_offline_round():
     assert session is not None
     assert session.target_role == "Cybersecurity & Information Security"
     assert session.experience_level == "Graduate / Entry-Level (0-1 yrs)"
-    assert session.interview_type == "Behavioral Focus (STAR Framework)"
+    assert session.interview_type == "HR & Behavioral (STAR Framework)"
     assert len(session.turns) == session.total_questions == 8
 
 
