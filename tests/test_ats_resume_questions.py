@@ -49,3 +49,15 @@ def test_resume_questions_reference_resume_claims_and_include_followups():
     assert any("Developed a sales forecasting model" in question for question in questions)
     assert any("18%" in question for question in questions)
     assert any("Data Analyst" in question for question in questions)
+
+
+
+def test_job_description_keywords_affect_ats_keyword_check():
+    resume = "SKILLS\nPython, SQL, Git. PROJECTS\nBuilt a backend API."
+    result = calculate_ats_score(
+        resume,
+        "Software Engineering",
+        "Required skills: Python, SQL, Power BI, dashboard, analytics.",
+    )
+    assert "python" in result["matched_keywords"]
+    assert "power bi" in result["missing_keywords"]
