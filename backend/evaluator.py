@@ -524,7 +524,7 @@ Format output as pure JSON:
 
         elif provider == "gemini":
             # Call Google Gemini API (v1beta)
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or "gemini-3.8-flash"}:generateContent?key={api_key}"
             payload = {
                 "contents": [
                     {"parts": [{"text": f"{system_prompt}\n\n{user_prompt}"}]}
@@ -753,7 +753,7 @@ def generate_dynamic_ai_technical_question(
         api_key = get_setting(key_names[provider]) if provider in key_names else None
     model_name = model_name or {
         "groq": "llama-3.3-70b-versatile",
-        "gemini": "gemini-1.5-flash",
+        "gemini": "gemini-3.8-flash",
         "openai": "gpt-4o-mini",
     }.get(provider)
     if api_key and provider != "heuristic":
@@ -789,7 +789,7 @@ def generate_dynamic_ai_technical_question(
                         default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
                     )
             elif provider == "gemini":
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or "gemini-3.8-flash"}:generateContent?key={api_key}"
                 payload = {
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {"responseMimeType": "application/json", "temperature": 0.3}
