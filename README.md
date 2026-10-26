@@ -57,7 +57,7 @@ Furthermore, existing automated tools often function as opaque "pass/fail" filte
 - **Dynamic AI Technical Challenge Generator:** Synthesize FAANG/Principal-level technical questions on any custom subsystem (e.g. Kafka, Postgres MVCC, Raft, RAG).
 - **Spot the Flaw Interactive Game:** Train an "interviewer's eye" by diagnosing classic candidate errors (*The 'We' Trap*, *Unsubstantiated Metrics*, *The Defensive Blame Game*, *Buzzword Salad*).
 - **Interactive STAR Story Builder:** Step-by-step wizard converting raw coursework into structured 90-second interview pitch cards.
-- **Local Persistence (SQLite):** Session history, follow-up answers, answer revision history, and historical rubric performance stored in `interview_iq.db`.
+- **Browser-Only Persistence:** Verified users' profiles, interview sessions, answers, revisions, and performance history are stored in browser `localStorage`. The app does not query a server database for personal performance data.
 - **Audio + Typed Answer Fallback:** Record primary and follow-up answers using Streamlit audio input, or type answers when microphone, internet, or speech-transcription services are unavailable. Audio transcription requires a configured supported provider.
 - **Basic Interview Integrity Monitoring:** A browser component requests camera permission for a live preview and reports browser visibility changes. A detected tab/window visibility change terminates the active round and marks it as terminated. A normal web app cannot truly prevent tab switching, browser events can be missed or triggered by benign causes, and this is not tamper-proof proctoring.
 - **Answer Revision Workflow:** Edit completed answers where supported, re-score revised responses, and inspect timestamped previous/updated versions in the session transcript and exported reports.
@@ -70,8 +70,8 @@ Furthermore, existing automated tools often function as opaque "pass/fail" filte
 - **Frontend Framework:** Streamlit 1.39+ (for `st.audio_input`)
 - **Styling & Visuals:** Sky Blue, White, and Black Cyber-Engineering theme with dynamic CSS animations
 - **AI Providers Supported:** Groq Cloud (`llama-3.3-70b-versatile`), Google Gemini (`gemini-3.8-flash`), OpenAI (`gpt-4o-mini`), and Built-In Offline Diagnostic Engine
-- **Data & Visualization:** Pandas, Altair, and Mermaid.js for architecture diagrams
-- **Configuration & Secrets:** `python-dotenv` and Streamlit `st.secrets`
+- **Data & Visualization:** Pandas, Streamlit charts, and Mermaid.js for architecture diagrams
+- **Configuration & Secrets:** `python-dotenv`, Streamlit `st.secrets`, and SMTP secrets for email OTP
 - **Testing:** Pytest
 
 ---
@@ -99,7 +99,7 @@ flowchart TD
     RubricEval --> ArchDiagram["Mermaid Architecture Generator"]
     RubricEval --> EthicalOutline["Anti-Fabrication Structural Outline"]
     
-    RubricEval --> SQLite[("Local SQLite Database (interview_iq.db)")]
+    RubricEval --> BrowserStore[("Browser localStorage")]
     RubricEval --> ReportGen["Export Engine (Markdown, HTML/PDF, JSON)"]
 ```
 
@@ -210,6 +210,12 @@ Environment variables can be configured in a local `.env` file or in Streamlit C
 | `MODEL_NAME` | No | `llama-3.3-70b-versatile` | Model identifier for inference |
 | `GEMINI_API_KEY` | No | None | Google Gemini API key (optional alternative) |
 | `OPENAI_API_KEY` | No | None | OpenAI API key (optional alternative) |
+| `SMTP_HOST` | Required for email login | None | SMTP server host |
+| `SMTP_PORT` | No | `587` | SMTP server port with STARTTLS |
+| `SMTP_USER` | Required for email login | None | SMTP username |
+| `SMTP_PASSWORD` | Required for email login | None | SMTP password / app password |
+| `SMTP_FROM` | Required for email login | `SMTP_USER` | Verified sender address |
+| `OTP_SIGNING_SECRET` | Strongly recommended | Session-generated fallback | Long random secret used to digest OTPs |
 
 > **Secret Safety Rule:** Never commit real API keys to Git. The `.env` file and `.streamlit/secrets.toml` are ignored by `.gitignore`. Do not commit API keys or credentials. Streamlit's CSRF protection is enabled by default in this project.
 
@@ -261,12 +267,15 @@ python -m pytest tests/
 ## 14. Known Limitations
 - **Model Hallucinations in Open-Ended Generation:** When using live LLM APIs, rare hallucinations can occur; the application mitigates this by providing heuristic validation and structured JSON schema enforcement.
 - **Speech/Voice Latency:** The current release focuses on typed responses to maximize structural reflection and rubric accuracy; live voice streaming is slated for a future iteration.
-- **Ephemeral Cloud Storage:** On Streamlit Community Cloud, local SQLite database files are temporary and reset when containers sleep or redeploy.
+- **Browser-local storage only:** Profiles and performance history live in the current browser profile's `localStorage`; they do not sync across devices or browsers. Clearing site data, private-browsing cleanup, browser policies, quota limits, or storage failures can erase or prevent saving data. Export reports regularly.
+- **Email OTP is deployment-configured:** Registration/login needs working SMTP credentials and a strong `OTP_SIGNING_SECRET`. Without SMTP configuration, the app fails closed and cannot send sign-in codes.
+- **No server-side identity registry:** Email verification proves access to an email inbox, but browser-only storage is not a cross-device account database. Users can verify the same email on another device, but their saved history will not follow them there.
+- **Browser storage is not a secure vault:** Do not store confidential interview notes or secrets in this mode; localStorage is accessible to scripts running on the same origin.
 
 ---
 
 ## 15. Privacy and Responsible Use
-- **No Private Data Storage:** Do not paste confidential corporate source code, internal credentials, or sensitive personal data.
+- **Browser-Only Personal Data:** Profile and performance data remain in browser localStorage rather than a server database. This improves the no-database constraint but does not provide cross-device sync, guaranteed durability, or encrypted-at-rest storage.
 - **Formative Feedback Notice:** Scores generated by InterviewIQ are educational practice metrics designed to coach communication structure and evidence. They are **not predictive hiring determinations, automated employment screenings, or interview guarantees**.
 - **Anti-Fabrication Commitment:** Outlines provide structural templates for framing genuine coursework and projects. We strictly prohibit the generation of fictional company names, false work experience, or unearned credentials.
 
