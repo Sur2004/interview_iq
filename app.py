@@ -51,6 +51,7 @@ from backend.report_generator import (
 )
 from backend.config import get_llm_config
 from backend.career_review import (extract_resume_pdf, fetch_public_repository, evaluate_candidate_materials, calculate_ats_score, generate_resume_based_questions)
+from backend.speech import transcribe_audio
 
 # Page configuration
 st.set_page_config(
@@ -62,6 +63,8 @@ st.set_page_config(
 
 # Initialize database
 init_db()
+
+interview_monitor = components.declare_component("interviewiq_interview_monitor", path="components/interview_monitor")
 
 # Minimal, accessible visual system
 st.markdown("""
