@@ -114,4 +114,11 @@ def test_valid_answer_can_be_scored_and_followup_skipped():
     session = app.session_state["session"]
     assert session.turns[0].completed
     assert session.turns[0].turn_evaluation is not None
-    assert session.current_turn_index == 1
+    assert session.current_turn_index == 0
+
+    # Completion is intentionally separate from navigation to the next question.
+    next_question = next(item for item in app.button if "Next Question" in item.label)
+    next_question.click().run()
+
+    assert not app.exception
+    assert app.session_state["session"].current_turn_index == 1
