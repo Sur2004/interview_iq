@@ -37,8 +37,14 @@ p{font-size:12px;line-height:1.45;color:#667085;margin:8px 0 0}
   }
  });
  document.addEventListener("visibilitychange",function(){
-  if(document.visibilityState==="hidden"){hiddenAt=Date.now();return;}
-  if(hiddenAt&&Date.now()-hiddenAt>250){switches+=1;report("tab_switch_detected");}
+  if(document.visibilityState==="hidden"){
+   if(!hiddenAt){
+    hiddenAt=Date.now();
+    switches+=1;
+    report("tab_switch_detected");
+   }
+   return;
+  }
   hiddenAt=0;
  });
  window.addEventListener("beforeunload",function(){if(stream)stream.getTracks().forEach(t=>t.stop());});
