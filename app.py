@@ -1558,9 +1558,12 @@ with tab_profile_review:
                     for item in items:
                         st.markdown(f"- {item}")
         st.caption(review_result.get("disclaimer", "Practice feedback only."))
+        review_download_payload = dict(review_result)
+        review_download_payload["ats_readiness"] = st.session_state.get("career_review_ats_result")
+        review_download_payload["resume_based_questions"] = st.session_state.get("career_review_resume_questions", [])
         st.download_button(
             "Download review (.json)",
-            data=json.dumps(review_result, indent=2, ensure_ascii=False),
+            data=json.dumps(review_download_payload, indent=2, ensure_ascii=False),
             file_name="interviewiq_resume_project_review.json",
             mime="application/json",
             key="download_career_review_json",
