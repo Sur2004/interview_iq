@@ -94,6 +94,7 @@ Keep API keys in environment variables or Streamlit Secrets. Do not commit real 
 - Added UI journey tests that reject an empty answer without advancing the interview, and submit a valid technical answer, enter the follow-up stage, skip the follow-up, and verify the scored turn advances.
 - Existing UI tests also cover role, experience level, interview type, and the maximum supported question count.
 - The offline tests are deterministic and do not require a live provider key. They check score bounds, all four rubric dimensions, non-empty feedback, and presence of ethical disclaimers.
+- Hosted evaluator instructions now explicitly treat candidate answers and background context as untrusted content, with a mocked-provider regression test for attempts to override the rubric or request an artificial score.
 - Automated AppTest is not a substitute for visual inspection in a real browser; mobile screenshots, cross-browser layout, hosted-provider failure behavior, and the deployed Streamlit URL remain separate manual/browser verification tasks.
 
 ### 3.5 Security and reliability changes made earlier
