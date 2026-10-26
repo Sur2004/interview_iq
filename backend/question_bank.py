@@ -380,6 +380,41 @@ TECHNICAL_QUESTIONS_BY_ROLE: Dict[str, List[Dict]] = {
 }
 
 
+
+# Focused interview tracks use the same evaluation pipeline, with role-specific prompts.
+INTERVIEW_TRACK_QUESTIONS: Dict[str, List[Dict]] = {
+    InterviewType.BEHAVIORAL.value: [
+        {"id":"hr_01","competency":"Introduction & Motivation","question_text":"Tell me about yourself and explain why this role is a logical next step for you.","rubric_hints":["Concise present-past-future story","Evidence linked to role","Specific motivation"],"default_followup":"Which experience best demonstrates your readiness for this role?"},
+        {"id":"hr_02","competency":"Strengths & Growth","question_text":"What is one strength you rely on and one skill you are actively improving? Give a real example of each.","rubric_hints":["Specific evidence","Honest growth area","Actions taken"],"default_followup":"What observable change shows that you are improving?"},
+        {"id":"hr_03","competency":"Conflict & Collaboration","question_text":"Describe a real disagreement with a teammate and how you worked toward a constructive outcome.","rubric_hints":["Respectful listening","Personal actions","Outcome and learning"],"default_followup":"What would you do if the disagreement remained unresolved?"},
+        {"id":"hr_04","competency":"Failure & Learning","question_text":"Tell me about a mistake or setback you took responsibility for. What changed afterward?","rubric_hints":["Ownership","Specific correction","Learning applied later"],"default_followup":"What early signal would help you catch this sooner next time?"},
+        {"id":"hr_05","competency":"Career Motivation","question_text":"Why this role and team, and what do you hope to contribute in your first six months?","rubric_hints":["Role-specific motivation","Realistic contribution","Learning goals"],"default_followup":"How would you measure progress during those six months?"},
+        {"id":"hr_06","competency":"Feedback","question_text":"Describe feedback that was difficult to hear and how you responded to it.","rubric_hints":["Non-defensive response","Concrete action","Evidence of adjustment"],"default_followup":"What would the person who gave you that feedback notice today?"},
+    ],
+    InterviewType.MANAGERIAL.value: [
+        {"id":"mgr_01","competency":"Prioritization","question_text":"Two important deliverables are due at the same time and your team has limited capacity. How do you decide what happens first?","rubric_hints":["Impact and urgency","Explicit trade-offs","Stakeholder communication"],"default_followup":"What would make you revisit your decision?"},
+        {"id":"mgr_02","competency":"Delegation","question_text":"A teammate is struggling with a task you delegated. How do you support them while keeping the work moving?","rubric_hints":["Clarify blocker","Match support to need","Ownership without blame"],"default_followup":"What would you do if the deadline still looked at risk?"},
+        {"id":"mgr_03","competency":"Underperformance","question_text":"A team member repeatedly misses commitments. How would you address the issue fairly and constructively?","rubric_hints":["Private factual conversation","Understand root cause","Clear expectations and follow-up"],"default_followup":"How would you balance empathy with accountability?"},
+        {"id":"mgr_04","competency":"Decision Making","question_text":"Describe a decision you made with incomplete information. How did you manage uncertainty and risk?","rubric_hints":["Assumptions stated","Alternatives considered","Reversible next step"],"default_followup":"What new evidence would cause you to change course?"},
+        {"id":"mgr_05","competency":"Stakeholder Alignment","question_text":"Two stakeholders want conflicting outcomes. How would you align them and communicate a decision?","rubric_hints":["Clarify shared goals","Make trade-offs visible","Close the communication loop"],"default_followup":"What would you do if one stakeholder rejected the agreed decision?"},
+        {"id":"mgr_06","competency":"Team Delivery","question_text":"Your project is behind schedule. What steps would you take in the next 24 hours and over the next week?","rubric_hints":["Diagnose before acting","Prioritize critical path","Communicate risks and recovery plan"],"default_followup":"What would you stop or defer to protect the most important outcome?"},
+    ],
+    InterviewType.SITUATIONAL.value: [
+        {"id":"sit_01","competency":"Ethical Judgment","question_text":"You discover a serious issue just before a demo. Fixing it may delay the release. What do you do?","rubric_hints":["Assess severity","Protect users","Escalate transparently"],"default_followup":"How would you explain the decision to a stakeholder who wants to ship anyway?"},
+        {"id":"sit_02","competency":"Ambiguity","question_text":"You receive a vague request with a short deadline. What do you clarify first and how do you proceed?","rubric_hints":["Clarifying questions","Explicit assumptions","Small validation step"],"default_followup":"What would you do if the stakeholder were unavailable?"},
+        {"id":"sit_03","competency":"Resource Trade-offs","question_text":"You can deliver two of three requested features before launch. How do you recommend what to defer?","rubric_hints":["User impact","Risk and dependencies","Transparent trade-offs"],"default_followup":"How would you validate that the chosen priorities are correct?"},
+        {"id":"sit_04","competency":"Incident Response","question_text":"A production issue affects some users, but the cause is unclear. Walk through your first actions.","rubric_hints":["Stabilize and assess impact","Use evidence and logs","Communicate and learn"],"default_followup":"What information would you include in the first status update?"},
+        {"id":"sit_05","competency":"Fairness & Integrity","question_text":"A colleague asks you to present a result as successful even though the evidence is mixed. How do you respond?","rubric_hints":["Truthful reporting","Respectful challenge","Evidence-based alternative"],"default_followup":"How would you handle pressure to keep the uncertainty out of the report?"},
+    ],
+    InterviewType.COMMUNICATION.value: [
+        {"id":"com_01","competency":"Explain Technical Work","question_text":"Explain a technical problem you solved to a non-technical manager in under two minutes.","rubric_hints":["Plain language","User or business impact","Check for understanding"],"default_followup":"How would you explain the same issue to a customer affected by it?"},
+        {"id":"com_02","competency":"Communicate a Delay","question_text":"You realize a promised delivery will be late. What do you tell the stakeholder and when?","rubric_hints":["Early notice","Reason without excuses","Options and next update"],"default_followup":"What if you cannot yet estimate a reliable new delivery date?"},
+        {"id":"com_03","competency":"Defend a Recommendation","question_text":"Describe how you would present a recommendation when your audience disagrees with your preferred solution.","rubric_hints":["Audience-aware framing","Evidence and alternatives","Invite challenge"],"default_followup":"What evidence would make you change your recommendation?"},
+        {"id":"com_04","competency":"Active Listening","question_text":"A stakeholder says your solution misses the point. How do you respond and find the real need?","rubric_hints":["Clarify before defending","Reflect the concern","Agree on next step"],"default_followup":"How would you confirm that your revised understanding is correct?"},
+        {"id":"com_05","competency":"Concise Updates","question_text":"Give a short status update for a project with progress, a blocker, a risk, and a request for help.","rubric_hints":["Clear status","Impact and owner","Specific ask"],"default_followup":"What details would you leave out for an executive audience?"},
+    ],
+}
+
 def get_default_technical_questions() -> List[Dict]:
     """Default fallback technical questions suitable for all tech disciplines."""
     return TECHNICAL_QUESTIONS_BY_ROLE[TargetRole.SOFTWARE_ENGINEERING.value]
@@ -443,8 +478,15 @@ def build_interview_plan(
         if i < len(selected_proj):
             raw_list.append(("proj", selected_proj[i]))
 
-    # Trim to exact requested count
-    raw_list = raw_list[:num_questions]
+    # Focused HR, leadership, situational and communication tracks stay within the same scoring flow.
+    focused_pool = INTERVIEW_TRACK_QUESTIONS.get(interview_type)
+    if focused_pool:
+        track_pool = list(focused_pool)
+        random.shuffle(track_pool)
+        raw_list = [("beh", item) for item in track_pool[:num_questions]]
+    else:
+        # Trim to exact requested count
+        raw_list = raw_list[:num_questions]
 
     for idx, (cat_type, q_data) in enumerate(raw_list):
         if cat_type == "beh":
