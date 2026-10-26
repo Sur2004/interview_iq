@@ -229,7 +229,7 @@ Be specific and cite resume section names or repository file paths when possible
         try:
             if name == "gemini":
                 model = config.get("model_name") if provider == "gemini" else None
-                model = model or "gemini-2.5-flash"
+                model = model or "gemini-3.7-flash"
                 response = requests.post(
                     f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
                     headers={"x-goog-api-key": key, "Content-Type": "application/json"},
