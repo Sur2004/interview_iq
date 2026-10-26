@@ -51,7 +51,7 @@ Furthermore, existing automated tools often function as opaque "pass/fail" filte
 - **Language & Runtime:** Python 3.10+ (Standard Library: `sqlite3`, `dataclasses`, `re`, `json`)
 - **Frontend Framework:** Streamlit 1.35+
 - **Styling & Visuals:** Sky Blue, White, and Black Cyber-Engineering theme with dynamic CSS animations
-- **AI Providers Supported:** Groq Cloud (`llama-3.3-70b-versatile`), Google Gemini (`gemini-1.5-flash`), OpenAI (`gpt-4o-mini`), and Built-In Offline Diagnostic Engine
+- **AI Providers Supported:** Groq Cloud (`llama-3.3-70b-versatile`), Google Gemini (`gemini-3.8-flash`), OpenAI (`gpt-4o-mini`), and Built-In Offline Diagnostic Engine
 - **Data & Visualization:** Pandas, Altair, and Mermaid.js for architecture diagrams
 - **Configuration & Secrets:** `python-dotenv` and Streamlit `st.secrets`
 - **Testing:** Pytest
@@ -106,7 +106,7 @@ interview_iq/
 │   └── config.toml             # Streamlit server protections and telemetry settings
 ├── .env.example                # Placeholder environment variable template
 ├── .gitignore                  # Git exclusion rules (.env and secrets ignored)
-├── requirements.txt            # Pinned Python package dependencies
+├── requirements.txt            # Python package dependencies
 ├── LICENSE                     # MIT License
 └── README.md                   # Project documentation
 ```
