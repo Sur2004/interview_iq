@@ -698,8 +698,8 @@ if active_section == "mock_interview":
 
     else:
         # ACTIVE INTERVIEW ROUND IN PROGRESS
-        st.markdown("### 🎙️ Voice interview mode")
-        st.info("This practice round requests camera access and tracks browser-tab visibility changes. You can review the monitoring status below. Browser monitoring is not foolproof proctoring.")
+        st.markdown("### 🎙️ Audio + Text Interview Mode")
+        st.info("Answer by audio or text. Audio transcription needs a working connection to a configured provider, so use typed answers if recording/transcription fails. A detected browser-tab/window visibility change terminates the round. Detection is not foolproof and normal browser apps cannot block every switch.")
         monitor_status = interview_monitor(key="interviewiq_monitor", default={"camera": "starting", "tab_switches": 0})
         if isinstance(monitor_status, dict):
             camera_status = monitor_status.get("camera", "starting")
