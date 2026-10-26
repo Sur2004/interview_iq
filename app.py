@@ -10,6 +10,7 @@ import os
 import uuid
 import pandas as pd
 import json
+import re
 
 from backend.models import (
     ExperienceLevel,
@@ -38,6 +39,7 @@ from backend.evaluator import (
     RUBRIC_CRITERIA_META,
 )
 from backend.auth import normalize_email, otp_digest, send_email_otp
+from backend.config import get_setting
 from backend.browser_store import session_from_dict, session_summaries, analytics_from_sessions
 from backend.report_generator import (
     generate_markdown_report,
@@ -397,7 +399,7 @@ def render_auth_gate() -> None:
         name_input = st.text_input("Your name", key="auth_name", placeholder="Name shown on your reports")
     if st.button("Send verification code", type="primary", use_container_width=True):
         email = normalize_email(email_input)
-        if "@" not in email or "." not in email.rsplit("@", 1)[-1] or len(email) > 254:
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email) or len(email) > 254:
             st.error("Enter a valid email address.")
         elif time.time() - float(st.session_state.get("otp_last_sent_at", 0)) < 45:
             st.warning("Please wait before requesting another code.")
@@ -405,7 +407,7 @@ def render_auth_gate() -> None:
             code = f"{__import__('secrets').randbelow(1000000):06d}"
             try:
                 send_email_otp(email, code)
-                secret = os.environ.get("OTP_SIGNING_SECRET") or st.session_state.setdefault("otp_session_secret", __import__('secrets').token_urlsafe(32))
+                secret = get_setting("OTP_SIGNING_SECRET") or st.session_state.setdefault("otp_session_secret", __import__('secrets').token_urlsafe(32))
                 st.session_state.otp_email = email
                 st.session_state.otp_digest = otp_digest(email, code, secret)
                 st.session_state.otp_expires_at = time.time() + 300
@@ -429,7 +431,7 @@ def render_auth_gate() -> None:
                 st.session_state.pop("otp_digest", None)
                 st.error("Too many incorrect attempts. Request a new code.")
             else:
-                secret = os.environ.get("OTP_SIGNING_SECRET") or st.session_state.get("otp_session_secret", "")
+                secret = get_setting("OTP_SIGNING_SECRET") or st.session_state.get("otp_session_secret", "")
                 expected = st.session_state.get("otp_digest", "")
                 actual = otp_digest(email, entered_code.strip(), secret) if entered_code.strip().isdigit() and len(entered_code.strip()) == 6 else ""
                 import hmac
