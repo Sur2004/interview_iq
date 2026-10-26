@@ -58,11 +58,12 @@ st.set_page_config(
 interview_monitor = components.declare_component("interviewiq_interview_monitor", path="components/interview_monitor_v2")
 browser_store = components.declare_component("interviewiq_browser_store", path="components/browser_store")
 _browser_read = browser_store(action="read", payload="", key="browser_store_reader")
-if isinstance(_browser_read, dict):
+if isinstance(_browser_read, dict) and not st.session_state.get("browser_data_loaded"):
     st.session_state.browser_data = {
         "profiles": _browser_read.get("profiles", {}) if isinstance(_browser_read.get("profiles", {}), dict) else {},
         "sessions": _browser_read.get("sessions", {}) if isinstance(_browser_read.get("sessions", {}), dict) else {},
     }
+    st.session_state.browser_data_loaded = True
 elif "browser_data" not in st.session_state:
     st.session_state.browser_data = {"profiles": {}, "sessions": {}}
 
