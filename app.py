@@ -75,19 +75,31 @@ st.markdown("""
     [data-testid="stSidebar"] > div:first-child { padding-top:1.4rem; }
     /* Clear, scrollable workspace navigation */
     [data-testid="stTabs"] { margin-top: 1rem; }
-    [data-testid="stTabs"] [role="tablist"] {
+    /* Streamlit/BaseWeb versions use different tab-list wrappers; target both. */
+    [data-testid="stTabs"] [role="tablist"],
+    [data-testid="stTabs"] [data-baseweb="tab-list"] {
         position: sticky; top: 0; z-index: 20;
-        display: flex; flex-wrap: nowrap; gap: .35rem;
-        overflow-x: auto; overflow-y: hidden;
+        display: flex !important; flex-wrap: nowrap !important;
+        gap: .35rem; width: 100%; max-width: 100%;
+        overflow-x: auto !important; overflow-y: hidden !important;
         padding: .55rem .5rem; margin: 0 0 1.15rem;
-        background: rgba(255,255,255,.96);
+        box-sizing: border-box;
+        background: rgba(255,255,255,.97);
         border: 1px solid var(--iq-border); border-radius: 14px;
         box-shadow: 0 3px 12px rgba(15,23,42,.04);
         scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent;
-        -webkit-overflow-scrolling: touch;
+        -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+        scroll-behavior: smooth;
     }
-    [data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar { height: 5px; }
-    [data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    [data-testid="stTabs"] [role="tablist"] > div,
+    [data-testid="stTabs"] [data-baseweb="tab-list"] > div {
+        flex: 0 0 auto !important; flex-wrap: nowrap !important;
+        width: max-content !important; min-width: max-content !important;
+    }
+    [data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar,
+    [data-testid="stTabs"] [data-baseweb="tab-list"]::-webkit-scrollbar { height: 5px; }
+    [data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar-thumb,
+    [data-testid="stTabs"] [data-baseweb="tab-list"]::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
     [data-testid="stTabs"] button[role="tab"] {
         flex: 0 0 auto; white-space: nowrap;
         min-height: 40px; padding: .55rem .85rem;
@@ -533,7 +545,7 @@ st.markdown(
 # ==============================================================================
 # MAIN NAVIGATION
 # A sticky, horizontally scrollable workspace menu; labels are grouped by user goal.
-st.caption("WORKSPACE NAVIGATION  ·  Practice  ·  Learn  ·  Track progress  ·  Review your resume")
+st.caption("WORKSPACE NAVIGATION  ·  Swipe or scroll sideways to see all sections  ·  Practice · Learn · Progress · Reports · Resume Review")
 tab_studio, tab_dynamic_ai, tab_bank, tab_playbook, tab_star_builder, tab_flaw_game, tab_analytics, tab_report, tab_rubric, tab_profile_review = st.tabs([
     "🎯 Practice · Mock Interview",
     "⚡ Practice · Tech Challenge",
