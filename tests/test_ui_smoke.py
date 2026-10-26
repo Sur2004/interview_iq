@@ -28,7 +28,16 @@ def test_user_can_change_role_and_start_an_offline_round():
     app = build_offline_app().run()
 
     role_selector = next(item for item in app.selectbox if "Target Role" in item.label)
-    role_selector.select("Data Science & Machine Learning").run()
+    role_selector.select("Cybersecurity & Information Security").run()
+
+    experience_selector = next(item for item in app.selectbox if "Experience Level" in item.label)
+    experience_selector.select("Graduate / Entry-Level (0-1 yrs)").run()
+
+    type_selector = next(item for item in app.selectbox if "Interview Type" in item.label)
+    type_selector.select("Behavioral Focus (STAR Framework)").run()
+
+    question_slider = next(item for item in app.slider if "Questions in Round" in item.label)
+    question_slider.set_value(8).run()
 
     assert not app.exception
 
@@ -38,9 +47,10 @@ def test_user_can_change_role_and_start_an_offline_round():
     assert not app.exception
     session = app.session_state["session"]
     assert session is not None
-    assert session.target_role == "Data Science & Machine Learning"
-    assert len(session.turns) == session.total_questions
-    assert 5 <= session.total_questions <= 8
+    assert session.target_role == "Cybersecurity & Information Security"
+    assert session.experience_level == "Graduate / Entry-Level (0-1 yrs)"
+    assert session.interview_type == "Behavioral Focus (STAR Framework)"
+    assert len(session.turns) == session.total_questions == 8
 
 
 def test_provider_panel_explains_offline_mode():
