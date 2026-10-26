@@ -332,12 +332,12 @@ def get_performance_badge(score: float) -> str:
 
 
 def get_word_pacing_chip(words: int) -> str:
-    if words < 40:
-        return '<span class="pacing-chip pacing-warn">⚠️ Too Brief (&lt;40 words)</span>'
-    elif words <= 240:
+    if words < 60:
+        return '<span class="pacing-chip pacing-warn">⚠️ Too Brief (&lt;60 words)</span>'
+    elif words <= 200:
         return '<span class="pacing-chip pacing-ok">✨ Sweet Spot (60–200 words)</span>'
     else:
-        return '<span class="pacing-chip pacing-warn">⚠️ Verbose / Wordy (&gt;240 words)</span>'
+        return '<span class="pacing-chip pacing-warn">⚠️ Verbose / Wordy (&gt;200 words)</span>'
 
 
 def get_active_llm_settings() -> dict:
