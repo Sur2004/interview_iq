@@ -795,12 +795,12 @@ if active_section == "mock_interview":
                         if t_eval.architecture_diagram_mermaid:
                             st.markdown("#### \U0001f5fa\ufe0f Architecture Diagram")
                             render_mermaid(t_eval.architecture_diagram_mermaid, height=240)
-                        st.markdown("#### \u2696\ufe0f Rubric Breakdown")
-                        cols_r = st.columns(4)
-                        for idx, (k, r_crit) in enumerate(t_eval.rubric_scores.items()):
-                            with cols_r[idx]:
-                                st.metric(r_crit.display_name, f"{r_crit.score} / 5.0")
-                                st.caption(r_crit.feedback)
+                        st.markdown("#### Rubric breakdown")
+            rubric_rows = [{"Criterion": item.display_name, "Score": item.score} for item in t_eval.rubric_scores.values()]
+            if rubric_rows:
+                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", y_label="Score / 5", use_container_width=True)
+                for item in t_eval.rubric_scores.values():
+                    st.markdown(f"**{item.display_name}: {item.score:.1f}/5** — {item.feedback}")
                         st.markdown(t_eval.stronger_answer_outline)
                     render_answer_revision_editor(session, turn, f"finished_turn_{i}")
         else:
@@ -1054,13 +1054,8 @@ if active_section == "mock_interview":
 
         elif turn.completed and turn.turn_evaluation:
             t_eval = turn.turn_evaluation
-            st.markdown("### \U0001f4ca Turn Diagnostic Results")
-            col_sc, col_badge = st.columns([1, 2])
-            with col_sc:
-                st.metric("Turn Practice Score", f"{t_eval.overall_score} / 5.0")
-            with col_badge:
-                st.markdown("**Mastery Level:**")
-                st.markdown(get_performance_badge(t_eval.overall_score), unsafe_allow_html=True)
+            st.markdown("### Turn diagnostic results")
+            st.markdown(f"**Overall score:** {t_eval.overall_score:.1f} / 5.0")
 
             if t_eval.technical_breakdown:
                 tb = t_eval.technical_breakdown
@@ -1080,12 +1075,12 @@ if active_section == "mock_interview":
                 st.markdown("#### \U0001f5fa\ufe0f Architecture Diagram")
                 render_mermaid(t_eval.architecture_diagram_mermaid, height=260)
 
-            st.markdown("#### \u2696\ufe0f Rubric Breakdown")
-            cols_r = st.columns(4)
-            for idx, (k, r_crit) in enumerate(t_eval.rubric_scores.items()):
-                with cols_r[idx]:
-                    st.metric(r_crit.display_name, f"{r_crit.score} / 5.0")
-                    st.caption(r_crit.feedback)
+            st.markdown("#### Rubric breakdown")
+            rubric_rows = [{"Criterion": item.display_name, "Score": item.score} for item in t_eval.rubric_scores.values()]
+            if rubric_rows:
+                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", y_label="Score / 5", use_container_width=True)
+                for item in t_eval.rubric_scores.values():
+                    st.markdown(f"**{item.display_name}: {item.score:.1f}/5** — {item.feedback}")
 
             st.markdown(t_eval.stronger_answer_outline)
 
