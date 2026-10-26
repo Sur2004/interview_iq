@@ -1452,7 +1452,7 @@ with tab_profile_review:
         help="Only public GitHub repositories are fetched. Up to 12 small text files are reviewed.",
         key="career_review_repo_url",
     )
-    st.caption("Choose at least one input. Remove personal details you do not want to share with a hosted AI provider.")
+    st.caption("Choose at least one input. If a hosted free-tier model is configured, extracted resume text and selected public repository snippets are sent to that provider for feedback. Remove sensitive personal details first.")
     review_role = st.selectbox(
         "Target role for this review",
         [r.value for r in TargetRole],
