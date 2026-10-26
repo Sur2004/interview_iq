@@ -997,20 +997,23 @@ with tab_studio:
             col_f1, col_f2 = st.columns([2, 1])
             with col_f1:
                 if st.button("Submit Follow-Up & Score Turn \U0001f3af", type="primary", use_container_width=True):
-                    turn.followup_answer = followup_input.strip()
-                    with st.spinner("Executing full 4-part rubric scoring..."):
-                        full_eval = evaluate_with_llm(
-                            q_item,
-                            turn.initial_answer,
-                            followup_answer=turn.followup_answer,
-                            candidate_context=session.candidate_context,
-                            **get_active_llm_settings(),
-                        )
-                        turn.turn_evaluation = full_eval
-                        turn.completed = True
-                        session.in_followup = False
-                        save_session(session)
-                        st.rerun()
+                    if not followup_input.strip():
+                        st.warning("Enter a follow-up response or choose Skip Follow-Up.")
+                    else:
+                        turn.followup_answer = followup_input.strip()
+                        with st.spinner("Executing full 4-part rubric scoring..."):
+                            full_eval = evaluate_with_llm(
+                                q_item,
+                                turn.initial_answer,
+                                followup_answer=turn.followup_answer,
+                                candidate_context=session.candidate_context,
+                                **get_active_llm_settings(),
+                            )
+                            turn.turn_evaluation = full_eval
+                            turn.completed = True
+                            session.in_followup = False
+                            save_session(session)
+                            st.rerun()
             with col_f2:
                 if st.button("Skip Follow-Up", use_container_width=True):
                     turn.followup_answer = "[Skipped]"
