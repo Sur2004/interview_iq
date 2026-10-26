@@ -524,7 +524,8 @@ Format output as pure JSON:
 
         elif provider == "gemini":
             # Call Google Gemini API (v1beta)
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or 'gemini-3.8-flash'}:generateContent?key={api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or 'gemini-3.8-flash'}:generateContent"
+            headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
             payload = {
                 "contents": [
                     {"parts": [{"text": f"{system_prompt}\n\n{user_prompt}"}]}
@@ -534,7 +535,7 @@ Format output as pure JSON:
                     "responseMimeType": "application/json"
                 }
             }
-            resp = requests.post(url, json=payload, timeout=12)
+            resp = requests.post(url, headers=headers, json=payload, timeout=12)
             if resp.status_code == 200:
                 raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                 data = json.loads(raw_text)
@@ -794,7 +795,7 @@ def generate_dynamic_ai_technical_question(
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {"responseMimeType": "application/json", "temperature": 0.3}
                 }
-                resp = requests.post(url, json=payload, timeout=8)
+                resp = requests.post(url, headers=headers, json=payload, timeout=8)
                 if resp.status_code == 200:
                     raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                     data = json.loads(raw)
