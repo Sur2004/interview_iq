@@ -147,3 +147,39 @@ def test_custom_challenge_topic_generates_offline_question():
     question = app.session_state["current_dyn_q"]
     assert question.question_text.strip()
     assert question.competency_or_topic
+
+
+
+def test_typed_primary_answer_is_evaluated_offline():
+    app = start_one_question_offline_app()
+    answer = next(item for item in app.text_area if item.label == "Or type your answer")
+    answer.set_value("A hash map stores key-value pairs and usually supports average constant-time lookup.")
+    submit = next(item for item in app.button if item.label == "Submit Typed Answer")
+    submit.click().run()
+
+    assert not app.exception
+    session = app.session_state["session"]
+    assert session.in_followup
+    assert session.turns[session.current_turn_index].initial_answer.startswith("A hash map")
+
+
+def test_typed_followup_answer_is_evaluated_offline():
+    app = start_one_question_offline_app()
+    session = app.session_state["session"]
+    turn = session.turns[session.current_turn_index]
+    turn.initial_answer = "A hash map stores key-value pairs and usually supports average constant-time lookup."
+    from backend.evaluator import evaluate_heuristically
+    turn.initial_evaluation = evaluate_heuristically(turn.question, turn.initial_answer)
+    session.in_followup = True
+    app.session_state["session"] = session
+    app.run()
+
+    answer = next(item for item in app.text_area if item.label == "Or type your follow-up answer")
+    answer.set_value("I would handle collisions with chaining and measure load factor.")
+    submit = next(item for item in app.button if item.label == "Submit Typed Follow-Up & Score Turn")
+    submit.click().run()
+
+    assert not app.exception
+    session = app.session_state["session"]
+    assert session.turns[0].completed
+    assert session.turns[0].followup_answer.startswith("I would handle collisions")
