@@ -50,6 +50,7 @@ from backend.report_generator import (
     generate_html_report,
 )
 from backend.config import get_llm_config
+from backend.career_review import extract_resume_pdf, fetch_public_repository, evaluate_candidate_materials
 
 # Page configuration
 st.set_page_config(
@@ -495,16 +496,17 @@ st.markdown(
 # ==============================================================================
 # MAIN NAVIGATION TABS
 # Group the workflow in the order most users need: practice, learn, review, export.
-tab_studio, tab_dynamic_ai, tab_bank, tab_playbook, tab_star_builder, tab_flaw_game, tab_analytics, tab_report, tab_rubric = st.tabs([
+tab_studio, tab_dynamic_ai, tab_bank, tab_playbook, tab_star_builder, tab_flaw_game, tab_analytics, tab_report, tab_rubric, tab_profile_review = st.tabs([
     "\U0001f3af Mock Interview",
     "\u26a1 Technical Challenge",
     "\U0001f4da Question Bank",
     "\U0001f4d6 System Design",
     "\U0001f6e0\ufe0f STAR Builder",
     "\U0001f3ae Spot the Flaw",
-    "\U0001f4ca Analytics",
+    "\U0001f4ca Progress",
     "\U0001f4d1 Export Report",
     "\u2696\ufe0f Rubric Guide",
+    "\U0001f4c4 Resume & Project Review",
 ])
 
 
@@ -1428,3 +1430,95 @@ with tab_rubric:
                 st.markdown(f"- **Level {lvl}:** {text}")
 
     st.markdown("---")
+
+
+# ==============================================================================
+# TAB 10: RESUME + PUBLIC PROJECT REVIEW
+# ==============================================================================
+with tab_profile_review:
+    st.header("Resume & Project Review")
+    st.markdown("Upload a resume PDF, add a **public GitHub repository**, or use both. InterviewIQ reviews role alignment, project evidence, engineering practices, and likely interview follow-ups.")
+    st.caption("Private repositories and access tokens are not supported. Repository files are read as text only; code is not executed.")
+
+    review_resume = st.file_uploader(
+        "Resume (PDF, optional)",
+        type=["pdf"],
+        help="Text-based PDF only; maximum 8 MB. The review extracts text from up to 8 pages.",
+        key="career_review_resume_pdf",
+    )
+    review_repo_url = st.text_input(
+        "Public GitHub repository URL (optional)",
+        placeholder="https://github.com/owner/repository",
+        help="Only public GitHub repositories are fetched. Up to 12 small text files are reviewed.",
+        key="career_review_repo_url",
+    )
+    st.caption("Choose at least one input. Remove personal details you do not want to share with a hosted AI provider.")
+    review_role = st.selectbox(
+        "Target role for this review",
+        [r.value for r in TargetRole],
+        index=[r.value for r in TargetRole].index(st.session_state.get("sb_target_role", TargetRole.SOFTWARE_ENGINEERING.value))
+        if st.session_state.get("sb_target_role", TargetRole.SOFTWARE_ENGINEERING.value) in [r.value for r in TargetRole] else 0,
+        key="career_review_role",
+    )
+
+    if st.button("Review Resume & Project", type="primary", use_container_width=True, key="run_career_review"):
+        if not review_resume and not review_repo_url.strip():
+            st.warning("Upload a resume PDF, enter a public GitHub repository URL, or both.")
+        else:
+            try:
+                with st.spinner("Reading your materials and preparing the review..."):
+                    resume_text = extract_resume_pdf(review_resume) if review_resume else ""
+                    repo_data = fetch_public_repository(review_repo_url.strip()) if review_repo_url.strip() else None
+                    active = get_active_llm_settings()
+                    review_config = {
+                        "provider": active.get("provider", "heuristic"),
+                        "model_name": None if active.get("provider") == "gemini" else active.get("model_name"),
+                        "gemini_api_key": active.get("api_key") if active.get("provider") == "gemini" else None,
+                        "groq_api_key": active.get("api_key") if active.get("provider") == "groq" else None,
+                        "openai_api_key": active.get("api_key") if active.get("provider") == "openai" else None,
+                    }
+                    review_result = evaluate_candidate_materials(resume_text, repo_data, review_role, review_config)
+                    st.session_state["career_review_result"] = review_result
+                    st.session_state["career_review_repo_meta"] = (
+                        {k: v for k, v in repo_data.items() if k != "files"} if repo_data else None
+                    )
+                st.success("Review ready.")
+            except ValueError as exc:
+                st.error(str(exc))
+            except Exception as exc:
+                st.error(f"Could not complete the review: {exc}. Check the repository URL or try again later.")
+
+    review_result = st.session_state.get("career_review_result")
+    if review_result:
+        st.markdown("---")
+        st.subheader("Review summary")
+        st.caption(f"Evaluation method: {review_result.get('provider', 'Unknown')}")
+        st.write(review_result.get("summary", ""))
+        st.info(review_result.get("role_fit", ""))
+        review_repo_meta = st.session_state.get("career_review_repo_meta")
+        if review_repo_meta:
+            st.markdown(f"**Repository:** [{review_repo_meta.get('name', 'GitHub repository')}]({review_repo_meta.get('url', '')})")
+            st.caption(f"Primary language: {review_repo_meta.get('language', 'Not specified')} · Files reviewed: {review_repo_meta.get('file_count', 'up to 12')} · Stars: {review_repo_meta.get('stars', 0)}")
+
+        review_sections = [
+            ("Resume strengths", "resume_strengths"),
+            ("Resume improvements", "resume_improvements"),
+            ("Project review", "project_review"),
+            ("Potential claims to verify", "potential_claims_to_verify"),
+            ("Interview questions to prepare", "interview_questions"),
+            ("Priority actions", "priority_actions"),
+        ]
+        for title, key in review_sections:
+            items = review_result.get(key, [])
+            if items:
+                with st.expander(title, expanded=title in {"Resume improvements", "Project review", "Priority actions"}):
+                    for item in items:
+                        st.markdown(f"- {item}")
+        st.caption(review_result.get("disclaimer", "Practice feedback only."))
+        st.download_button(
+            "Download review (.json)",
+            data=json.dumps(review_result, indent=2, ensure_ascii=False),
+            file_name="interviewiq_resume_project_review.json",
+            mime="application/json",
+            key="download_career_review_json",
+        )
