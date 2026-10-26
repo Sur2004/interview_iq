@@ -8,6 +8,7 @@ import io
 from typing import Optional
 
 import requests
+from requests.exceptions import RequestException
 
 
 def transcribe_audio(audio_bytes: bytes, mime_type: str, provider: str, api_key: Optional[str], model_name: Optional[str] = None) -> str:
@@ -18,13 +19,18 @@ def transcribe_audio(audio_bytes: bytes, mime_type: str, provider: str, api_key:
     mime_type = mime_type or "audio/wav"
 
     if provider == "groq":
-        response = requests.post(
-            "https://api.groq.com/openai/v1/audio/transcriptions",
-            headers={"Authorization": f"Bearer {api_key}"},
-            files={"file": ("answer.webm", io.BytesIO(audio_bytes), mime_type)},
-            data={"model": "whisper-large-v3-turbo", "response_format": "json"},
-            timeout=90,
-        )
+        try:
+            response = requests.post(
+                "https://api.groq.com/openai/v1/audio/transcriptions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                files={"file": ("answer.webm", io.BytesIO(audio_bytes), mime_type)},
+                data={"model": "whisper-large-v3-turbo", "response_format": "json"},
+                timeout=90,
+            )
+        except RequestException as exc:
+            raise RuntimeError(
+                "Could not reach Groq for speech transcription. Check your internet connection or use the typed-answer option."
+            ) from exc
         if response.status_code != 200:
             raise RuntimeError(f"Speech transcription failed (Groq HTTP {response.status_code}). Check your key, quota, and audio format.")
         transcript = response.json().get("text", "").strip()
@@ -39,12 +45,17 @@ def transcribe_audio(audio_bytes: bytes, mime_type: str, provider: str, api_key:
             }],
             "generationConfig": {"temperature": 0},
         }
-        response = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-            headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
-            json=payload,
-            timeout=90,
-        )
+        try:
+            response = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
+                json=payload,
+                timeout=90,
+            )
+        except RequestException as exc:
+            raise RuntimeError(
+                "Could not reach Gemini for speech transcription. Check your internet connection or use the typed-answer option."
+            ) from exc
         if response.status_code != 200:
             raise RuntimeError(f"Speech transcription failed (Gemini HTTP {response.status_code}). Check your key, model access, quota, and audio format.")
         parts = response.json().get("candidates", [{}])[0].get("content", {}).get("parts", [])
