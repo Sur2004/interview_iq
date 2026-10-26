@@ -440,7 +440,7 @@ def evaluate_with_llm(
         api_key = get_setting(provider_key_names[provider])
     default_models = {
         "groq": "llama-3.3-70b-versatile",
-        "gemini": "gemini-3.8-flash",
+        "gemini": "gemini-2.5-flash",
         "openai": "gpt-4o-mini",
         "heuristic": "built-in-diagnostic-engine",
     }
@@ -539,7 +539,7 @@ Format output as pure JSON:
 
         elif provider == "gemini":
             # Call Google Gemini API (v1beta)
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or 'gemini-3.8-flash'}:generateContent"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or 'gemini-2.5-flash'}:generateContent"
             headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
             payload = {
                 "contents": [
@@ -769,7 +769,7 @@ def generate_dynamic_ai_technical_question(
         api_key = get_setting(key_names[provider]) if provider in key_names else None
     default_models = {
         "groq": "llama-3.3-70b-versatile",
-        "gemini": "gemini-3.8-flash",
+        "gemini": "gemini-2.5-flash",
         "openai": "gpt-4o-mini",
     }
     configured_model = configured.get("model_name") if configured.get("provider") == provider else None
@@ -807,7 +807,7 @@ def generate_dynamic_ai_technical_question(
                         default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
                     )
             elif provider == "gemini":
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or 'gemini-3.8-flash'}:generateContent"
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or 'gemini-2.5-flash'}:generateContent"
                 headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
                 payload = {
                     "contents": [{"parts": [{"text": prompt}]}],
