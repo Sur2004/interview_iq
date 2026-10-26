@@ -212,6 +212,9 @@ project_review (array of strings), role_fit (string), interview_questions (array
 priority_actions (array of strings), potential_claims_to_verify (array of strings).
 Be specific and cite resume section names or repository file paths when possible. Flag missing evidence as a question, not an accusation. Never invent project facts or metrics. If only resume or repo is present, review that material and say what is missing. Limit each array to 5 items. Scores are optional; do not pretend keyword matches prove skill."""
     provider = (config.get("provider") or "heuristic").lower()
+    # Respect an explicit offline selection and avoid accidental hosted calls.
+    if provider == "heuristic":
+        return _offline_review(resume_text, repo, target_role)
     keys = {
         "gemini": config.get("gemini_api_key"),
         "groq": config.get("groq_api_key"),
