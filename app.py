@@ -360,6 +360,31 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown("---")
+    st.subheader("\U0001f9ed Navigate InterviewIQ")
+    st.caption("Choose a section first, then configure your interview below.")
+    section_labels = {
+        "mock_interview": "\U0001f3af  Practice: Mock Interview",
+        "technical_challenge": "\u26a1  Practice: Technical Challenge",
+        "question_bank": "\U0001f4da  Learn: Question Bank",
+        "system_design": "\U0001f4d6  Learn: System Design",
+        "star_builder": "\U0001f6e0\ufe0f  Practice: STAR Builder",
+        "spot_the_flaw": "\U0001f3ae  Practice: Spot the Flaw",
+        "progress": "\U0001f4ca  Progress & Performance",
+        "export_report": "\U0001f4d1  Reports: Export Results",
+        "rubric_guide": "\u2696\ufe0f  Learn: Scoring Rubric",
+        "resume_review": "\U0001f4c4  Resume & Project Review",
+    }
+    active_section = st.radio(
+        "Navigation menu",
+        options=list(section_labels.keys()),
+        format_func=lambda key: section_labels[key],
+        key="workspace_navigation",
+        label_visibility="collapsed",
+    )
+    st.caption("Select any item to switch sections.")
+    st.markdown("---")
+
     st.subheader("\u2699\ufe0f Session Setup")
 
     candidate_name = st.text_input(
@@ -543,33 +568,6 @@ st.markdown(
 
 
 # ==============================================================================
-# MAIN NAVIGATION
-# Sidebar radio provides a clear vertical navigation that works on desktop and mobile.
-with st.sidebar:
-    st.markdown("---")
-    st.subheader("🧭 Navigate InterviewIQ")
-    st.caption("Choose where you want to go. Sections are grouped by task.")
-    section_labels = {
-        "mock_interview": "🎯  Practice: Mock Interview",
-        "technical_challenge": "⚡  Practice: Technical Challenge",
-        "question_bank": "📚  Learn: Question Bank",
-        "system_design": "📖  Learn: System Design",
-        "star_builder": "🛠️  Practice: STAR Builder",
-        "spot_the_flaw": "🎮  Practice: Spot the Flaw",
-        "progress": "📊  Progress & Performance",
-        "export_report": "📑  Reports: Export Results",
-        "rubric_guide": "⚖️  Learn: Scoring Rubric",
-        "resume_review": "📄  Resume & Project Review",
-    }
-    active_section = st.radio(
-        "Navigation menu",
-        options=list(section_labels.keys()),
-        format_func=lambda key: section_labels[key],
-        key="workspace_navigation",
-        label_visibility="collapsed",
-    )
-    st.caption("Tip: Your current section is highlighted. Select another item to switch sections.")
-
 # TAB 1: MOCK INTERVIEW STUDIO
 # ==============================================================================
 if active_section == "mock_interview":
