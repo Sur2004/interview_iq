@@ -265,6 +265,28 @@ class TestDatabaseAndReports:
             assert "<!DOCTYPE html>" in html_report
             assert "Alex River" in html_report
             assert "Print / Save as PDF" in html_report
+            assert "<h1>" in html_report
+            assert "<table>" in html_report
+            assert "<pre" in html_report
+
+            # Candidate-provided markup must remain inert in exported HTML.
+            unsafe_session = InterviewSession(
+                session_id="html-safety",
+                candidate_name="<script>alert(1)</script>",
+                target_role=TargetRole.SOFTWARE_ENGINEERING.value,
+                experience_level=ExperienceLevel.INTERNSHIP.value,
+                interview_type=InterviewType.COMPREHENSIVE.value,
+                total_questions=1,
+                turns=[InterviewTurn(
+                    question_index=0,
+                    question=q,
+                    initial_answer="<script>alert('x')</script>",
+                    completed=True,
+                )],
+            )
+            safe_html = generate_html_report(unsafe_session)
+            assert "<script>alert(1)</script>" not in safe_html
+            assert "<script>alert('x')</script>" not in safe_html
 
             # Test session deletion
             from backend.database import delete_session
