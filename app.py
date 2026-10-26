@@ -821,36 +821,45 @@ if active_section == "mock_interview":
             </div>
             """, unsafe_allow_html=True)
 
-            followup_input = st.text_area(
-                "Your Follow-Up Response:",
-                value=turn.followup_answer,
-                height=140,
-                placeholder="Elaborate on failure modes, concurrency race conditions, or edge case trade-offs...",
-                key=f"followup_input_{curr_idx}",
-            )
-            f_word_count = len(followup_input.strip().split()) if followup_input.strip() else 0
-            st.caption(f"Follow-up length: {f_word_count} words")
+            st.markdown("#### 🎙️ Record Your Follow-Up")
+            st.caption("Follow-up answers must also be spoken and transcribed.")
+            followup_audio = st.audio_input("Record your follow-up answer", key="followup_audio_" + str(curr_idx))
+            if followup_audio is not None:
+                st.audio(followup_audio)
 
             col_f1, col_f2 = st.columns([2, 1])
             with col_f1:
-                if st.button("Submit Follow-Up & Score Turn \U0001f3af", type="primary", use_container_width=True):
-                    if not followup_input.strip():
-                        st.warning("Enter a follow-up response or choose Skip Follow-Up.")
+                if st.button("Transcribe Follow-Up & Score Turn 🎯", type="primary", use_container_width=True, key="submit_followup_audio_" + str(curr_idx)):
+                    if followup_audio is None:
+                        st.warning("Record a spoken follow-up answer before submitting.")
                     else:
-                        turn.followup_answer = followup_input.strip()
-                        with st.spinner("Executing full 4-part rubric scoring..."):
-                            full_eval = evaluate_with_llm(
-                                q_item,
-                                turn.initial_answer,
-                                followup_answer=turn.followup_answer,
-                                candidate_context=session.candidate_context,
-                                **get_active_llm_settings(),
+                        try:
+                            settings = get_active_llm_settings()
+                            transcript = transcribe_audio(
+                                followup_audio.getvalue(),
+                                getattr(followup_audio, "type", None) or "audio/wav",
+                                settings.get("provider", "heuristic"),
+                                settings.get("api_key"),
+                                settings.get("model_name"),
                             )
-                            turn.turn_evaluation = full_eval
-                            turn.completed = True
-                            session.in_followup = False
-                            save_session(session)
-                            st.rerun()
+                            turn.followup_answer = transcript
+                            st.markdown("**Follow-up transcript to be evaluated**")
+                            st.write(transcript)
+                            with st.spinner("Scoring your spoken answers against the four-part rubric…"):
+                                full_eval = evaluate_with_llm(
+                                    q_item,
+                                    turn.initial_answer,
+                                    followup_answer=turn.followup_answer,
+                                    candidate_context=session.candidate_context,
+                                    **get_active_llm_settings(),
+                                )
+                                turn.turn_evaluation = full_eval
+                                turn.completed = True
+                                session.in_followup = False
+                                save_session(session)
+                                st.rerun()
+                        except (ValueError, RuntimeError) as exc:
+                            st.error(str(exc))
             with col_f2:
                 if st.button("Skip Follow-Up", use_container_width=True):
                     turn.followup_answer = "[Skipped]"
