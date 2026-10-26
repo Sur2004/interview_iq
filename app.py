@@ -37,14 +37,8 @@ from backend.evaluator import (
     generate_dynamic_ai_technical_question,
     RUBRIC_CRITERIA_META,
 )
-from backend.database import (
-    init_db,
-    save_session,
-    get_session,
-    list_sessions,
-    delete_session,
-    get_aggregate_analytics,
-)
+from backend.auth import normalize_email, otp_digest, send_email_otp
+from backend.browser_store import session_from_dict, session_summaries, analytics_from_sessions
 from backend.report_generator import (
     generate_markdown_report,
     generate_html_report,
@@ -61,10 +55,16 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Initialize database
-init_db()
-
 interview_monitor = components.declare_component("interviewiq_interview_monitor", path="components/interview_monitor_v2")
+browser_store = components.declare_component("interviewiq_browser_store", path="components/browser_store")
+_browser_read = browser_store(action="read", payload="", key="browser_store_reader")
+if isinstance(_browser_read, dict):
+    st.session_state.browser_data = {
+        "profiles": _browser_read.get("profiles", {}) if isinstance(_browser_read.get("profiles", {}), dict) else {},
+        "sessions": _browser_read.get("sessions", {}) if isinstance(_browser_read.get("sessions", {}), dict) else {},
+    }
+elif "browser_data" not in st.session_state:
+    st.session_state.browser_data = {"profiles": {}, "sessions": {}}
 
 # Minimal, accessible visual system
 st.markdown("""
@@ -340,11 +340,117 @@ def render_answer_revision_editor(session: InterviewSession, turn: InterviewTurn
                     round(sum(item.overall_score for item in scored_turns) / len(scored_turns), 1)
                     if scored_turns else None
                 )
-                save_session(session)
+                persist_browser_session(session)
             st.success("Revision saved to session history and feedback updated.")
             st.rerun()
 
 
+
+
+def persist_browser_data() -> None:
+    """Write the current user's data to browser localStorage, not a server database."""
+    payload = json.dumps(st.session_state.get("browser_data", {"profiles": {}, "sessions": {}}), ensure_ascii=False)
+    browser_store(action="write", payload=payload, key="browser_store_writer")
+
+
+def persist_browser_session(session: InterviewSession) -> None:
+    """Persist a session snapshot under the verified email in browser localStorage."""
+    email = st.session_state.get("authenticated_email")
+    if not email:
+        return
+    data = st.session_state.setdefault("browser_data", {"profiles": {}, "sessions": {}})
+    all_sessions = data.setdefault("sessions", {}).setdefault(email, [])
+    snapshot = session.to_dict()
+    for index, saved in enumerate(all_sessions):
+        if saved.get("session_id") == session.session_id:
+            all_sessions[index] = snapshot
+            break
+    else:
+        all_sessions.append(snapshot)
+    profile = data.setdefault("profiles", {}).setdefault(email, {})
+    profile["last_seen"] = time.time()
+    persist_browser_data()
+
+
+def render_auth_gate() -> None:
+    """Email OTP sign-in and first-time registration, with bounded OTP attempts."""
+    if st.session_state.get("authenticated_email"):
+        return
+    st.title("InterviewIQ")
+    st.subheader("Sign in or create your account")
+    st.write("Use your email address to receive a one-time verification code. New verified emails are registered automatically.")
+    mode = st.radio("Account", ["Sign in", "Create account"], horizontal=True, key="auth_mode")
+    email_input = st.text_input("Email address", key="auth_email", placeholder="you@example.com")
+    name_input = ""
+    if mode == "Create account":
+        name_input = st.text_input("Your name", key="auth_name", placeholder="Name shown on your reports")
+    if st.button("Send verification code", type="primary", use_container_width=True):
+        email = normalize_email(email_input)
+        if "@" not in email or "." not in email.rsplit("@", 1)[-1] or len(email) > 254:
+            st.error("Enter a valid email address.")
+        elif time.time() - float(st.session_state.get("otp_last_sent_at", 0)) < 45:
+            st.warning("Please wait before requesting another code.")
+        else:
+            code = f"{__import__('secrets').randbelow(1000000):06d}"
+            try:
+                send_email_otp(email, code)
+                secret = os.environ.get("OTP_SIGNING_SECRET") or st.session_state.setdefault("otp_session_secret", __import__('secrets').token_urlsafe(32))
+                st.session_state.otp_email = email
+                st.session_state.otp_digest = otp_digest(email, code, secret)
+                st.session_state.otp_expires_at = time.time() + 300
+                st.session_state.otp_attempts = 0
+                st.session_state.otp_last_sent_at = time.time()
+                st.session_state.auth_pending_name = name_input.strip()
+                st.success("Verification code sent. It expires in 5 minutes.")
+            except Exception as exc:
+                st.error(f"Could not send the verification email. Check the deployment's SMTP settings. Details: {exc}")
+    if st.session_state.get("otp_email"):
+        st.caption(f"Code sent to {st.session_state.otp_email}.")
+        entered_code = st.text_input("6-digit verification code", max_chars=6, key="auth_otp", type="password")
+        if st.button("Verify and continue", type="primary", use_container_width=True):
+            email = normalize_email(email_input)
+            if email != st.session_state.get("otp_email"):
+                st.error("The email address changed. Request a new code for this address.")
+            elif time.time() > float(st.session_state.get("otp_expires_at", 0)):
+                st.session_state.pop("otp_digest", None)
+                st.error("This code expired. Request a new one.")
+            elif int(st.session_state.get("otp_attempts", 0)) >= 5:
+                st.session_state.pop("otp_digest", None)
+                st.error("Too many incorrect attempts. Request a new code.")
+            else:
+                secret = os.environ.get("OTP_SIGNING_SECRET") or st.session_state.get("otp_session_secret", "")
+                expected = st.session_state.get("otp_digest", "")
+                actual = otp_digest(email, entered_code.strip(), secret) if entered_code.strip().isdigit() and len(entered_code.strip()) == 6 else ""
+                import hmac
+                if not expected or not hmac.compare_digest(actual, expected):
+                    st.session_state.otp_attempts = int(st.session_state.get("otp_attempts", 0)) + 1
+                    st.error("Incorrect verification code.")
+                else:
+                    st.session_state.authenticated_email = email
+                    data = st.session_state.setdefault("browser_data", {"profiles": {}, "sessions": {}})
+                    profile = data.setdefault("profiles", {}).setdefault(email, {})
+                    profile["name"] = st.session_state.get("auth_pending_name") or profile.get("name") or email.split("@")[0]
+                    profile["verified"] = True
+                    profile["created_at"] = profile.get("created_at", time.time())
+                    st.session_state.pop("otp_digest", None)
+                    st.session_state.pop("otp_email", None)
+                    persist_browser_data()
+                    st.rerun()
+    st.caption("Security: codes expire after 5 minutes and allow at most 5 verification attempts. Email delivery requires SMTP secrets.")
+    st.warning("Browser-only mode: your profile and interview history are stored in this browser's local storage. They do not sync across devices and can be erased by clearing browser data. Do not use a shared/public computer.")
+    st.stop()
+
+
+render_auth_gate()
+_active_email = st.session_state.get("authenticated_email", "")
+if st.session_state.get("session") is None:
+    _saved_rows = session_summaries(st.session_state.get("browser_data", {}), _active_email)
+    _unfinished = [row for row in _saved_rows if not row.get("is_finished")]
+    if _unfinished:
+        try:
+            st.session_state.session = session_from_dict(_unfinished[-1])
+        except (KeyError, TypeError, ValueError):
+            st.session_state.session = None
 
 
 # ==============================================================================
@@ -390,9 +496,10 @@ with st.sidebar:
 
     st.subheader("\u2699\ufe0f Session Setup")
 
+    _active_profile = st.session_state.get("browser_data", {}).get("profiles", {}).get(st.session_state.get("authenticated_email", ""), {})
     candidate_name = st.text_input(
         "Your Name",
-        value="Student Candidate",
+        value=_active_profile.get("name", "Student Candidate"),
         help="Personalises practice reports and rubric summaries.",
         key="sb_candidate_name",
     )
@@ -523,7 +630,7 @@ with st.sidebar:
         )
         st.session_state.pop("integrity_termination_reason", None)
         st.session_state.session = new_sess
-        save_session(new_sess)
+        persist_browser_session(new_sess)
         st.success(f"\u2705 Round started - {len(questions)} questions queued!")
         st.rerun()
 
@@ -646,16 +753,19 @@ if active_section == "mock_interview":
         if valid_turns:
             avg_score = round(sum(t.turn_evaluation.overall_score for t in valid_turns) / len(valid_turns), 1)
             session.overall_session_score = avg_score
-            save_session(session)
+            persist_browser_session(session)
 
             col_sc1, col_sc2, col_sc3 = st.columns([1, 1, 2])
             with col_sc1:
-                st.metric("Overall Practice Score", f"{avg_score} / 5.0")
-            with col_sc2:
-                st.markdown("**Performance Mastery:**")
-                st.markdown(get_performance_badge(avg_score), unsafe_allow_html=True)
-            with col_sc3:
-                st.markdown(f"**Round Overview:** Completed {len(valid_turns)} of {session.total_questions} questions for **{session.target_role}**.")
+                st.markdown(f"**Round summary:** {len(valid_turns)} of {session.total_questions} questions scored · {session.target_role}")
+            turn_scores = [
+                {"Question": f"Q{idx + 1}", "Score": (turn.turn_evaluation or turn.initial_evaluation).overall_score}
+                for idx, turn in enumerate(session.turns)
+                if (turn.turn_evaluation or turn.initial_evaluation)
+            ]
+            if turn_scores:
+                st.markdown("#### Score by question")
+                st.line_chart(pd.DataFrame(turn_scores).set_index("Question"), y="Score", y_label="Score / 5", use_container_width=True)
 
             st.markdown("### \U0001f4dd Turn-by-Turn Diagnostic Review")
             for i, turn in enumerate(session.turns):
@@ -717,7 +827,7 @@ if active_section == "mock_interview":
                 st.session_state["integrity_termination_reason"] = (
                     f"Session terminated after {switch_count} browser visibility change(s)."
                 )
-                save_session(session)
+                persist_browser_session(session)
                 st.error(
                     "Interview session terminated because a browser tab/window visibility change was detected. "
                     "A normal browser app cannot technically block tab switching, and detection is not foolproof."
@@ -809,7 +919,7 @@ if active_section == "mock_interview":
                             if init_eval.suggested_followup_question:
                                 turn.followup_question = init_eval.suggested_followup_question
                             session.in_followup = True
-                            save_session(session)
+                            persist_browser_session(session)
                             st.rerun()
                     except (ValueError, RuntimeError) as exc:
                         st.error(f"Evaluation failed: {exc}. Check your connection/provider or try again.")
@@ -839,7 +949,7 @@ if active_section == "mock_interview":
                             if init_eval.suggested_followup_question:
                                 turn.followup_question = init_eval.suggested_followup_question
                             session.in_followup = True
-                            save_session(session)
+                            persist_browser_session(session)
                             st.rerun()
                     except (ValueError, RuntimeError) as exc:
                         st.error(f"Audio transcription or evaluation failed: {exc}. You can still submit a typed answer.")
@@ -891,7 +1001,7 @@ if active_section == "mock_interview":
                             turn.turn_evaluation = full_eval
                             turn.completed = True
                             session.in_followup = False
-                            save_session(session)
+                            persist_browser_session(session)
                             st.rerun()
                     except (ValueError, RuntimeError) as exc:
                         st.error(f"Evaluation failed: {exc}. Check your connection/provider or try again.")
@@ -925,7 +1035,7 @@ if active_section == "mock_interview":
                                 turn.turn_evaluation = full_eval
                                 turn.completed = True
                                 session.in_followup = False
-                                save_session(session)
+                                persist_browser_session(session)
                                 st.rerun()
                         except (ValueError, RuntimeError) as exc:
                             st.error(str(exc))
@@ -935,7 +1045,7 @@ if active_section == "mock_interview":
                     turn.turn_evaluation = turn.initial_evaluation
                     turn.completed = True
                     session.in_followup = False
-                    save_session(session)
+                    persist_browser_session(session)
                     st.rerun()
 
         elif turn.completed and turn.turn_evaluation:
@@ -984,12 +1094,12 @@ if active_section == "mock_interview":
                 if is_last:
                     session.is_finished = True
                     session.completed_at = time.time()
-                    save_session(session)
+                    persist_browser_session(session)
                     st.rerun()
                 else:
                     session.current_turn_index += 1
                     session.in_followup = False
-                    save_session(session)
+                    persist_browser_session(session)
                     st.rerun()
 
 
@@ -1333,7 +1443,7 @@ if active_section == "star_builder":
         )
 
     with col_st2:
-        st.subheader("2. Real-Time Story Diagnosis & Pitch Card")
+        st.subheader("2. Story structure and delivery feedback")
 
         total_words = len((b_sit + " " + b_task + " " + b_act + " " + b_res).split())
         st.metric("Total Story Length", f"{total_words} words", help="Aim for 120–250 words for a 90-second spoken answer")
@@ -1349,24 +1459,29 @@ if active_section == "star_builder":
         st.markdown(f"{'✅' if has_a else '⏳'} **Action:** {('Substantial technical actions' if has_a else 'Expand on your tools, choices, and logic')}")
         st.markdown(f"{'✅' if has_r else '⏳'} **Result:** {('Outcomes and lessons highlighted' if has_r else 'Add measurable results or retrospectives')}")
 
-        if st.button("✨ Format Assembled Pitch Card", type="primary", use_container_width=True):
-            if not (b_sit and b_task and b_act and b_res):
-                st.warning("Fill in all four STAR fields to assemble your pitch card.")
+        if st.button("Build structured story", type="primary", use_container_width=True):
+            if not all(value.strip() for value in (story_title, b_sit, b_task, b_act, b_res)):
+                st.warning("Complete the project name and all four STAR sections first.")
             else:
-                assembled_md = f"""
-### 🎤 90-Second Interview Pitch Card: {story_title}
+                assembled_md = f"""# {story_title.strip()}
 
-* **[Situation]** {b_sit.strip()}
-* **[Task]** {b_task.strip()}
-* **[Action]** {b_act.strip()}
-* **[Result & Learning]** {b_res.strip()}
+## Situation
+{b_sit.strip()}
 
----
-> **💡 Delivery Tip:** Spend 15 seconds on Situation & Task, 50 seconds walking through your Actions and technical decisions, and 20 seconds on the Result and what you learned!
-                """
+## Task
+{b_task.strip()}
+
+## Action
+{b_act.strip()}
+
+## Result and learning
+{b_res.strip()}
+
+**Delivery guidance:** Keep the context concise, spend most of the answer explaining your own actions and decisions, and finish with the result and lesson learned.
+"""
                 st.markdown(assembled_md)
                 st.download_button(
-                    label="📥 Save STAR Card (.md)",
+                    label="Download structured story (.md)",
                     data=assembled_md,
                     file_name=f"star_story_{story_title.lower().replace(' ', '_')}.md",
                     mime="text/markdown",
@@ -1500,22 +1615,63 @@ if active_section == "system_design":
 # TAB 7: PRACTICE ANALYTICS & HISTORY
 # ==============================================================================
 if active_section == "progress":
-    st.header("📊 Student Practice Analytics & Local History")
-    st.caption("All practice history is saved securely in your local SQLite database (`interview_iq.db`).")
-
-    analytics = get_aggregate_analytics()
-
-    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-    with col_m1:
-        st.metric("Total Sessions", analytics["total_sessions"])
-    with col_m2:
-        st.metric("Answers Logged", analytics["total_answers_submitted"])
-    with col_m3:
-        st.metric("Avg Session Score", f"{analytics['avg_session_score']} / 5.0")
-    with col_m4:
-        st.metric("Structure Average", f"{analytics['avg_structure']} / 5.0")
-
-    st.markdown("---")
+    st.header("Practice history & performance")
+    st.caption("Charts use the sessions saved in this browser's local storage. No performance database is queried.")
+    current_email = st.session_state.get("authenticated_email", "")
+    history_rows = session_summaries(st.session_state.get("browser_data", {}), current_email)
+    if not history_rows:
+        st.info("Your history is empty. Complete a practice round to build your personal progress charts.")
+    else:
+        session_chart_rows = []
+        rubric_chart_rows = []
+        category_chart_rows = []
+        for saved in history_rows:
+            stamp = float(saved.get("completed_at") or saved.get("created_at") or time.time())
+            scored = saved.get("overall_session_score")
+            if scored is not None:
+                session_chart_rows.append({
+                    "Date": time.strftime("%Y-%m-%d", time.localtime(stamp)),
+                    "Session": str(saved.get("session_id", ""))[:8],
+                    "Score": float(scored),
+                })
+            for turn in saved.get("turns", []) or []:
+                evaluation = turn.get("turn_evaluation") or turn.get("initial_evaluation") or {}
+                rubric = evaluation.get("rubric_scores") or {}
+                for key, value in rubric.items():
+                    try:
+                        rubric_chart_rows.append({"Criterion": key.title(), "Score": float(value.get("score", 0))})
+                    except (TypeError, ValueError):
+                        pass
+                question = turn.get("question") or {}
+                if evaluation.get("overall_score") is not None:
+                    category_chart_rows.append({
+                        "Category": str(question.get("category", "other")).title(),
+                        "Score": float(evaluation["overall_score"]),
+                    })
+        if session_chart_rows:
+            st.subheader("Score trend by practice session")
+            trend = pd.DataFrame(session_chart_rows)
+            trend["Session label"] = trend["Date"] + " · " + trend["Session"]
+            st.line_chart(trend.set_index("Session label")[["Score"]], y="Score", y_label="Score / 5", use_container_width=True)
+        if rubric_chart_rows:
+            st.subheader("Rubric strengths and improvement areas")
+            rubric_df = pd.DataFrame(rubric_chart_rows).groupby("Criterion", as_index=False)["Score"].mean().sort_values("Score")
+            st.bar_chart(rubric_df.set_index("Criterion"), y="Score", y_label="Average score / 5", use_container_width=True)
+        if category_chart_rows:
+            st.subheader("Performance by interview category")
+            category_df = pd.DataFrame(category_chart_rows).groupby("Category", as_index=False)["Score"].mean().sort_values("Score")
+            st.bar_chart(category_df.set_index("Category"), y="Score", y_label="Average score / 5", use_container_width=True)
+        st.subheader("Session history")
+        for saved in reversed(history_rows):
+            created = time.strftime("%d %b %Y, %H:%M", time.localtime(float(saved.get("created_at") or 0)))
+            score = saved.get("overall_session_score")
+            st.markdown(
+                f"**{created} · {saved.get('target_role', 'Practice')}** — "
+                f"{'%.1f / 5' % float(score) if score is not None else 'Not scored'} · "
+                f"{'Completed' if saved.get('is_finished') else 'In progress'}"
+            )
+            st.caption(f"{saved.get('interview_type', '')} · {len(saved.get('turns', []) or [])} questions · Session {str(saved.get('session_id', ''))[:8]}")
+    st.warning("Browser-only storage is not a cloud backup. Data stays in this browser profile, may not appear on another device, and can be deleted when browser data is cleared. Export reports regularly if you need a durable copy.")
 # ==============================================================================
 # TAB 8: EXPORT PRACTICE REPORT
 # ==============================================================================
