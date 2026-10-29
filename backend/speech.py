@@ -70,7 +70,7 @@ def transcribe_audio(audio_bytes: bytes, mime_type: str, provider: str, api_key:
 
     words = re.findall(r"[A-Za-z][A-Za-z0-9+#'-]*", transcript.lower())
     meaningful = [word for word in words if len(word) >= 3]
-    if len(meaningful) < 5 or len(set(meaningful)) < 4:
+    if len(words) < 3 or len(set(words)) < 3:
         raise ValueError(
             "The transcript contains too little clear speech to evaluate. "
             "Please record a fuller answer or use the typed-answer option."
