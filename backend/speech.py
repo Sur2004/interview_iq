@@ -61,6 +61,23 @@ def transcribe_audio(audio_bytes: bytes, mime_type: str, provider: str, api_key:
         parts = response.json().get("candidates", [{}])[0].get("content", {}).get("parts", [])
         transcript = " ".join(part.get("text", "") for part in parts if part.get("text")).strip()
 
+    # Reject common empty/no-speech and low-quality transcription outputs before
+    # they reach the evaluator. Question-specific relevance is checked in evaluator.py.
+    transcript = re.sub(r"\\s+", " ", transcript).strip()
     if not transcript:
         raise ValueError("No clear speech was detected. Please record your answer again.")
+
+    words = re.findall(r"[A-Za-z][A-Za-z0-9+#'-]*", transcript.lower())
+    meaningful = [word for word in words if len(word) >= 3]
+    if len(meaningful) < 5 or len(set(meaningful)) < 4:
+        raise ValueError(
+            "The transcript contains too little clear speech to evaluate. "
+            "Please record a fuller answer or use the typed-answer option."
+        )
+    if len(meaningful) >= 8:
+        most_common_ratio = max(words.count(word) for word in set(words)) / max(1, len(words))
+        if most_common_ratio > 0.45:
+            raise ValueError(
+                "The transcript appears repetitive or unclear. Please record again in a quiet environment."
+            )
     return transcript
