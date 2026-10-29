@@ -270,9 +270,9 @@ def evaluate_heuristically(
         points = sum([has_intro, has_contrast, has_conclusion, word_count > 40])
         # Award structure points only for observable organisation; length or a single
         # trade-off keyword must not automatically produce a high score.
-        structure_score = min(4.2, 1.8 + (int(has_intro) * 0.55) +
-                              (int(has_contrast) * 0.55) +
-                              (int(has_conclusion) * 0.45) +
+        structure_score = min(4.5, 2.0 + (int(has_intro) * 0.6) +
+                              (int(has_contrast) * 0.6) +
+                              (int(has_conclusion) * 0.5) +
                               (int(word_count >= 55) * 0.35))
         if structure_score >= 3.5:
             struct_feedback = "Some logical organisation is present; stronger sequencing and explicit explanation of mechanics would improve this."
@@ -285,10 +285,10 @@ def evaluate_heuristically(
 
     if is_tech:
         # Presence of buzzwords alone is not proof. Require multiple distinct signals.
-        evidence_score = 1.8
-        evidence_score += 0.55 if tech["terms"] else 0
-        evidence_score += 0.45 if tech["tradeoff"] else 0
-        evidence_score += 0.35 if tech["metrics"] else 0
+        evidence_score = 2.0
+        evidence_score += 0.6 if tech["terms"] else 0
+        evidence_score += 0.5 if tech["tradeoff"] else 0
+        evidence_score += 0.4 if tech["metrics"] else 0
         evidence_score += 0.35 if has_i else 0
         evidence_score += 0.35 if word_count >= 70 else 0
         evidence_score = max(1.0, min(3.8, evidence_score))
