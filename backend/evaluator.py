@@ -154,6 +154,31 @@ _COMMON_TECH_TERMS = {
 }
 
 
+_ALLOW_LONG_CONSONANT_WORDS = {
+    "strengths", "lengths", "throughput", "stylesheet", "watchlist",
+    "matchmaking", "christmas", "algorithm", "algorithms", "timestamp",
+    "timestamps", "handshake", "handshakes", "snapshot", "snapshots",
+    "sprint", "sprints", "construct", "constructs", "abstract", "abstracts",
+}
+
+
+def _suspicious_gibberish_tokens(tokens: list[str]) -> list[str]:
+    """Find obvious random strings without penalizing common technical vocabulary."""
+    suspicious = []
+    for token in tokens:
+        word = re.sub(r"[^a-z]", "", token.lower())
+        if len(word) < 9 or word in _ALLOW_LONG_CONSONANT_WORDS:
+            continue
+        # Long consonant runs are uncommon in ordinary English; catch keyboard mash.
+        if re.search(r"[bcdfghjklmnpqrstvwxyz]{5,}", word):
+            suspicious.append(word)
+            continue
+        # Repeated-character spam is also not meaningful interview content.
+        if re.search(r"(.)\\1{3,}", word):
+            suspicious.append(word)
+    return suspicious
+
+
 def validate_answer_relevance(question: QuestionItem, answer: str) -> None:
     """Reject empty, gibberish, and clearly unrelated text before scoring."""
     raw = (answer or "").strip()
@@ -162,7 +187,18 @@ def validate_answer_relevance(question: QuestionItem, answer: str) -> None:
     if len(raw) < 20:
         raise ValueError("Your answer is too short to evaluate. Explain the concept in a few complete sentences.")
 
-    tokens = re.findall(r"[a-zA-Z][a-zA-Z0-9+#.-]{1,}", raw.lower())
+    raw_tokens = re.findall(r"[a-zA-Z][a-zA-Z0-9+#.-]{1,}", raw.lower())
+    suspicious_tokens = _suspicious_gibberish_tokens(raw_tokens)
+    # A long random-looking token is a strong signal of keyboard-mash input.
+    # Permit known long technical/English terms via the allowlist above.
+    if suspicious_tokens:
+        raise ValueError(
+            "Your answer appears to contain gibberish or random text "
+            f"({', '.join(suspicious_tokens[:2])}). No score was assigned. "
+            "Please write a meaningful answer to the interview question."
+        )
+
+    tokens = raw_tokens
     content_tokens = {
         token for token in tokens
         if len(token) >= 3 and token not in _ANSWER_STOPWORDS
