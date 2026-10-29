@@ -226,6 +226,7 @@ if not st.session_state.authenticated_candidate_id:
                 st.session_state.authenticated_candidate_id = normalized_id
                 st.session_state.authenticated_email = normalized_id
                 st.session_state.sb_candidate_name = profile.get("name", "Student Candidate")
+                st.session_state.session = None
                 st.rerun()
     st.stop()
 
@@ -472,6 +473,20 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     st.markdown("---")
+    active_candidate_id = st.session_state.get("authenticated_candidate_id", "")
+    if active_candidate_id:
+        active_profile = st.session_state.get("browser_data", {}).get("profiles", {}).get(active_candidate_id, {})
+        st.caption(f"Signed in: {active_profile.get('name', 'Candidate')}")
+        st.code(active_candidate_id, language=None)
+        if st.button("Sign out", key="candidate_sign_out", use_container_width=True):
+            st.session_state.authenticated_candidate_id = ""
+            st.session_state.authenticated_email = ""
+            st.session_state.session = None
+            st.session_state.pop("sb_candidate_name", None)
+            st.rerun()
+    if st.session_state.get("new_candidate_id_notice"):
+        st.success(f"Save your Candidate ID: {st.session_state.new_candidate_id_notice}")
+        st.session_state.pop("new_candidate_id_notice", None)
     st.subheader("\U0001f9ed Navigate InterviewIQ")
     st.caption("Choose a section first, then configure your interview below.")
     section_labels = {
@@ -620,7 +635,7 @@ with st.sidebar:
             for i, q in enumerate(questions)
         ]
         new_sess = InterviewSession(
-            session_id=str(uuid.uuid4())[:8],
+            session_id=uuid.uuid4().hex,
             candidate_name=candidate_name.strip() or "Student Candidate",
             target_role=target_role,
             experience_level=experience_level,
