@@ -326,6 +326,9 @@ def evaluate_heuristically(
         clarity_score -= 0.7
     elif word_count > 220:
         clarity_score -= 0.4
+    elif is_tech and tech["terms"] and tech["tradeoff"]:
+        # Reward concise technical explanations that connect a mechanism to its trade-off.
+        clarity_score += 0.4
     if len(re.findall(r"\b(?:[a-z]+)\b", lower)) > 0:
         words_for_clarity = re.findall(r"\b[a-z]+\b", lower)
         repeated = sum(1 for a, b in zip(words_for_clarity, words_for_clarity[1:]) if a == b)
