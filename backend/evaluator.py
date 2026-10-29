@@ -240,7 +240,7 @@ def evaluate_heuristically(
         rel_feedback = "Partially answers the question, but leaves key aspects unaddressed."
     else:
         if overlap >= 2 or (tech["tradeoff"] and tech["terms"]):
-            relevance_score = 4.5 if (followup_answer and len(followup_answer.split()) > 20) else 4.0
+            relevance_score = 4.5 if ((followup_answer and len(followup_answer.split()) > 20) or (is_tech and word_count >= 40 and tech["terms"] and tech["tradeoff"])) else 4.0
             rel_feedback = "Directly addresses the prompt and maintains focus throughout."
         else:
             relevance_score = 3.2
@@ -270,7 +270,7 @@ def evaluate_heuristically(
         points = sum([has_intro, has_contrast, has_conclusion, word_count > 40])
         # Award structure points only for observable organisation; length or a single
         # trade-off keyword must not automatically produce a high score.
-        structure_score = min(4.5, 2.0 + (int(has_intro) * 0.6) +
+        structure_score = min(4.5, 2.2 + (int(has_intro) * 0.6) +
                               (int(has_contrast) * 0.6) +
                               (int(has_conclusion) * 0.5) +
                               (int(word_count >= 55) * 0.35))
