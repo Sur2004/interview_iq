@@ -11,6 +11,9 @@ import uuid
 import pandas as pd
 import json
 import re
+import secrets
+import hashlib
+import hmac
 
 from backend.models import (
     ExperienceLevel,
@@ -167,6 +170,64 @@ if "eval_mode" not in st.session_state:
 if "interviewer_persona" not in st.session_state:
     st.session_state.interviewer_persona = "Jordan (Principal Architect / Scale & Failure Modes)"
 
+
+
+# Candidate ID + PIN access. Profiles remain local to this browser.
+from backend.candidate_auth import generate_candidate_id, hash_pin, verify_pin
+if "authenticated_candidate_id" not in st.session_state:
+    st.session_state.authenticated_candidate_id = ""
+if not st.session_state.authenticated_candidate_id and st.session_state.get("authenticated_email"):
+    st.session_state.authenticated_candidate_id = st.session_state.authenticated_email
+if not st.session_state.get("browser_data_loaded"):
+    st.info("Loading your browser-local InterviewIQ profiles…")
+    st.stop()
+if not st.session_state.authenticated_candidate_id:
+    st.markdown("## InterviewIQ Candidate Access")
+    st.caption("Create a candidate ID or sign in. Profiles and interview history are stored in this browser only.")
+    create_tab, login_tab = st.tabs(["Create Candidate ID", "Sign in"])
+    with create_tab:
+        with st.form("create_candidate_profile", clear_on_submit=True):
+            new_name = st.text_input("Candidate name", max_chars=80)
+            new_pin = st.text_input("Create a 6-digit PIN", type="password", max_chars=6)
+            confirm_pin = st.text_input("Confirm PIN", type="password", max_chars=6)
+            create_submit = st.form_submit_button("Create Candidate ID", type="primary", use_container_width=True)
+        if create_submit:
+            clean_name = new_name.strip()
+            if not clean_name:
+                st.error("Enter your name.")
+            elif not (new_pin.isdigit() and len(new_pin) == 6):
+                st.error("PIN must contain exactly 6 digits.")
+            elif new_pin != confirm_pin:
+                st.error("The PINs do not match.")
+            else:
+                data = st.session_state.setdefault("browser_data", {"profiles": {}, "sessions": {}})
+                profiles = data.setdefault("profiles", {})
+                candidate_id = generate_candidate_id(profiles)
+                salt, pin_digest = hash_pin(new_pin)
+                profiles[candidate_id] = {"candidate_id": candidate_id, "name": clean_name, "pin_salt": salt, "pin_hash": pin_digest, "created_at": time.time()}
+                data.setdefault("sessions", {}).setdefault(candidate_id, [])
+                st.session_state.authenticated_candidate_id = candidate_id
+                st.session_state.authenticated_email = candidate_id
+                st.session_state.browser_data_dirty = True
+                st.session_state.new_candidate_id_notice = candidate_id
+                st.rerun()
+    with login_tab:
+        with st.form("candidate_login"):
+            candidate_id_input = st.text_input("Candidate ID", placeholder="IQ-XXXXXXXX")
+            pin_input = st.text_input("6-digit PIN", type="password", max_chars=6)
+            login_submit = st.form_submit_button("Sign in", type="primary", use_container_width=True)
+        if login_submit:
+            profiles = st.session_state.get("browser_data", {}).get("profiles", {})
+            normalized_id = candidate_id_input.strip().upper()
+            profile = profiles.get(normalized_id)
+            if not profile or not verify_pin(pin_input, profile.get("pin_salt", ""), profile.get("pin_hash", "")):
+                st.error("Candidate ID or PIN is incorrect. Profiles are available only in the browser where they were created.")
+            else:
+                st.session_state.authenticated_candidate_id = normalized_id
+                st.session_state.authenticated_email = normalized_id
+                st.session_state.sb_candidate_name = profile.get("name", "Student Candidate")
+                st.rerun()
+    st.stop()
 
 def get_performance_badge(score: float) -> str:
     if score >= 4.2:
@@ -363,7 +424,7 @@ def persist_browser_data() -> None:
 def persist_browser_session(session: InterviewSession) -> None:
     """Persist a session snapshot under the verified email in browser localStorage."""
     # Keep a single local browser profile in guest mode.
-    email = st.session_state.get("authenticated_email", "local_guest")
+    email = st.session_state.get("authenticated_candidate_id") or st.session_state.get("authenticated_email", "local_guest")
     data = st.session_state.setdefault("browser_data", {"profiles": {}, "sessions": {}})
     all_sessions = data.setdefault("sessions", {}).setdefault(email, [])
     snapshot = session.to_dict()
@@ -383,7 +444,7 @@ def persist_browser_session(session: InterviewSession) -> None:
 
 
 # Guest mode: no sign-in or email verification required.
-_active_email = "local_guest"
+_active_email = st.session_state.get("authenticated_candidate_id") or st.session_state.get("authenticated_email", "local_guest")
 if st.session_state.get("session") is None:
     _saved_rows = session_summaries(st.session_state.get("browser_data", {}), _active_email)
     _unfinished = [row for row in _saved_rows if not row.get("is_finished")]
@@ -438,7 +499,8 @@ with st.sidebar:
 
     st.subheader("\u2699\ufe0f Session Setup")
 
-    _active_profile = st.session_state.get("browser_data", {}).get("profiles", {}).get(st.session_state.get("authenticated_email", "local_guest"), {})
+    _active_user_id = st.session_state.get("authenticated_candidate_id") or st.session_state.get("authenticated_email", "local_guest")
+    _active_profile = st.session_state.get("browser_data", {}).get("profiles", {}).get(_active_user_id, {})
     candidate_name = st.text_input(
         "Your Name",
         value=_active_profile.get("name", "Student Candidate"),
@@ -1553,7 +1615,7 @@ if active_section == "system_design":
 if active_section == "progress":
     st.header("Practice history & performance")
     st.caption("Charts use the sessions saved in this browser's local storage. No performance database is queried.")
-    current_email = st.session_state.get("authenticated_email", "")
+    current_email = st.session_state.get("authenticated_candidate_id") or st.session_state.get("authenticated_email", "")
     history_rows = session_summaries(st.session_state.get("browser_data", {}), current_email)
     if not history_rows:
         st.info("Your history is empty. Complete a practice round to build your personal progress charts.")
