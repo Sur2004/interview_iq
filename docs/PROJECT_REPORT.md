@@ -18,10 +18,10 @@ Students may practise interviews without clear feedback on whether answers are r
 - **Streamlit:** Web interface, navigation, audio input, results, and downloads.
 - **LLM APIs:** Answer evaluation, feedback generation, and supported speech transcription.
 - **Python libraries:** API communication, data handling, PDF text extraction, and application utilities.
-- **SQLite/local data storage:** Practice history and analytics where configured.
+- **Browser localStorage:** Profile and practice-history data for the current browser; history does not automatically sync across devices.
 
 ## 5. System Workflow — How It Works
-1. The user opens InterviewIQ and chooses an interview role or practice section.
+1. The user opens InterviewIQ and chooses a workspace from the sidebar **Open a section** dropdown, then selects an interview role or practice mode.
 2. The application presents a question appropriate to the selected mode.
 3. The user records a spoken answer in voice-enabled interview rounds.
 4. A supported configured provider transcribes the audio; the Python backend evaluates the question and answer.
@@ -38,6 +38,7 @@ Students may practise interviews without clear feedback on whether answers are r
 - Practice analytics and local history where configured.
 - Exportable practice reports and JSON session data.
 - Optional resume and public GitHub project review.
+- Sidebar workspace navigation through the **Open a section** dropdown.
 
 ## 7. Team Members, Roles, and Assigned Work
 
@@ -53,8 +54,8 @@ Design a clear and consistent experience for role selection, interview questions
 ### G. Jhon — Documentation
 Prepare the project report and presentation; document technologies, workflow, features, test cases, limitations, and future enhancements.
 
-## 8. Testing and Limitations
-The repository includes automated tests for key application behaviour. Automated tests do not confirm that every browser permission, microphone, camera, or hosted deployment path works on every device. Results can vary with the configured provider, API availability, audio quality, and submitted answer. AI feedback is practice guidance, not a guarantee of interview success.
+## 8. Navigation, Testing, and Limitations
+The repository includes automated tests for key application behaviour, including smoke tests that open each main workspace and check that it renders without Streamlit exceptions. Automated tests do not confirm that every browser permission, microphone, camera, or hosted deployment path works on every device. Results can vary with the configured provider, API availability, audio quality, and submitted answer. AI feedback is practice guidance, not a guarantee of interview success.
 
 The camera component requests browser permission and displays a preview; it is not designed to record or save video. The tab-switch counter detects certain browser visibility changes, but cannot prevent switching tabs or reliably identify external assistance, another device, or all forms of misconduct. These are basic monitoring aids, not a complete proctoring system, and need manual testing in the deployed browser.
 
