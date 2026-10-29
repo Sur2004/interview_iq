@@ -128,6 +128,56 @@ def _detect_technical_elements(text: str) -> Dict[str, bool]:
     }
 
 
+
+# Conservative input gate: reject empty, gibberish, and clearly off-topic answers
+# before either the hosted LLM or offline evaluator can award a score.
+_ANSWER_STOPWORDS = {
+    "about", "above", "after", "again", "also", "and", "are", "because", "been",
+    "being", "between", "both", "but", "can", "could", "does", "during", "each",
+    "for", "from", "had", "has", "have", "here", "how", "into", "its", "just",
+    "more", "most", "not", "our", "out", "over", "should", "some", "such", "than",
+    "that", "the", "their", "them", "then", "there", "these", "they", "this",
+    "through", "under", "using", "very", "was", "were", "what", "when", "where",
+    "which", "while", "with", "would", "you", "your", "explain", "describe",
+    "discuss", "compare", "tell", "give", "example", "question", "answer",
+}
+_COMMON_TECH_TERMS = {
+    "algorithm", "array", "api", "architecture", "authentication", "database",
+    "class", "complexity", "concurrency", "data", "debug", "design", "function",
+    "http", "index", "java", "javascript", "memory", "model", "network", "python",
+    "query", "security", "server", "sql", "system", "testing", "thread", "time",
+    "code", "project", "team", "result", "implemented", "developed", "built",
+    "problem", "solution", "because", "process", "method", "application",
+}
+
+
+def validate_answer_relevance(question: QuestionItem, answer: str) -> None:
+    """Reject empty, gibberish, and clearly unrelated text before scoring."""
+    raw = (answer or "").strip()
+    if not raw:
+        raise ValueError("Please provide an answer before evaluation.")
+    if len(raw) < 20:
+        raise ValueError("Your answer is too short to evaluate. Explain the concept in a few complete sentences.")
+
+    tokens = re.findall(r"[a-zA-Z][a-zA-Z0-9+#.-]{1,}", raw.lower())
+    content_tokens = {
+        token for token in tokens
+        if len(token) >= 3 and token not in _ANSWER_STOPWORDS
+    }
+    if len(content_tokens) < 3:
+        raise ValueError("Your answer does not contain enough meaningful content to score. Please explain your reasoning.")
+
+    prompt_text = f"{question.question_text} {question.competency_or_topic}".lower()
+    prompt_tokens = {
+        token for token in re.findall(r"[a-zA-Z][a-zA-Z0-9+#.-]{2,}", prompt_text)
+        if len(token) >= 3 and token not in _ANSWER_STOPWORDS
+    }
+    if not content_tokens.intersection(prompt_tokens) and not content_tokens.intersection(_COMMON_TECH_TERMS):
+        raise ValueError(
+            "Your response does not appear related to the interview question. "
+            "Please answer with relevant concepts, reasoning, or an example; no score was assigned."
+        )
+
 def evaluate_heuristically(
     question: QuestionItem,
     candidate_answer: str,
@@ -138,6 +188,7 @@ def evaluate_heuristically(
     Intelligent offline rubric evaluation when no external LLM API is configured.
     Provides rigorous, predictable, and transparent practice diagnostics.
     """
+    validate_answer_relevance(question, candidate_answer)
     combined_answer = candidate_answer
     if followup_answer:
         combined_answer += "\n" + followup_answer
@@ -423,6 +474,7 @@ def evaluate_with_llm(
     """
     from .config import get_llm_config, get_setting
 
+    validate_answer_relevance(question, candidate_answer)
     configured = get_llm_config()
     provider = (provider or configured.get("provider") or "heuristic").strip().lower()
     supported_providers = {"groq", "gemini", "openai", "heuristic"}
