@@ -65,7 +65,7 @@ from backend.config import get_llm_config
 def _dataframe(*args, **kwargs):
     """Import pandas only when a chart/table section actually needs it."""
     import pandas as pd
-    return _dataframe(*args, **kwargs)
+    return pd.DataFrame(*args, **kwargs)
 
 
 # Page configuration
