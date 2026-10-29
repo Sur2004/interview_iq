@@ -1,7 +1,7 @@
 # InterviewIQ — Engineering Notes, Changes, and Verification
 
 **Repository:** [Sur2004/interview_iq](https://github.com/Sur2004/interview_iq)  
-**Last reviewed:** 26 October 2026  
+**Last reviewed:** 29 October 2026  
 **Purpose:** Record the application architecture, answer-revision feature, reliability/security changes, review findings, verification steps, and known limitations.
 
 ## 1. Product overview
@@ -221,3 +221,12 @@ Prioritized by reliability and user impact:
 - Avoid entering confidential employer data, passwords, private customer data, or proprietary source code into interview responses.
 - Use the feedback to improve your own authentic examples; do not present generated outlines as experiences you did not have.
 - Treat all scores as practice indicators only.
+
+
+## 10. Navigation and documentation follow-up (29 October 2026)
+
+- Replaced the sidebar's radio-list navigation with a labeled **Open a section** dropdown to make workspace switching clearer on narrow screens and easier to operate.
+- Added Streamlit AppTest smoke coverage for all non-default workspace destinations and a direct interaction test for opening **Resume & Project Review** from the selector.
+- Updated the README and project report to explain the new navigation control and reflect the current guest-mode/browser-local-storage behavior instead of requiring SMTP/OTP sign-in.
+- Updated the humanized project documentation to include all four team members and their responsibilities after the problem statement.
+- Verification limitation: the repository was inspected through GitHub file access, but a full local test run and real-browser check of the deployed Streamlit app were not available during this review. The added automated tests must be confirmed by the GitHub Actions run, and the live app should be checked after deployment refresh.
