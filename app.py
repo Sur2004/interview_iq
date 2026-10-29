@@ -8,7 +8,6 @@ import streamlit.components.v1 as components
 import time
 import os
 import uuid
-import pandas as pd
 import json
 import re
 
@@ -61,6 +60,13 @@ def generate_dynamic_ai_technical_question(*args, **kwargs):
     return _call_evaluator("generate_dynamic_ai_technical_question", *args, **kwargs)
 from backend.browser_store import session_from_dict, session_summaries, analytics_from_sessions
 from backend.config import get_llm_config
+
+
+def _dataframe(*args, **kwargs):
+    """Import pandas only when a chart/table section actually needs it."""
+    import pandas as pd
+    return _dataframe(*args, **kwargs)
+
 
 # Page configuration
 st.set_page_config(
@@ -721,7 +727,7 @@ if active_section == "mock_interview":
             ]
             if turn_scores:
                 st.markdown("#### Score by question")
-                st.line_chart(pd.DataFrame(turn_scores).set_index("Question"), y="Score", use_container_width=True)
+                st.line_chart(_dataframe(turn_scores).set_index("Question"), y="Score", use_container_width=True)
 
             st.markdown("### \U0001f4dd Turn-by-Turn Diagnostic Review")
             for i, turn in enumerate(session.turns):
@@ -750,7 +756,7 @@ if active_section == "mock_interview":
                         st.markdown("#### Rubric breakdown")
                         rubric_rows = [{"Criterion": item.display_name, "Score": item.score} for item in t_eval.rubric_scores.values()]
                         if rubric_rows:
-                            st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
+                            st.bar_chart(_dataframe(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
                             for item in t_eval.rubric_scores.values():
                                 st.markdown(f"**{item.display_name}: {item.score:.1f}/5** — {item.feedback}")
                         st.markdown(t_eval.stronger_answer_outline)
@@ -1032,7 +1038,7 @@ if active_section == "mock_interview":
             st.markdown("#### Rubric breakdown")
             rubric_rows = [{"Criterion": item.display_name, "Score": item.score} for item in t_eval.rubric_scores.values()]
             if rubric_rows:
-                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
+                st.bar_chart(_dataframe(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
                 for item in t_eval.rubric_scores.values():
                     st.markdown(f"**{item.display_name}: {item.score:.1f}/5** — {item.feedback}")
 
@@ -1186,7 +1192,7 @@ if active_section == "technical_challenge":
             if result.rubric_scores:
                 st.markdown("**Rubric breakdown**")
                 rubric_rows = [{"Criterion": rubric.display_name, "Score": rubric.score} for rubric in result.rubric_scores.values()]
-                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
+                st.bar_chart(_dataframe(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
                 for rubric in result.rubric_scores.values():
                     st.markdown(f"**{rubric.display_name}: {rubric.score:.1f}/5** — {rubric.feedback}")
 
@@ -1514,7 +1520,7 @@ if active_section == "system_design":
             {"Technology Pair": "Pessimistic vs Optimistic Locking", "When to Choose Option A": "High contention, frequent conflicting updates (prevents rollbacks)", "When to Choose Option B": "Low-to-medium contention, high read ratio, minimizes database row locks"},
             {"Technology Pair": "Client-Side (CSR) vs Server-Side (SSR)", "When to Choose Option A": "Rich internal interactive dashboards, lower server CPU usage", "When to Choose Option B": "Public search engine optimization (SEO), fast First Contentful Paint on mobile"},
         ]
-        st.table(pd.DataFrame(tradeoff_data))
+        st.table(_dataframe(tradeoff_data))
 
     elif playbook_choice == "The 60-Second 'Tell Me About Yourself' Formula":
         st.markdown("""
@@ -1602,16 +1608,16 @@ if active_section == "progress":
                     })
         if session_chart_rows:
             st.subheader("Score trend by practice session")
-            trend = pd.DataFrame(session_chart_rows)
+            trend = _dataframe(session_chart_rows)
             trend["Session label"] = trend["Date"] + " · " + trend["Session"]
             st.line_chart(trend.set_index("Session label")[["Score"]], y="Score", use_container_width=True)
         if rubric_chart_rows:
             st.subheader("Rubric strengths and improvement areas")
-            rubric_df = pd.DataFrame(rubric_chart_rows).groupby("Criterion", as_index=False)["Score"].mean().sort_values("Score")
+            rubric_df = _dataframe(rubric_chart_rows).groupby("Criterion", as_index=False)["Score"].mean().sort_values("Score")
             st.bar_chart(rubric_df.set_index("Criterion"), y="Score", use_container_width=True)
         if category_chart_rows:
             st.subheader("Performance by interview category")
-            category_df = pd.DataFrame(category_chart_rows).groupby("Category", as_index=False)["Score"].mean().sort_values("Score")
+            category_df = _dataframe(category_chart_rows).groupby("Category", as_index=False)["Score"].mean().sort_values("Score")
             st.bar_chart(category_df.set_index("Category"), y="Score", use_container_width=True)
         st.subheader("Session history")
         for saved in reversed(history_rows):
@@ -1778,7 +1784,7 @@ if active_section == "resume_review":
                 st.progress(min(100, max(0, int(ats_result["score"]))) / 100)
                 st.caption(ats_result.get("method", "Heuristic checklist; not an employer ATS score"))
             st.markdown("**Score breakdown**")
-            breakdown_df = pd.DataFrame([
+            breakdown_df = _dataframe([
                 {"Category": item["category"], "Score": f"{item['score']}/{item['max_score']}", "What was checked": item["detail"]}
                 for item in ats_result.get("breakdown", [])
             ])
