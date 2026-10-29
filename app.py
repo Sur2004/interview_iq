@@ -176,8 +176,6 @@ if "interviewer_persona" not in st.session_state:
 from backend.candidate_auth import generate_candidate_id, hash_pin, verify_pin
 if "authenticated_candidate_id" not in st.session_state:
     st.session_state.authenticated_candidate_id = ""
-if not st.session_state.authenticated_candidate_id and st.session_state.get("authenticated_email"):
-    st.session_state.authenticated_candidate_id = st.session_state.authenticated_email
 if not st.session_state.get("browser_data_loaded"):
     st.info("Loading your browser-local InterviewIQ profiles…")
     st.stop()
