@@ -425,14 +425,15 @@ with st.sidebar:
         "rubric_guide": "\u2696\ufe0f  Learn: Scoring Rubric",
         "resume_review": "\U0001f4c4  Resume & Project Review",
     }
-    active_section = st.radio(
-        "Navigation menu",
+    active_section = st.selectbox(
+        "Open a section",
         options=list(section_labels.keys()),
         format_func=lambda key: section_labels[key],
         key="workspace_navigation",
         label_visibility="collapsed",
+        help="Choose a section to open it in the main workspace.",
     )
-    st.caption("Select any item to switch sections.")
+    st.caption("The main workspace updates when you choose a section.")
     st.markdown("---")
 
     st.subheader("\u2699\ufe0f Session Setup")
