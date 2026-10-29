@@ -184,47 +184,23 @@ def _suspicious_gibberish_tokens(tokens: list[str]) -> list[str]:
 
 
 def validate_answer_relevance(question: QuestionItem, answer: str) -> None:
-    """Reject empty, gibberish, and clearly unrelated text before scoring."""
+    """Reject obvious gibberish before scoring; let the rubric score weak answers low.
+
+    Empty, short, and off-topic answers are valid evaluation inputs: the offline
+    rubric should diagnose them with low relevance scores rather than crash.
+    The Streamlit submission handlers separately prevent blank submissions.
+    """
     raw = (answer or "").strip()
     if not raw:
-        raise ValueError("Please provide an answer before evaluation.")
-    if len(raw) < 20:
-        raise ValueError("Your answer is too short to evaluate. Explain the concept in a few complete sentences.")
+        return
 
     raw_tokens = re.findall(r"[a-zA-Z][a-zA-Z0-9+#.-]{1,}", raw.lower())
     suspicious_tokens = _suspicious_gibberish_tokens(raw_tokens)
-    # A long random-looking token is a strong signal of keyboard-mash input.
-    # Permit known long technical/English terms via the allowlist above.
     if suspicious_tokens:
         raise ValueError(
             "Your answer appears to contain gibberish or random text "
             f"({', '.join(suspicious_tokens[:2])}). No score was assigned. "
             "Please write a meaningful answer to the interview question."
-        )
-
-    tokens = raw_tokens
-    content_tokens = {
-        token for token in tokens
-        if len(token) >= 3 and token not in _ANSWER_STOPWORDS
-    }
-    if len(content_tokens) < 3:
-        raise ValueError("Your answer does not contain enough meaningful content to score. Please explain your reasoning.")
-
-    prompt_text = f"{question.question_text} {question.competency_or_topic}".lower()
-    prompt_tokens = {
-        token for token in re.findall(r"[a-zA-Z][a-zA-Z0-9+#.-]{2,}", prompt_text)
-        if len(token) >= 3 and token not in _ANSWER_STOPWORDS
-    }
-    # For non-technical questions, require some lexical connection to the prompt;
-    # for technical questions, allow a small, curated set of technical concepts,
-    # but never generic words like "problem", "project", or "because" as evidence.
-    topic_overlap = content_tokens.intersection(prompt_tokens)
-    technical_signal = content_tokens.intersection(_COMMON_TECH_TERMS)
-    is_technical = question.category == QuestionCategory.TECHNICAL
-    if not topic_overlap and not (is_technical and technical_signal):
-        raise ValueError(
-            "Your response does not appear related to the interview question. "
-            "Please answer with relevant concepts, reasoning, or an example; no score was assigned."
         )
 
 def evaluate_heuristically(
