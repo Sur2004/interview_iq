@@ -87,3 +87,27 @@ def test_meaningful_technical_answer_passes_gibberish_gate():
         "A hash map stores key value pairs and uses a hash function to find the bucket. "
         "Collisions can be handled with chaining, and average lookup time is constant.",
     )
+
+
+def test_legitimate_synchronization_answer_is_not_mistaken_for_gibberish():
+    from backend.evaluator import validate_answer_relevance
+    from backend.models import QuestionCategory, QuestionItem
+
+    question = QuestionItem(
+        id="q-sync",
+        category=QuestionCategory.TECHNICAL,
+        role="Software Engineering",
+        question_text="Explain synchronization in concurrent programming.",
+        competency_or_topic="synchronization threads shared memory",
+    )
+    validate_answer_relevance(
+        question,
+        "Synchronization prevents race conditions when multiple threads access shared memory. "
+        "A lock can protect critical sections and make updates predictable.",
+    )
+
+
+def test_short_repeated_character_spam_is_detected():
+    from backend.evaluator import _suspicious_gibberish_tokens
+
+    assert _suspicious_gibberish_tokens(["aaaaaaa"])
