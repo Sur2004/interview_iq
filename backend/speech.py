@@ -63,7 +63,7 @@ def transcribe_audio(audio_bytes: bytes, mime_type: str, provider: str, api_key:
 
     # Reject common empty/no-speech and low-quality transcription outputs before
     # they reach the evaluator. Question-specific relevance is checked in evaluator.py.
-    transcript = re.sub(r"\\s+", " ", transcript).strip()
+    transcript = re.sub(r"\s+", " ", transcript).strip()
     if not transcript:
         raise ValueError("No clear speech was detected. Please record your answer again.")
 
