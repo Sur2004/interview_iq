@@ -214,3 +214,13 @@ def test_all_sidebar_sections_open_without_exceptions():
             + [item.value for item in app.subheader]
         )
         assert heading in rendered_text, f"Section {section!r} did not render its heading"
+
+
+def test_user_can_navigate_to_resume_and_project_review():
+    app = build_offline_app().run()
+    navigation = next(item for item in app.selectbox if item.label == "Open a section")
+    navigation.select("resume_review").run()
+
+    assert not app.exception
+    assert app.session_state["workspace_navigation"] == "resume_review"
+    assert any(item.value == "Resume & Project Review" for item in app.header)
