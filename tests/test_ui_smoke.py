@@ -189,3 +189,28 @@ def test_typed_followup_answer_is_evaluated_offline():
     session = app.session_state["session"]
     assert session.turns[0].completed
     assert session.turns[0].followup_answer.startswith("I would handle collisions")
+
+
+def test_all_sidebar_sections_open_without_exceptions():
+    """Regression test: every navigation destination must render its workspace."""
+    expected = {
+        "technical_challenge": "Build and Practice a Technical Challenge",
+        "question_bank": "Comprehensive Interview Question Bank",
+        "system_design": "System Design & Engineering Playbooks",
+        "star_builder": "Interactive STAR Story Builder",
+        "spot_the_flaw": "Spot the Interview Flaw",
+        "progress": "Practice history & performance",
+        "export_report": "Export Practice Report",
+        "rubric_guide": "Transparent Rubric & Ethical Guardrails",
+        "resume_review": "Resume & Project Review",
+    }
+
+    for section, heading in expected.items():
+        app = build_offline_app(section).run()
+        assert not app.exception, f"Section {section!r} raised: {app.exception}"
+        rendered_text = "\n".join(
+            [item.value for item in app.markdown]
+            + [item.value for item in app.header]
+            + [item.value for item in app.subheader]
+        )
+        assert heading in rendered_text, f"Section {section!r} did not render its heading"
