@@ -219,12 +219,12 @@ Environment variables can be configured in a local `.env` file or in Streamlit C
 | `MODEL_NAME` | No | `llama-3.3-70b-versatile` | Model identifier for inference |
 | `GEMINI_API_KEY` | No | None | Google Gemini API key (optional alternative) |
 | `OPENAI_API_KEY` | No | None | OpenAI API key (optional alternative) |
-| `SMTP_HOST` | Required for email login | None | SMTP server host |
-| `SMTP_PORT` | No | `587` | SMTP server port with STARTTLS |
-| `SMTP_USER` | Required for email login | None | SMTP username |
-| `SMTP_PASSWORD` | Required for email login | None | SMTP password / app password |
-| `SMTP_FROM` | Required for email login | `SMTP_USER` | Verified sender address |
-| `OTP_SIGNING_SECRET` | Strongly recommended | Session-generated fallback | Long random secret used to digest OTPs |
+| `SMTP_HOST` | Not required in guest mode | None | Legacy setting; not used by the active guest workflow |
+| `SMTP_PORT` | Not required in guest mode | `587` | Legacy setting |
+| `SMTP_USER` | Not required in guest mode | None | Legacy setting |
+| `SMTP_PASSWORD` | Not required in guest mode | None | Legacy setting |
+| `SMTP_FROM` | Not required in guest mode | None | Legacy setting |
+| `OTP_SIGNING_SECRET` | Not required in guest mode | None | Legacy setting |
 
 > **Secret Safety Rule:** Never commit real API keys to Git. The `.env` file and `.streamlit/secrets.toml` are ignored by `.gitignore`. Do not commit API keys or credentials. Streamlit's CSRF protection is enabled by default in this project.
 
@@ -255,7 +255,7 @@ python -m pytest tests/
 - **`test_behavioral_evaluation_detects_star_and_scores_accurately`**: Tests STAR heuristic extraction.
 - **`test_technical_evaluation_scores_and_probes_tradeoffs`**: Tests technical depth and trade-off scoring.
 - **`test_followup_question_generation`**: Validates contextual follow-up generation.
-- **Browser-local analytics tests:** Verify local session serialization, rubric aggregation, empty states, and OTP helpers.
+- **Browser-local analytics tests:** Verify local session serialization, rubric aggregation, and empty states.
 - **Legacy SQLite module tests:** Verify the separate legacy persistence module; the active app workflow no longer calls it for personal history.
 - **`test_brief_answer_handling`**: Ensures short answers are graded constructively.
 - **`test_all_interview_types_generate_valid_plans`**: Tests all 4 interview modes.
