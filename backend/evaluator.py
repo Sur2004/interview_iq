@@ -174,7 +174,7 @@ def _suspicious_gibberish_tokens(tokens: list[str]) -> list[str]:
             suspicious.append(word)
             continue
         # Repeated-character spam is also not meaningful interview content.
-        if re.search(r"(.)\\1{3,}", word):
+        if re.search(r"(.)\1{3,}", word):
             suspicious.append(word)
     return suspicious
 
