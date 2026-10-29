@@ -675,11 +675,18 @@ def _parse_llm_json(data: dict, question: QuestionItem, candidate_answer: str = 
             feedback=feedback,
         )
 
+    # Keep the overall result consistent with the visible rubric scores.
+    weighted_overall = (
+        rubric_scores["relevance"].score * 0.35
+        + rubric_scores["structure"].score * 0.20
+        + rubric_scores["evidence"].score * 0.30
+        + rubric_scores["clarity"].score * 0.15
+    )
     tech_breakdown = analyze_technical_complexity(candidate_answer)
     arch_diagram = generate_mermaid_architecture(candidate_answer)
 
     return EvaluationResult(
-        overall_score=min(5.0, max(1.0, float(data.get("overall_score", 3.5)))),
+        overall_score=round(min(4.7, max(1.0, weighted_overall)), 1),
         rubric_scores=rubric_scores,
         key_strengths=data.get("key_strengths", ["Addressed the question directly."]),
         actionable_improvements=data.get("actionable_improvements", ["Deepen evidence and personal ownership."]),
