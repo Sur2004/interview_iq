@@ -146,8 +146,11 @@ _COMMON_TECH_TERMS = {
     "class", "complexity", "concurrency", "data", "debug", "design", "function",
     "http", "index", "java", "javascript", "memory", "model", "network", "python",
     "query", "security", "server", "sql", "system", "testing", "thread", "time",
-    "code", "project", "team", "result", "implemented", "developed", "built",
-    "problem", "solution", "because", "process", "method", "application",
+    "code", "algorithm", "array", "api", "architecture", "authentication", "database",
+    "class", "complexity", "concurrency", "debugging", "function", "http", "index",
+    "javascript", "memory", "network", "python", "query", "security", "server",
+    "sql", "testing", "thread", "latency", "throughput", "cache", "schema",
+    "recursion", "hashmap", "linkedlist", "encryption", "firewall", "compiler",
 }
 
 
@@ -172,7 +175,13 @@ def validate_answer_relevance(question: QuestionItem, answer: str) -> None:
         token for token in re.findall(r"[a-zA-Z][a-zA-Z0-9+#.-]{2,}", prompt_text)
         if len(token) >= 3 and token not in _ANSWER_STOPWORDS
     }
-    if not content_tokens.intersection(prompt_tokens) and not content_tokens.intersection(_COMMON_TECH_TERMS):
+    # For non-technical questions, require some lexical connection to the prompt;
+    # for technical questions, allow a small, curated set of technical concepts,
+    # but never generic words like "problem", "project", or "because" as evidence.
+    topic_overlap = content_tokens.intersection(prompt_tokens)
+    technical_signal = content_tokens.intersection(_COMMON_TECH_TERMS)
+    is_technical = question.category == QuestionCategory.TECHNICAL
+    if not topic_overlap and not (is_technical and technical_signal):
         raise ValueError(
             "Your response does not appear related to the interview question. "
             "Please answer with relevant concepts, reasoning, or an example; no score was assigned."
