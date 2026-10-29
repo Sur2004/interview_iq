@@ -172,7 +172,7 @@ def _suspicious_gibberish_tokens(tokens: list[str]) -> list[str]:
         if not word:
             continue
         # Catch obvious character spam even when the token is short.
-        if re.search(r"(.)\\1{3,}", word):
+        if re.search(r"(.)\1{3,}", word):
             suspicious.append(word)
             continue
         if len(word) < 9 or word in _ALLOW_LONG_CONSONANT_WORDS:
@@ -350,8 +350,8 @@ def evaluate_heuristically(
         clarity_score -= 0.7
     elif word_count > 220:
         clarity_score -= 0.4
-    if len(re.findall(r"\\b(?:[a-z]+)\\b", lower)) > 0:
-        words_for_clarity = re.findall(r"\\b[a-z]+\\b", lower)
+    if len(re.findall(r"\b(?:[a-z]+)\b", lower)) > 0:
+        words_for_clarity = re.findall(r"\b[a-z]+\b", lower)
         repeated = sum(1 for a, b in zip(words_for_clarity, words_for_clarity[1:]) if a == b)
         if repeated >= 3:
             clarity_score -= 0.6
