@@ -195,6 +195,8 @@ Open your browser at **`http://localhost:8501`**.
 
 ## 10. How to Use
 
+**Navigation:** Use the **Open a section** dropdown in the sidebar to open Mock Interview, Resume & Project Review, Question Bank, System Design, Progress, Reports, and the other workspaces. The selected section appears in the main page area.
+
 1. **Profile Setup (Sidebar):** Enter your name, choose your target role (e.g. *Software Engineering*), experience level (*Undergraduate Internship*), and select an AI Interviewer persona (e.g. *Jordan - Principal Architect*).
 2. **Start Round:** Click **"Start Interview Round"**.
 3. **Step 1 (Primary Answer):** Read the prompt on the animated question card. Type your response in the text area. Optionally toggle the code box to provide a Python/Go snippet. Click **"Submit Answer"**.
