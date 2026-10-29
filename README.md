@@ -57,8 +57,8 @@ Furthermore, existing automated tools often function as opaque "pass/fail" filte
 - **Dynamic AI Technical Challenge Generator:** Synthesize FAANG/Principal-level technical questions on any custom subsystem (e.g. Kafka, Postgres MVCC, Raft, RAG).
 - **Spot the Flaw Interactive Game:** Train an "interviewer's eye" by diagnosing classic candidate errors (*The 'We' Trap*, *Unsubstantiated Metrics*, *The Defensive Blame Game*, *Buzzword Salad*).
 - **STAR Story Builder:** Step-by-step wizard that outputs a clean, editable Situation / Task / Action / Result narrative instead of a pitch-card layout.
-- **Email OTP Authentication:** Passwordless email verification, first-time profile creation, expiry and attempt limits. Configure SMTP before enabling hosted sign-in.
-- **Browser-Only Persistence:** Verified users' profiles, interview sessions, answers, revisions, and performance history are stored in browser `localStorage`. The app does not query a server database for personal performance data.
+- **Guest Access:** The current app opens directly in guest mode; email OTP sign-in is not part of the active user workflow.
+- **Browser-Only Persistence:** Practice sessions and history are stored in browser `localStorage`. Data is tied to the current browser and does not automatically sync across devices.
 - **Audio + Typed Answer Fallback:** Record primary and follow-up answers using Streamlit audio input, or type answers when microphone, internet, or speech-transcription services are unavailable. Audio transcription requires a configured supported provider.
 - **Basic Interview Integrity Monitoring:** A browser component requests camera permission for a live preview and reports browser visibility changes. A detected tab/window visibility change terminates the active round and marks it as terminated. A normal web app cannot truly prevent tab switching, browser events can be missed or triggered by benign causes, and this is not tamper-proof proctoring.
 - **Answer Revision Workflow:** Edit completed answers where supported, re-score revised responses, and inspect timestamped previous/updated versions in the session transcript and exported reports.
@@ -72,7 +72,7 @@ Furthermore, existing automated tools often function as opaque "pass/fail" filte
 - **Styling & Visuals:** Sky Blue, White, and Black Cyber-Engineering theme with dynamic CSS animations
 - **AI Providers Supported:** Groq Cloud (`llama-3.3-70b-versatile`), Google Gemini (`gemini-3.8-flash`), OpenAI (`gpt-4o-mini`), and Built-In Offline Diagnostic Engine
 - **Data & Visualization:** Pandas, Streamlit charts, and Mermaid.js for architecture diagrams
-- **Configuration & Secrets:** `python-dotenv`, Streamlit `st.secrets`, and SMTP secrets for email OTP
+- **Configuration & Secrets:** `python-dotenv`, Streamlit `st.secrets`, and environment-based API keys
 - **Testing:** Pytest
 
 ---
@@ -145,7 +145,7 @@ interview_iq/
 - **Python:** 3.10 or higher (`python3 --version`)
 - **Git:** 2.20 or higher (`git --version`)
 - **AI API Key (Optional):** A Groq Cloud API key, Google Gemini key, or OpenAI key. If omitted, evaluation uses the built-in diagnostic engine where supported.
-- **SMTP Credentials (Required for sign-in):** Configure a real SMTP host, username, password/app-password, and verified sender address. Without working email delivery, users cannot receive OTPs.
+- **Sign-in:** No SMTP setup is needed; the current app opens in guest mode.
 - **Browser storage:** Use a normal browser profile with localStorage enabled. Private browsing or strict storage restrictions may prevent persistence.
 
 ---
@@ -208,7 +208,7 @@ Open your browser at **`http://localhost:8501`**.
 
 ## 11. Configuration
 
-See [Browser Storage and Email OTP Setup](docs/BROWSER_STORAGE_AUTH.md) for SMTP setup, OTP controls, browser-storage limitations, and a deployment smoke-test checklist.
+See [Free-tier AI setup](docs/FREE_TIER_AI_SETUP.md) for optional provider configuration and [Project Report](docs/PROJECT_REPORT.md) for the project overview and team responsibilities.
 
 Environment variables can be configured in a local `.env` file or in Streamlit Community Cloud under **Settings > Secrets**:
 
@@ -278,7 +278,7 @@ python -m pytest tests/
 - **Model Hallucinations in Open-Ended Generation:** When using live LLM APIs, rare hallucinations can occur; the application mitigates this by providing heuristic validation and structured JSON schema enforcement.
 - **Speech/Voice Latency:** The current release focuses on typed responses to maximize structural reflection and rubric accuracy; live voice streaming is slated for a future iteration.
 - **Browser-local storage only:** Profiles and performance history live in the current browser profile's `localStorage`; they do not sync across devices or browsers. Clearing site data, private-browsing cleanup, browser policies, quota limits, or storage failures can erase or prevent saving data. Export reports regularly.
-- **Email OTP is deployment-configured:** Registration/login needs working SMTP credentials and a strong `OTP_SIGNING_SECRET`. Without SMTP configuration, the app fails closed and cannot send sign-in codes.
+- **Guest mode:** The current app does not require email login or SMTP credentials. Browser-local history may be cleared by the user or browser.
 - **No server-side identity registry:** Email verification proves access to an email inbox, but browser-only storage is not a cross-device account database. Users can verify the same email on another device, but their saved history will not follow them there.
 - **Browser storage is not a secure vault:** Do not store confidential interview notes or secrets in this mode; localStorage is accessible to scripts running on the same origin.
 
