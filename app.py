@@ -8,6 +8,7 @@ import streamlit.components.v1 as components
 import time
 import os
 import uuid
+import pandas as pd
 import json
 import re
 
@@ -28,45 +29,23 @@ from backend.question_bank import (
     TECHNICAL_QUESTIONS_BY_ROLE,
     build_interview_plan,
 )
-# Load the evaluator only when an evaluation-related action is used.
-# This keeps the initial workspace render lighter while preserving the existing UI.
-def _call_evaluator(name, *args, **kwargs):
-    from importlib import import_module
-    evaluator = import_module("backend.evaluator")
-    return getattr(evaluator, name)(*args, **kwargs)
-
-
-def evaluate_heuristically(*args, **kwargs):
-    return _call_evaluator("evaluate_heuristically", *args, **kwargs)
-
-
-def evaluate_with_llm(*args, **kwargs):
-    return _call_evaluator("evaluate_with_llm", *args, **kwargs)
-
-
-def generate_followup_question(*args, **kwargs):
-    return _call_evaluator("generate_followup_question", *args, **kwargs)
-
-
-def analyze_technical_complexity(*args, **kwargs):
-    return _call_evaluator("analyze_technical_complexity", *args, **kwargs)
-
-
-def generate_mermaid_architecture(*args, **kwargs):
-    return _call_evaluator("generate_mermaid_architecture", *args, **kwargs)
-
-
-def generate_dynamic_ai_technical_question(*args, **kwargs):
-    return _call_evaluator("generate_dynamic_ai_technical_question", *args, **kwargs)
+from backend.evaluator import (
+    evaluate_heuristically,
+    evaluate_with_llm,
+    generate_followup_question,
+    analyze_technical_complexity,
+    generate_mermaid_architecture,
+    generate_dynamic_ai_technical_question,
+    RUBRIC_CRITERIA_META,
+)
 from backend.browser_store import session_from_dict, session_summaries, analytics_from_sessions
+from backend.report_generator import (
+    generate_markdown_report,
+    generate_html_report,
+)
 from backend.config import get_llm_config
-
-
-def _dataframe(*args, **kwargs):
-    """Import pandas only when a chart/table section actually needs it."""
-    import pandas as pd
-    return pd.DataFrame(*args, **kwargs)
-
+from backend.career_review import (extract_resume_pdf, fetch_public_repository, evaluate_candidate_materials, calculate_ats_score, generate_resume_based_questions)
+from backend.speech import transcribe_audio
 
 # Page configuration
 st.set_page_config(
@@ -727,7 +706,7 @@ if active_section == "mock_interview":
             ]
             if turn_scores:
                 st.markdown("#### Score by question")
-                st.line_chart(_dataframe(turn_scores).set_index("Question"), y="Score", use_container_width=True)
+                st.line_chart(pd.DataFrame(turn_scores).set_index("Question"), y="Score", use_container_width=True)
 
             st.markdown("### \U0001f4dd Turn-by-Turn Diagnostic Review")
             for i, turn in enumerate(session.turns):
@@ -756,7 +735,7 @@ if active_section == "mock_interview":
                         st.markdown("#### Rubric breakdown")
                         rubric_rows = [{"Criterion": item.display_name, "Score": item.score} for item in t_eval.rubric_scores.values()]
                         if rubric_rows:
-                            st.bar_chart(_dataframe(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
+                            st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
                             for item in t_eval.rubric_scores.values():
                                 st.markdown(f"**{item.display_name}: {item.score:.1f}/5** — {item.feedback}")
                         st.markdown(t_eval.stronger_answer_outline)
@@ -891,7 +870,6 @@ if active_section == "mock_interview":
                     st.warning("Record an audio answer, or use the typed-answer option above.")
                 else:
                     try:
-                        from backend.speech import transcribe_audio
                         settings = get_active_llm_settings()
                         transcript = transcribe_audio(
                             audio_answer.getvalue(),
@@ -976,7 +954,6 @@ if active_section == "mock_interview":
                         st.warning("Record a follow-up answer, or use the typed-answer option above.")
                     else:
                         try:
-                            from backend.speech import transcribe_audio
                             settings = get_active_llm_settings()
                             transcript = transcribe_audio(
                                 followup_audio.getvalue(),
@@ -1038,7 +1015,7 @@ if active_section == "mock_interview":
             st.markdown("#### Rubric breakdown")
             rubric_rows = [{"Criterion": item.display_name, "Score": item.score} for item in t_eval.rubric_scores.values()]
             if rubric_rows:
-                st.bar_chart(_dataframe(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
+                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
                 for item in t_eval.rubric_scores.values():
                     st.markdown(f"**{item.display_name}: {item.score:.1f}/5** — {item.feedback}")
 
@@ -1192,7 +1169,7 @@ if active_section == "technical_challenge":
             if result.rubric_scores:
                 st.markdown("**Rubric breakdown**")
                 rubric_rows = [{"Criterion": rubric.display_name, "Score": rubric.score} for rubric in result.rubric_scores.values()]
-                st.bar_chart(_dataframe(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
+                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
                 for rubric in result.rubric_scores.values():
                     st.markdown(f"**{rubric.display_name}: {rubric.score:.1f}/5** — {rubric.feedback}")
 
@@ -1520,7 +1497,7 @@ if active_section == "system_design":
             {"Technology Pair": "Pessimistic vs Optimistic Locking", "When to Choose Option A": "High contention, frequent conflicting updates (prevents rollbacks)", "When to Choose Option B": "Low-to-medium contention, high read ratio, minimizes database row locks"},
             {"Technology Pair": "Client-Side (CSR) vs Server-Side (SSR)", "When to Choose Option A": "Rich internal interactive dashboards, lower server CPU usage", "When to Choose Option B": "Public search engine optimization (SEO), fast First Contentful Paint on mobile"},
         ]
-        st.table(_dataframe(tradeoff_data))
+        st.table(pd.DataFrame(tradeoff_data))
 
     elif playbook_choice == "The 60-Second 'Tell Me About Yourself' Formula":
         st.markdown("""
@@ -1608,16 +1585,16 @@ if active_section == "progress":
                     })
         if session_chart_rows:
             st.subheader("Score trend by practice session")
-            trend = _dataframe(session_chart_rows)
+            trend = pd.DataFrame(session_chart_rows)
             trend["Session label"] = trend["Date"] + " · " + trend["Session"]
             st.line_chart(trend.set_index("Session label")[["Score"]], y="Score", use_container_width=True)
         if rubric_chart_rows:
             st.subheader("Rubric strengths and improvement areas")
-            rubric_df = _dataframe(rubric_chart_rows).groupby("Criterion", as_index=False)["Score"].mean().sort_values("Score")
+            rubric_df = pd.DataFrame(rubric_chart_rows).groupby("Criterion", as_index=False)["Score"].mean().sort_values("Score")
             st.bar_chart(rubric_df.set_index("Criterion"), y="Score", use_container_width=True)
         if category_chart_rows:
             st.subheader("Performance by interview category")
-            category_df = _dataframe(category_chart_rows).groupby("Category", as_index=False)["Score"].mean().sort_values("Score")
+            category_df = pd.DataFrame(category_chart_rows).groupby("Category", as_index=False)["Score"].mean().sort_values("Score")
             st.bar_chart(category_df.set_index("Category"), y="Score", use_container_width=True)
         st.subheader("Session history")
         for saved in reversed(history_rows):
@@ -1641,7 +1618,6 @@ if active_section == "export_report":
     if not current_sess:
         st.info("Start or complete an interview session to export your personalized diagnostic report.")
     else:
-        from backend.report_generator import generate_markdown_report, generate_html_report
         md_report = generate_markdown_report(current_sess)
         html_report = generate_html_report(current_sess)
         json_report = json.dumps(current_sess.to_dict(), indent=2)
@@ -1677,7 +1653,6 @@ if active_section == "export_report":
 # TAB 9: TRANSPARENT RUBRIC & ETHICAL GUARDRAILS
 # ==============================================================================
 if active_section == "rubric_guide":
-    from backend.evaluator import RUBRIC_CRITERIA_META
     st.header("⚖️ Transparent Rubric & Ethical Guardrails")
     st.markdown("""
     InterviewIQ believes that AI should empower students through **transparent criteria**
@@ -1731,10 +1706,6 @@ if active_section == "resume_review":
     )
 
     if st.button("Review Resume & Project", type="primary", use_container_width=True, key="run_career_review"):
-        from backend.career_review import (
-            extract_resume_pdf, fetch_public_repository, evaluate_candidate_materials,
-            calculate_ats_score, generate_resume_based_questions,
-        )
         if not review_resume and not review_repo_url.strip():
             st.warning("Upload a resume PDF, enter a public GitHub repository URL, or both.")
         else:
@@ -1784,7 +1755,7 @@ if active_section == "resume_review":
                 st.progress(min(100, max(0, int(ats_result["score"]))) / 100)
                 st.caption(ats_result.get("method", "Heuristic checklist; not an employer ATS score"))
             st.markdown("**Score breakdown**")
-            breakdown_df = _dataframe([
+            breakdown_df = pd.DataFrame([
                 {"Category": item["category"], "Score": f"{item['score']}/{item['max_score']}", "What was checked": item["detail"]}
                 for item in ats_result.get("breakdown", [])
             ])
