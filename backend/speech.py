@@ -5,6 +5,7 @@ for transcription; no local speech model or shared API key is bundled.
 """
 import base64
 import io
+import re
 from typing import Optional
 
 import requests
