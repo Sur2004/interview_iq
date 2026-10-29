@@ -5,8 +5,8 @@
 <script>
 (function(){
   const KEY = "interviewiq.browser-data.v1";
-  let ready = false;
   let lastWrite = null;
+  let readSent = false;
   const status = document.getElementById("status");
   function send(value){
     window.parent.postMessage({isStreamlitMessage:true,type:"streamlit:setComponentValue",value:value},"*");
@@ -14,21 +14,25 @@
   function readData(){
     try {
       const raw = window.localStorage.getItem(KEY);
-      const parsed = raw ? JSON.parse(raw) : {sessions:[],profiles:{}};
-      return parsed && typeof parsed === "object" ? parsed : {sessions:[],profiles:{}};
+      const parsed = raw ? JSON.parse(raw) : {sessions:{},profiles:{}};
+      return parsed && typeof parsed === "object" ? parsed : {sessions:{},profiles:{}};
     } catch(e) {
       status.textContent = "Browser storage could not be read. A fresh local history will be used.";
-      return {sessions:[],profiles:{}};
+      return {sessions:{},profiles:{}};
     }
   }
   function render(event){
     if(!event || !event.data || event.data.type !== "streamlit:render") return;
     const args = event.data.args || {};
-    ready = true;
     window.parent.postMessage({isStreamlitMessage:true,type:"streamlit:componentReady",apiVersion:1},"*");
     window.parent.postMessage({isStreamlitMessage:true,type:"streamlit:setFrameHeight",height:24},"*");
     if(args.action === "read"){
-      send(readData());
+      // Read localStorage only once per iframe lifetime. Sending the same value on every
+      // Streamlit rerun can keep the app in a perpetual "running" state.
+      if(!readSent){
+        readSent = true;
+        send(readData());
+      }
       status.textContent = "Browser-only storage enabled";
     } else if(args.action === "write" && typeof args.payload === "string" && args.payload !== lastWrite){
       lastWrite = args.payload;
