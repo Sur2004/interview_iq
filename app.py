@@ -29,15 +29,36 @@ from backend.question_bank import (
     TECHNICAL_QUESTIONS_BY_ROLE,
     build_interview_plan,
 )
-from backend.evaluator import (
-    evaluate_heuristically,
-    evaluate_with_llm,
-    generate_followup_question,
-    analyze_technical_complexity,
-    generate_mermaid_architecture,
-    generate_dynamic_ai_technical_question,
-    RUBRIC_CRITERIA_META,
-)
+# Load the evaluator only when an evaluation-related action is used.
+# This keeps the initial workspace render lighter while preserving the existing UI.
+def _call_evaluator(name, *args, **kwargs):
+    from importlib import import_module
+    evaluator = import_module("backend.evaluator")
+    return getattr(evaluator, name)(*args, **kwargs)
+
+
+def evaluate_heuristically(*args, **kwargs):
+    return _call_evaluator("evaluate_heuristically", *args, **kwargs)
+
+
+def evaluate_with_llm(*args, **kwargs):
+    return _call_evaluator("evaluate_with_llm", *args, **kwargs)
+
+
+def generate_followup_question(*args, **kwargs):
+    return _call_evaluator("generate_followup_question", *args, **kwargs)
+
+
+def analyze_technical_complexity(*args, **kwargs):
+    return _call_evaluator("analyze_technical_complexity", *args, **kwargs)
+
+
+def generate_mermaid_architecture(*args, **kwargs):
+    return _call_evaluator("generate_mermaid_architecture", *args, **kwargs)
+
+
+def generate_dynamic_ai_technical_question(*args, **kwargs):
+    return _call_evaluator("generate_dynamic_ai_technical_question", *args, **kwargs)
 from backend.browser_store import session_from_dict, session_summaries, analytics_from_sessions
 from backend.config import get_llm_config
 
@@ -1650,6 +1671,7 @@ if active_section == "export_report":
 # TAB 9: TRANSPARENT RUBRIC & ETHICAL GUARDRAILS
 # ==============================================================================
 if active_section == "rubric_guide":
+    from backend.evaluator import RUBRIC_CRITERIA_META
     st.header("⚖️ Transparent Rubric & Ethical Guardrails")
     st.markdown("""
     InterviewIQ believes that AI should empower students through **transparent criteria**
