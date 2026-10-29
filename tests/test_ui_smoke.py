@@ -15,6 +15,7 @@ def build_offline_app(section: str = "mock_interview") -> AppTest:
     app.session_state["sb_provider"] = "Built-In Offline Engine"
     app.session_state["workspace_navigation"] = section
     app.session_state["authenticated_email"] = "offline-test@example.com"
+    app.session_state["authenticated_candidate_id"] = "offline-test@example.com"
     app.session_state["browser_data"] = {
         "profiles": {"offline-test@example.com": {"name": "Offline Test"}},
         "sessions": {"offline-test@example.com": []},
