@@ -159,6 +159,8 @@ _ALLOW_LONG_CONSONANT_WORDS = {
     "matchmaking", "christmas", "algorithm", "algorithms", "timestamp",
     "timestamps", "handshake", "handshakes", "snapshot", "snapshots",
     "sprint", "sprints", "construct", "constructs", "abstract", "abstracts",
+    "synchronization", "synchronizations", "synchronisation", "synchronise",
+    "synchronised", "synchronizing", "synchronize", "synchronized", "asynchronous",
 }
 
 
@@ -167,14 +169,16 @@ def _suspicious_gibberish_tokens(tokens: list[str]) -> list[str]:
     suspicious = []
     for token in tokens:
         word = re.sub(r"[^a-z]", "", token.lower())
+        if not word:
+            continue
+        # Catch obvious character spam even when the token is short.
+        if re.search(r"(.)\\1{3,}", word):
+            suspicious.append(word)
+            continue
         if len(word) < 9 or word in _ALLOW_LONG_CONSONANT_WORDS:
             continue
         # Long consonant runs are uncommon in ordinary English; catch keyboard mash.
         if re.search(r"[bcdfghjklmnpqrstvwxyz]{5,}", word):
-            suspicious.append(word)
-            continue
-        # Repeated-character spam is also not meaningful interview content.
-        if re.search(r"(.)\1{3,}", word):
             suspicious.append(word)
     return suspicious
 
