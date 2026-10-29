@@ -39,13 +39,7 @@ from backend.evaluator import (
     RUBRIC_CRITERIA_META,
 )
 from backend.browser_store import session_from_dict, session_summaries, analytics_from_sessions
-from backend.report_generator import (
-    generate_markdown_report,
-    generate_html_report,
-)
 from backend.config import get_llm_config
-from backend.career_review import (extract_resume_pdf, fetch_public_repository, evaluate_candidate_materials, calculate_ats_score, generate_resume_based_questions)
-from backend.speech import transcribe_audio
 
 # Page configuration
 st.set_page_config(
@@ -870,6 +864,7 @@ if active_section == "mock_interview":
                     st.warning("Record an audio answer, or use the typed-answer option above.")
                 else:
                     try:
+                        from backend.speech import transcribe_audio
                         settings = get_active_llm_settings()
                         transcript = transcribe_audio(
                             audio_answer.getvalue(),
@@ -954,6 +949,7 @@ if active_section == "mock_interview":
                         st.warning("Record a follow-up answer, or use the typed-answer option above.")
                     else:
                         try:
+                            from backend.speech import transcribe_audio
                             settings = get_active_llm_settings()
                             transcript = transcribe_audio(
                                 followup_audio.getvalue(),
@@ -1618,6 +1614,7 @@ if active_section == "export_report":
     if not current_sess:
         st.info("Start or complete an interview session to export your personalized diagnostic report.")
     else:
+        from backend.report_generator import generate_markdown_report, generate_html_report
         md_report = generate_markdown_report(current_sess)
         html_report = generate_html_report(current_sess)
         json_report = json.dumps(current_sess.to_dict(), indent=2)
@@ -1706,6 +1703,10 @@ if active_section == "resume_review":
     )
 
     if st.button("Review Resume & Project", type="primary", use_container_width=True, key="run_career_review"):
+        from backend.career_review import (
+            extract_resume_pdf, fetch_public_repository, evaluate_candidate_materials,
+            calculate_ats_score, generate_resume_based_questions,
+        )
         if not review_resume and not review_repo_url.strip():
             st.warning("Upload a resume PDF, enter a public GitHub repository URL, or both.")
         else:
