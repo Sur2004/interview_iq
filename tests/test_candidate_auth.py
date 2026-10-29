@@ -54,3 +54,36 @@ def test_session_history_is_namespaced_by_candidate_id():
     assert [row["session_id"] for row in session_summaries(browser_data, "IQ-AAAAAAAA")] == ["session-a"]
     assert [row["session_id"] for row in session_summaries(browser_data, "IQ-BBBBBBBB")] == ["session-b"]
     assert session_summaries(browser_data, "IQ-CCCCCCCC") == []
+
+
+def test_gibberish_answer_is_rejected_before_scoring():
+    from backend.evaluator import validate_answer_relevance
+    from backend.models import QuestionCategory, QuestionItem
+
+    question = QuestionItem(
+        id="q-test",
+        category=QuestionCategory.TECHNICAL,
+        role="Software Engineering",
+        question_text="Explain how a hash map works and its time complexity.",
+        competency_or_topic="hash map complexity",
+    )
+    with pytest.raises(ValueError, match="gibberish|random text"):
+        validate_answer_relevance(question, "Hheiskkdjdhd this is random keyboard mash text.")
+
+
+def test_meaningful_technical_answer_passes_gibberish_gate():
+    from backend.evaluator import validate_answer_relevance
+    from backend.models import QuestionCategory, QuestionItem
+
+    question = QuestionItem(
+        id="q-test",
+        category=QuestionCategory.TECHNICAL,
+        role="Software Engineering",
+        question_text="Explain how a hash map works and its time complexity.",
+        competency_or_topic="hash map complexity",
+    )
+    validate_answer_relevance(
+        question,
+        "A hash map stores key value pairs and uses a hash function to find the bucket. "
+        "Collisions can be handled with chaining, and average lookup time is constant.",
+    )
