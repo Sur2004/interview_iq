@@ -40,3 +40,17 @@ def test_candidate_id_validation_is_case_insensitive_and_strict():
     assert validate_candidate_id("iq-a1b2c3d4")
     assert not validate_candidate_id("IQ-123")
     assert not validate_candidate_id("IQ-ABCDEFGH!")
+
+
+def test_session_history_is_namespaced_by_candidate_id():
+    from backend.browser_store import session_summaries
+
+    browser_data = {
+        "sessions": {
+            "IQ-AAAAAAAA": [{"session_id": "session-a", "created_at": 1}],
+            "IQ-BBBBBBBB": [{"session_id": "session-b", "created_at": 2}],
+        }
+    }
+    assert [row["session_id"] for row in session_summaries(browser_data, "IQ-AAAAAAAA")] == ["session-a"]
+    assert [row["session_id"] for row in session_summaries(browser_data, "IQ-BBBBBBBB")] == ["session-b"]
+    assert session_summaries(browser_data, "IQ-CCCCCCCC") == []
