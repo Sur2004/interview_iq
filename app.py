@@ -626,6 +626,10 @@ with st.sidebar:
                     st.session_state.api_key = manual_key
         
                 active_settings = get_active_llm_settings()
+                speech_settings = get_speech_settings()
+                st.caption("Voice answers always use Groq Whisper for transcription. Typed and transcribed answers are evaluated by the selected AI provider (Gemini in Auto mode when its key is configured).")
+                if not speech_settings.get("api_key"):
+                    st.warning("Voice transcription is not configured: add GROQ_API_KEY to Streamlit Secrets. Typed answers can still be evaluated.")
                 if active_settings["provider"] == "heuristic":
                     st.info("Offline diagnostic mode is selected. No API key is required.")
                 elif active_settings.get("api_key"):
