@@ -1,14 +1,14 @@
 """Unit tests for speech transcription and provider connectivity."""
 from unittest.mock import Mock, patch
 import pytest
-from backend.healthcheck import test_llm_connection
+from backend.healthcheck import check_llm_connection
 from backend.speech import transcribe_audio
 
 def test_gemini_connection_reports_success_without_exposing_key():
     response = Mock(status_code=200)
     response.json.return_value = {"candidates": [{"content": {"parts": [{"text": "OK"}]}}]}
     with patch("backend.healthcheck.requests.post", return_value=response) as post:
-        result = test_llm_connection("gemini", "test-secret", "gemini-3.8-flash")
+        result = check_llm_connection("gemini", "test-secret", "gemini-3.8-flash")
     assert "connection successful" in result.lower()
     assert "test-secret" not in result
     assert post.call_args.kwargs["headers"]["x-goog-api-key"] == "test-secret"
