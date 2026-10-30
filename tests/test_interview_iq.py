@@ -608,3 +608,40 @@ def test_ai_provider_http_error_does_not_silently_fall_back(monkeypatch):
             api_key="test-key",
             provider="gemini",
         )
+
+def test_greeting_only_answer_receives_minimum_score_not_a_false_positive():
+    from backend.evaluator import evaluate_with_llm
+    question = QuestionItem(
+        id="hello-only",
+        category=QuestionCategory.TECHNICAL,
+        role=TargetRole.SOFTWARE_ENGINEERING.value,
+        question_text="Explain how a hash map handles collisions.",
+        competency_or_topic="Data Structures",
+    )
+    result = evaluate_with_llm(question, "hello", provider="heuristic")
+    assert result.overall_score == 1.0
+    assert all(item.score == 1.0 for item in result.rubric_scores.values())
+    assert any("does not address" in item.feedback.lower() for item in result.rubric_scores.values())
+
+
+def test_ai_provider_http_error_does_not_silently_fall_back(monkeypatch):
+    import requests
+    from backend.evaluator import evaluate_with_llm
+
+    class FakeResponse:
+        status_code = 429
+    monkeypatch.setattr(requests, "post", lambda *args, **kwargs: FakeResponse())
+    question = QuestionItem(
+        id="provider-error",
+        category=QuestionCategory.TECHNICAL,
+        role=TargetRole.SOFTWARE_ENGINEERING.value,
+        question_text="Explain a hash map.",
+        competency_or_topic="Data Structures",
+    )
+    with pytest.raises(RuntimeError, match="Gemini evaluation failed"):
+        evaluate_with_llm(
+            question,
+            "A hash map uses a hash function to map keys to buckets and resolves collisions with chaining.",
+            api_key="test-key",
+            provider="gemini",
+        )
