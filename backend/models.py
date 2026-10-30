@@ -105,6 +105,7 @@ class QuestionItem:
     competency_or_topic: str
     rubric_hints: List[str] = field(default_factory=list)
     default_followup: str = ""
+    generation_source: str = "offline"
 
     def to_dict(self) -> dict:
         data = asdict(self)
