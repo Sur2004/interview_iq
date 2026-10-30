@@ -19,6 +19,8 @@ def _audio_filename(mime_type: str) -> str:
 def transcribe_audio(audio_bytes: bytes, mime_type: str, provider: str, api_key: Optional[str], model_name: Optional[str] = None) -> str:
     if not audio_bytes:
         raise ValueError("Record an answer before submitting.")
+    if len(audio_bytes) > 25 * 1024 * 1024:
+        raise ValueError("Audio is larger than 25 MB. Record a shorter answer and try again.")
     if not api_key or provider not in {"gemini", "groq", "openai"}:
         raise ValueError("Voice transcription requires a configured Gemini, Groq, or OpenAI API key.")
     mime_type = mime_type or "audio/wav"
@@ -29,8 +31,8 @@ def transcribe_audio(audio_bytes: bytes, mime_type: str, provider: str, api_key:
                 ("https://api.groq.com/openai/v1" if provider == "groq" else "https://api.openai.com/v1") + "/audio/transcriptions",
                 headers={"Authorization": f"Bearer {api_key}"},
                 files={"file": (_audio_filename(mime_type), io.BytesIO(audio_bytes), mime_type)},
-                data={"model": "whisper-large-v3-turbo" if provider == "groq" else "whisper-1", "response_format": "json"},
-                timeout=90,
+                data={"model": (model_name or "whisper-large-v3-turbo") if provider == "groq" else "whisper-1", "response_format": "json"},
+                timeout=60,
             )
         except RequestException as exc:
             raise RuntimeError(
