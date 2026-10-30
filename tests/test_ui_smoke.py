@@ -143,7 +143,7 @@ def test_blank_custom_challenge_topic_is_rejected():
 
     topic = next(item for item in app.text_input if item.label == "Topic or technology")
     topic.set_value("")
-    generate = next(item for item in app.button if "Generate New Challenge Set" in item.label)
+    generate = next(item for item in app.button if "Generate 3 Challenges" in item.label)
     generate.click().run()
 
     assert not app.exception
@@ -165,6 +165,7 @@ def test_generates_three_challenges_at_distinct_levels_and_refreshes():
     assert len({item.question_text for item in first_set}) == 3
     levels = app.session_state["challenge_set_levels"]
     assert levels == ["Beginner", "Intermediate", "Advanced"]
+    assert sum("Your answer ·" in item.label for item in app.text_area) == 3
     first_token = app.session_state["challenge_set_token"]
 
     generate = next(item for item in app.button if "Generate 3 Challenges" in item.label)
