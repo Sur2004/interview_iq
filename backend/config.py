@@ -63,8 +63,11 @@ def get_llm_config() -> Dict[str, Optional[str]]:
         provider = "heuristic"
 
     # Default model names per provider
-    if provider == "groq" and not model_name:
-        model_name = "llama-3.3-70b-versatile"
+    if provider == "groq" and model_name == "llama-3.3-70b-versatile":
+        # Groq retired Llama 3.3 70B on 2026-08-16; migrate stale deployment secrets.
+        model_name = "openai/gpt-oss-120b"
+    elif provider == "groq" and not model_name:
+        model_name = "openai/gpt-oss-120b"
     elif provider == "gemini" and not model_name:
         model_name = "gemini-3.8-flash"
     elif provider == "openai" and not model_name:

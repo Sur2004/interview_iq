@@ -17,7 +17,7 @@ Use this checklist for a short, repeatable product demonstration. Run the app in
 2. **Configure a round (30 sec).** Show target role, experience level, interview type, question count, and optional project context.
 3. **Answer a technical question (60 sec).** Use a concise, authentic answer that mentions a mechanism, complexity, trade-off, and example.
 4. **Show feedback and follow-up (60 sec).** Explain the four rubric dimensions: Relevance, Structure, Evidence, and Clarity. Submit a follow-up or use the explicit skip action.
-5. **Show learning tools (60 sec).** Briefly open the technical challenge generator, STAR story builder, and question bank.
+5. **Show learning tools (60 sec).** Open Technical Challenge and generate three distinct questions at Beginner, Intermediate, and Advanced levels. Then open Question Bank, select Role-Specific Technical Quizzes, switch between roles (for example, Cybersecurity and Data Science/ML), and verify the five technical questions change with the selected role.
 6. **Close with progress and export (60 sec).** Show session history/analytics and generate a practice report.
 
 ## Input scenarios to demonstrate

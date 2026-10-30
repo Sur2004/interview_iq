@@ -203,6 +203,34 @@ def validate_answer_relevance(question: QuestionItem, answer: str) -> None:
             "Please write a meaningful answer to the interview question."
         )
 
+def _is_non_answer(text: str) -> bool:
+    """Catch greetings, filler, and near-empty replies before an LLM can over-score them."""
+    tokens = re.findall(r"[a-zA-Z][a-zA-Z0-9+#.-]*", (text or "").lower())
+    meaningful = [token for token in tokens if token not in _ANSWER_STOPWORDS]
+    return len(tokens) <= 2 or len(meaningful) == 0 or (len(tokens) <= 4 and len(meaningful) <= 1)
+
+
+def _non_answer_result(question: QuestionItem) -> EvaluationResult:
+    """Return a strict, transparent minimum score for a non-answer."""
+    feedback = "This response does not address the interview question. A greeting or a few generic words provide no assessable explanation, reasoning, or evidence."
+    rubric = {}
+    for key, meta in RUBRIC_CRITERIA_META.items():
+        rubric[key] = RubricScore(
+            criterion=key, display_name=meta["display_name"], score=1.0,
+            feedback=feedback if key != "clarity" else "The words are understandable, but there is not enough answer content to assess professional communication.",
+        )
+    return EvaluationResult(
+        overall_score=1.0, rubric_scores=rubric, key_strengths=[],
+        actionable_improvements=[
+            "Answer the exact question instead of using a greeting or filler.",
+            "Explain the relevant concept or approach in complete sentences.",
+            "Add one accurate mechanism, example, or reason that supports your answer.",
+        ],
+        stronger_answer_outline=generate_ethical_outline(question),
+        suggested_followup_question="Could you explain the core idea in your own words and give one relevant example?",
+    )
+
+
 def evaluate_heuristically(
     question: QuestionItem,
     candidate_answer: str,
@@ -507,11 +535,17 @@ def evaluate_with_llm(
 ) -> EvaluationResult:
     """
     Evaluates responses using a hosted LLM API (Groq, Google Gemini, or OpenAI).
-    Falls back gracefully to the heuristic evaluator if the API call fails or no key is provided.
+    Uses the offline generator only when the offline provider is explicitly selected.
     """
     from .config import get_llm_config, get_setting
 
     validate_answer_relevance(question, candidate_answer)
+    combined_response = (candidate_answer or "").strip()
+    if followup_answer:
+        combined_response += " " + followup_answer.strip()
+    if _is_non_answer(combined_response):
+        return _non_answer_result(question)
+
     configured = get_llm_config()
     provider = (provider or configured.get("provider") or "heuristic").strip().lower()
     supported_providers = {"groq", "gemini", "openai", "heuristic"}
@@ -528,7 +562,7 @@ def evaluate_with_llm(
     if api_key is None and provider in provider_key_names:
         api_key = get_setting(provider_key_names[provider])
     default_models = {
-        "groq": "llama-3.3-70b-versatile",
+        "groq": "openai/gpt-oss-120b",
         "gemini": "gemini-3.8-flash",
         "openai": "gpt-4o-mini",
         "heuristic": "built-in-diagnostic-engine",
@@ -540,9 +574,14 @@ def evaluate_with_llm(
     )
     model_name = model_name or configured_model or default_models[provider]
 
-    if provider == "heuristic" or not api_key:
-        logger.info("No LLM API key provided; using intelligent heuristic evaluation engine.")
+    if provider == "heuristic":
+        logger.info("Built-in offline evaluation explicitly selected.")
         return evaluate_heuristically(question, candidate_answer, followup_answer, candidate_context)
+    if not api_key:
+        raise RuntimeError(
+            f"No API key is configured for {provider.upper()}. Add the matching key in Streamlit Secrets "
+            "or select Built-In Offline Engine explicitly."
+        )
 
     # If key is available, attempt live LLM evaluation with strict ethical prompt
     system_prompt = (
@@ -620,7 +659,7 @@ Format output as pure JSON:
         # Groq API endpoint (fastest inference for interviews)
         if provider == "groq":
             url = "https://api.groq.com/openai/v1/chat/completions"
-            model = model_name or "llama-3.3-70b-versatile"
+            model = model_name or "openai/gpt-oss-120b"
             headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
             payload = {
                 "model": model,
@@ -631,13 +670,13 @@ Format output as pure JSON:
                 "temperature": 0.2,
                 "response_format": {"type": "json_object"}
             }
-            resp = requests.post(url, headers=headers, json=payload, timeout=12)
+            resp = requests.post(url, headers=headers, json=payload, timeout=45)
             if resp.status_code == 200:
                 raw_text = resp.json()["choices"][0]["message"]["content"]
                 data = json.loads(raw_text)
                 return _parse_llm_json(data, question, candidate_answer=candidate_answer)
             else:
-                logger.warning(f"Groq API returned status {resp.status_code}; falling back to heuristic.")
+                raise RuntimeError(f"Groq evaluation failed (HTTP {resp.status_code}). Check the key, model access, and quota.")
 
         elif provider == "gemini":
             # Call Google Gemini API (v1beta)
@@ -652,13 +691,13 @@ Format output as pure JSON:
                     "responseMimeType": "application/json"
                 }
             }
-            resp = requests.post(url, headers=headers, json=payload, timeout=12)
+            resp = requests.post(url, headers=headers, json=payload, timeout=45)
             if resp.status_code == 200:
                 raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                 data = json.loads(raw_text)
                 return _parse_llm_json(data, question, candidate_answer=candidate_answer)
             else:
-                logger.warning(f"Gemini API returned status {resp.status_code}; falling back to heuristic.")
+                raise RuntimeError(f"Gemini evaluation failed (HTTP {resp.status_code}). Check the key, model access, and quota.")
 
         else:
             # OpenAI compatible endpoint
@@ -674,18 +713,26 @@ Format output as pure JSON:
                 "temperature": 0.2,
                 "response_format": {"type": "json_object"}
             }
-            resp = requests.post(url, headers=headers, json=payload, timeout=12)
+            resp = requests.post(url, headers=headers, json=payload, timeout=45)
             if resp.status_code == 200:
                 raw_text = resp.json()["choices"][0]["message"]["content"]
                 data = json.loads(raw_text)
                 return _parse_llm_json(data, question, candidate_answer=candidate_answer)
             else:
-                logger.warning(f"OpenAI API returned status {resp.status_code}; falling back to heuristic.")
+                raise RuntimeError(f"OpenAI evaluation failed (HTTP {resp.status_code}). Check the key, model access, and quota.")
 
-    except Exception as e:
-        logger.warning(f"LLM evaluation failed ({e}); falling back to heuristic evaluation.")
-
-    return evaluate_heuristically(question, candidate_answer, followup_answer, candidate_context)
+    except RuntimeError:
+        raise
+    except requests.RequestException as exc:
+        logger.warning("LLM evaluation request failed for provider %s.", provider)
+        raise RuntimeError(
+            f"Could not reach {provider.upper()} for answer evaluation. Check the app network connection."
+        ) from exc
+    except Exception as exc:
+        logger.exception("LLM evaluation failed while parsing provider response.")
+        raise RuntimeError(
+            f"{provider.upper()} returned an invalid evaluation response. Please retry or check the selected model."
+        ) from exc
 
 
 def _parse_llm_json(data: dict, question: QuestionItem, candidate_answer: str = "") -> EvaluationResult:
@@ -856,6 +903,8 @@ def generate_dynamic_ai_technical_question(
     topic: str,
     role: str = "Software Engineering",
     experience_level: str = "Graduate / Entry-Level (0-1 yrs)",
+    variation_hint: Optional[str] = None,
+    difficulty_level: str = "Intermediate",
     api_key: Optional[str] = None,
     provider: Optional[str] = None,
     model_name: Optional[str] = None,
@@ -872,24 +921,32 @@ def generate_dynamic_ai_technical_question(
     configured = get_llm_config()
     provider = (provider or configured.get("provider") or "heuristic").strip().lower()
     if provider not in {"groq", "gemini", "openai", "heuristic"}:
-        provider = "heuristic"
+        raise ValueError(f"Unsupported question-generation provider: {provider}")
     if api_key is None:
         key_names = {"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY"}
         api_key = get_setting(key_names[provider]) if provider in key_names else None
     default_models = {
-        "groq": "llama-3.3-70b-versatile",
+        "groq": "openai/gpt-oss-120b",
         "gemini": "gemini-3.8-flash",
         "openai": "gpt-4o-mini",
     }
     configured_model = configured.get("model_name") if configured.get("provider") == provider else None
     model_name = model_name or configured_model or default_models.get(provider)
-    if api_key and provider != "heuristic":
+    if provider != "heuristic" and not api_key:
+        raise RuntimeError(
+            f"No API key is configured for {provider.upper()}. Add the matching key in Streamlit Secrets "
+            "or select Built-In Offline Engine explicitly."
+        )
+    if provider != "heuristic":
         try:
             import requests
             prompt = (
-                f"You are a Principal Software Architect interviewing a {experience_level} candidate for a {role} role. "
-                f"Generate an in-depth technical interview question focused on '{clean_topic}'. "
-                "Include concrete technical mechanisms, trade-offs, and failure modes. "
+                f"You are an expert interviewer for the {role} role. The candidate level is {experience_level}. "
+                f"Create exactly ONE {difficulty_level.upper()}-level technical interview question about {clean_topic}. "
+                f"Beginner tests core concepts and simple application; Intermediate requires applying concepts, diagnosing a realistic issue, and explaining trade-offs; Advanced requires system-level reasoning, scale, security, failure modes, and architectural trade-offs. "
+                f"Required distinct scenario/focus: {variation_hint or 'a new practical engineering scenario'}. "
+                "The question MUST be materially different from the other difficulty levels, match the requested level, and be specific to the selected role. Do not return the same generic definition question for every level. "
+                "Include a concrete scenario, technical mechanisms, and level-appropriate constraints. "
                 "Return JSON matching: "
                 '{"question_text": "...", "competency_or_topic": "...", "rubric_hints": ["...", "...", "..."], "default_followup": "..."}'
             )
@@ -897,23 +954,28 @@ def generate_dynamic_ai_technical_question(
                 url = "https://api.groq.com/openai/v1/chat/completions"
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                 payload = {
-                    "model": model_name or "llama-3.3-70b-versatile",
+                    "model": model_name or "openai/gpt-oss-120b",
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.3,
                     "response_format": {"type": "json_object"}
                 }
-                resp = requests.post(url, headers=headers, json=payload, timeout=8)
+                resp = requests.post(url, headers=headers, json=payload, timeout=30)
+                if resp.status_code != 200:
+                    raise RuntimeError(f"{provider.upper()} API returned HTTP {resp.status_code}.")
                 if resp.status_code == 200:
                     raw = resp.json()["choices"][0]["message"]["content"]
                     data = json.loads(raw)
+                    if not isinstance(data, dict) or not str(data.get("question_text", "")).strip():
+                        raise ValueError("Provider returned an empty or invalid question.")
                     return QuestionItem(
-                        id=f"dyn_ai_{int(time.time())}",
+                        id=f"dyn_ai_{time.time_ns()}",
                         category=QuestionCategory.TECHNICAL,
                         role=role,
                         question_text=data.get("question_text", f"Explain the core technical mechanics and trade-offs of {clean_topic}."),
                         competency_or_topic=data.get("competency_or_topic", clean_topic),
                         rubric_hints=data.get("rubric_hints", ["Time and space complexity", "Concurrency safety", "Trade-offs"]),
                         default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
+                    generation_source="ai",
                     )
             elif provider == "gemini":
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or 'gemini-3.8-flash'}:generateContent"
@@ -922,18 +984,23 @@ def generate_dynamic_ai_technical_question(
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {"responseMimeType": "application/json", "temperature": 0.3}
                 }
-                resp = requests.post(url, headers=headers, json=payload, timeout=8)
+                resp = requests.post(url, headers=headers, json=payload, timeout=30)
+                if resp.status_code != 200:
+                    raise RuntimeError(f"{provider.upper()} API returned HTTP {resp.status_code}.")
                 if resp.status_code == 200:
                     raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                     data = json.loads(raw)
+                    if not isinstance(data, dict) or not str(data.get("question_text", "")).strip():
+                        raise ValueError("Provider returned an empty or invalid question.")
                     return QuestionItem(
-                        id=f"dyn_ai_{int(time.time())}",
+                        id=f"dyn_ai_{time.time_ns()}",
                         category=QuestionCategory.TECHNICAL,
                         role=role,
                         question_text=data.get("question_text", f"Explain the core technical mechanics and trade-offs of {clean_topic}."),
                         competency_or_topic=data.get("competency_or_topic", clean_topic),
                         rubric_hints=data.get("rubric_hints", ["Time and space complexity", "Concurrency safety", "Trade-offs"]),
                         default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
+                    generation_source="ai",
                     )
             elif provider == "openai":
                 url = "https://api.openai.com/v1/chat/completions"
@@ -944,23 +1011,31 @@ def generate_dynamic_ai_technical_question(
                     "temperature": 0.3,
                     "response_format": {"type": "json_object"},
                 }
-                resp = requests.post(url, headers=headers, json=payload, timeout=8)
+                resp = requests.post(url, headers=headers, json=payload, timeout=30)
+                if resp.status_code != 200:
+                    raise RuntimeError(f"{provider.upper()} API returned HTTP {resp.status_code}.")
                 if resp.status_code == 200:
                     raw = resp.json()["choices"][0]["message"]["content"]
                     data = json.loads(raw)
+                    if not isinstance(data, dict) or not str(data.get("question_text", "")).strip():
+                        raise ValueError("Provider returned an empty or invalid question.")
                     return QuestionItem(
-                        id=f"dyn_ai_{int(time.time())}",
+                        id=f"dyn_ai_{time.time_ns()}",
                         category=QuestionCategory.TECHNICAL,
                         role=role,
                         question_text=data.get("question_text", f"Explain the core technical mechanics and trade-offs of {clean_topic}."),
                         competency_or_topic=data.get("competency_or_topic", clean_topic),
                         rubric_hints=data.get("rubric_hints", ["Time and space complexity", "Concurrency safety", "Trade-offs"]),
                         default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
+                    generation_source="ai",
                     )
         except Exception as e:
-            logger.warning(f"Live dynamic question generation failed: {e}")
+            logger.warning("%s dynamic question generation failed: %s", provider.upper(), e)
+            raise RuntimeError(
+                f"{provider.upper()} question generation failed. Check the API key, model access, quota, and network, then retry."
+            ) from e
 
-    # Fallback intelligent generator
+    # Built-in offline generator (only when explicitly selected)
     hints = [
         f"Internal algorithmic mechanics and data structures of {clean_topic}",
         "Big-O time and space complexity under nominal vs worst-case load",
@@ -968,6 +1043,9 @@ def generate_dynamic_ai_technical_question(
         "Real-world engineering trade-offs compared to simpler alternatives",
     ]
 
+    # Ignore the anti-duplication context when selecting an offline scenario; otherwise
+    # words from previous questions can accidentally select the same fallback template.
+    angle = (variation_hint or "").split("Do not repeat", 1)[0].lower()
     q_text = (
         f"Deep-dive into {clean_topic}: Explain its architectural flow, how state is managed, "
         f"and how you would diagnose a performance bottleneck or race condition under 100x traffic."
@@ -976,25 +1054,76 @@ def generate_dynamic_ai_technical_question(
         f"Under what specific production constraints would you explicitly reject {clean_topic} "
         f"in favor of a simpler, less distributed design?"
     )
+    if "incident" in angle or "observability" in angle:
+        q_text = f"A production system using {clean_topic} has started failing intermittently. Describe the logs, metrics, traces, and controlled experiments you would use to isolate the root cause and verify the fix."
+        followup = "Which alert would you add, and how would you avoid alert fatigue?"
+    elif "scaling" in angle or "capacity" in angle:
+        q_text = f"Your application using {clean_topic} must handle a sudden 20x traffic increase. Identify likely bottlenecks, estimate capacity, and propose a safe scaling plan with measurable validation."
+        followup = "What would you load-test first, and what metric would trigger a rollback?"
+    elif "security" in angle or "integrity" in angle:
+        q_text = f"Assess the security and data-integrity risks of using {clean_topic}. Explain the threat model, trust boundaries, validation controls, and recovery plan."
+        followup = "How would you test that the controls prevent the most important attack or corruption scenario?"
+    elif "concurrency" in angle or "consistency" in angle:
+        q_text = f"Two concurrent workers update shared state through {clean_topic} and produce inconsistent results. Explain the race, consistency guarantees, and a robust prevention strategy."
+        followup = "What failure or retry scenario could still produce duplicate or lost work?"
+    elif "cost" in angle or "maintainability" in angle:
+        q_text = f"Evaluate {clean_topic} against a simpler alternative for a small team. Compare operational cost, complexity, reliability, and maintainability, then justify when each choice is appropriate."
+        followup = "What evidence would convince you to migrate away from your preferred option?"
 
-    if "kafka" in topic_lower or "queue" in topic_lower:
+    elif "database" in angle or "query planning" in angle:
+        q_text = f"A workload using {clean_topic} has slow queries and lock contention. Explain how you would inspect query plans, choose indexes, and preserve transaction correctness."
+        followup = "How would you confirm the index improves the real workload without creating unacceptable write overhead?"
+    elif "api reliability" in angle or "rate limiting" in angle:
+        q_text = f"An API built around {clean_topic} is receiving bursts of traffic and inconsistent client retries. Design rate limits, timeout budgets, idempotency, and backward-compatible error handling."
+        followup = "How would you prevent retry storms when a downstream dependency is degraded?"
+    elif "deployment" in angle or "rollback" in angle:
+        q_text = f"You need to deploy a breaking change involving {clean_topic} without downtime. Explain the migration sequence, compatibility window, observability checks, and rollback plan."
+        followup = "What would make you stop the rollout, and how would you safely roll back after partial adoption?"
+    elif "data pipeline" in angle or "delayed events" in angle:
+        q_text = f"A pipeline using {clean_topic} receives duplicated, delayed, and out-of-order events. Design validation, idempotent processing, replay, and reconciliation controls."
+        followup = "How would you detect silent data loss and prove that a replay is safe?"
+    elif "latency profiling" in angle or "memory pressure" in angle:
+        q_text = f"A service using {clean_topic} has rising tail latency and memory pressure under load. Explain how you would profile it, isolate the bottleneck, and validate an optimisation."
+        followup = "Which percentile and resource metrics would you monitor before and after the change?"
+
+    if not variation_hint and ("kafka" in topic_lower or "queue" in topic_lower):
         q_text = "Explain the mechanics of partition rebalancing and consumer offset commits in an event stream like Kafka. How do you prevent message loss and duplicate processing (at-least-once vs exactly-once semantics)?"
         followup = "What happens if a consumer's processing time exceeds the max poll interval during a heavy batch?"
-    elif "cache" in topic_lower or "redis" in topic_lower:
+    elif not variation_hint and ("cache" in topic_lower or "redis" in topic_lower):
         q_text = "Compare the Cache-Aside pattern with Write-Through and Write-Behind. How do you design cache eviction and invalidation when multiple application nodes update shared state?"
         followup = "How do you mitigate a Cache Stampede (thundering herd) when a hot key expires under 50,000 QPS?"
-    elif "rag" in topic_lower or "vector" in topic_lower or "llm" in topic_lower:
+    elif not variation_hint and ("rag" in topic_lower or "vector" in topic_lower or "llm" in topic_lower):
         q_text = "Explain the end-to-end retrieval flow in a production RAG system. How do chunk size, overlapping boundaries, and vector index choices (HNSW vs IVFFlat) impact recall, latency, and context window economics?"
         followup = "How do you detect and rerank retrieved chunks to eliminate conflicting or hallucinated context before LLM synthesis?"
-    elif "btree" in topic_lower or "index" in topic_lower or "sql" in topic_lower:
+    elif not variation_hint and ("btree" in topic_lower or "index" in topic_lower or "sql" in topic_lower):
         q_text = "Explain how database indexing utilizes B-Trees and composite indexes. Why does column ordering matter for the leading-prefix rule, and what is the exact write amplification cost on disk pages during inserts?"
         followup = "What causes the database query planner to ignore an index and execute a sequential scan even when an index exists?"
-    elif "concurrency" in topic_lower or "lock" in topic_lower:
+    elif not variation_hint and ("concurrency" in topic_lower or "lock" in topic_lower):
         q_text = "Compare Pessimistic Locking with Optimistic Concurrency Control (OCC) using versioning. In a high-concurrency seat-booking system, how do you prevent race conditions without starving worker threads?"
         followup = "How would you structure a deadlock detector to identify circular wait graphs in a distributed transaction?"
 
+    # Offline mode must also distinguish the requested difficulty, not just change labels.
+    if difficulty_level.lower() == "beginner":
+        q_text = (
+            f"Beginner-level practical question: {q_text} "
+            "Start with the core concept, explain the basic workflow, and give one simple example."
+        )
+        followup = f"What is one common beginner mistake when working with {clean_topic}, and how would you avoid it?"
+    elif difficulty_level.lower() == "intermediate":
+        q_text = (
+            f"Intermediate-level applied scenario: {q_text} "
+            "Explain your diagnostic steps, implementation choices, and at least one trade-off."
+        )
+        followup = f"What edge case or operational trade-off would you test first for {clean_topic}?"
+    elif difficulty_level.lower() == "advanced":
+        q_text = (
+            f"Advanced system-design scenario: {q_text} "
+            "Address scale, failure modes, security or consistency constraints, and justify the architecture against alternatives."
+        )
+        followup = f"What would fail first at 10x scale, and how would you redesign {clean_topic} without violating its guarantees?"
+
     return QuestionItem(
-        id=f"dyn_tech_{int(time.time())}",
+        id=f"dyn_tech_{time.time_ns()}",
         category=QuestionCategory.TECHNICAL,
         role=role,
         question_text=q_text,

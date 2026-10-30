@@ -5,6 +5,7 @@ Covers Behavioral, Role-Specific Technical, and Project-Explanation domains.
 
 from typing import List, Dict, Optional
 import random
+import uuid
 from .models import QuestionCategory, QuestionItem, TargetRole, InterviewType
 
 
@@ -428,6 +429,80 @@ INTERVIEW_TRACK_QUESTIONS: Dict[str, List[Dict]] = {
 def get_default_technical_questions() -> List[Dict]:
     """Default fallback technical questions suitable for all tech disciplines."""
     return TECHNICAL_QUESTIONS_BY_ROLE[TargetRole.SOFTWARE_ENGINEERING.value]
+
+
+
+# Additional curated questions complete each role's technical quiz to five items.
+ROLE_SPECIFIC_QUESTION_EXTENSIONS = {
+    TargetRole.SOFTWARE_ENGINEERING.value: [
+        ("Distributed Systems Reliability", "A service must remain available while a dependency is slow or unavailable. Design timeout, retry, circuit-breaker, and idempotency behavior, and explain how you would prevent a retry storm.", ["Timeout budgets", "Exponential backoff and jitter", "Circuit breakers and bulkheads", "Idempotency and observability"]),
+    ],
+    TargetRole.FRONTEND_ENGINEERING.value: [
+        ("Accessible UI Architecture", "Design an accessible responsive form for keyboard and screen-reader users. How would you manage focus, validation errors, loading states, and component tests?", ["Semantic HTML", "Keyboard focus management", "Accessible validation feedback", "Responsive and automated testing"]),
+        ("Browser Rendering & Async State", "A page becomes unresponsive when several network requests finish together. Explain how you would profile rendering, avoid unnecessary updates, and handle stale responses.", ["Main-thread rendering", "State colocation and memoization", "Cancellation and race prevention", "Performance measurement"]),
+    ],
+    TargetRole.DATA_SCIENCE_ML.value: [
+        ("Feature Engineering & Leakage", "A model performs exceptionally well in validation but poorly after deployment. Investigate temporal leakage, target leakage, preprocessing, and train/serve skew.", ["Leakage diagnosis", "Time-aware validation", "Pipeline-fitted preprocessing", "Production drift monitoring"]),
+        ("Model Deployment & Monitoring", "Design a production workflow for deploying a classifier whose input distribution changes over time. How would you monitor quality and decide when to retrain?", ["Reproducible artifacts", "Data and concept drift", "Delayed ground-truth metrics", "Rollback and retraining criteria"]),
+    ],
+    TargetRole.PRODUCT_MANAGEMENT.value: [
+        ("Product Discovery & Validation", "Users request a large feature, but the underlying problem is unclear. Design a discovery plan and define evidence that would justify building or rejecting it.", ["User interviews", "Opportunity sizing", "Experiment design", "Decision criteria"]),
+        ("Roadmap & Stakeholder Trade-offs", "Two senior stakeholders demand conflicting roadmap priorities while engineering capacity is fixed. How would you make and communicate the prioritization decision?", ["Outcome-based prioritization", "Dependencies and opportunity cost", "Stakeholder alignment", "Decision records"]),
+        ("Experimentation & Metrics", "A product experiment increases engagement but reduces paid conversion. Explain how you would interpret the result and decide what to ship.", ["North-star and guardrail metrics", "Experiment validity", "Segment analysis", "Decision thresholds"]),
+    ],
+    TargetRole.DEVOPS_CLOUD.value: [
+        ("Cloud Reliability & SLOs", "A cloud service meets its average latency target but frequently violates its p99 latency objective. Design an SLO and incident response approach.", ["SLI/SLO and error budgets", "Tail-latency diagnosis", "Capacity analysis", "Alert quality"]),
+        ("Container Security & Supply Chain", "Design a secure CI/CD path for containerized services from source commit to production deployment.", ["Minimal reproducible images", "Dependency and image scanning", "Secret handling and provenance", "Progressive delivery and rollback"]),
+        ("Infrastructure Resilience", "A region-wide cloud outage affects a critical service. Propose a recovery architecture and explain cost and consistency trade-offs.", ["RTO and RPO", "Multi-zone and multi-region design", "Replication consistency", "Failover testing"]),
+    ],
+    TargetRole.AI_LLM_ENGINEERING.value: [
+        ("LLM Evaluation & Guardrails", "A retrieval-augmented assistant gives plausible but unsupported answers. Design an evaluation and guardrail strategy to reduce hallucinations.", ["Groundedness and retrieval recall", "Golden datasets", "Citation and abstention behavior", "Prompt-injection defenses"]),
+        ("Vector Search & Retrieval Quality", "A RAG system retrieves semantically similar but irrelevant chunks. Explain how you would tune chunking, metadata filters, hybrid search, and reranking.", ["Chunk boundaries and metadata", "Dense and sparse retrieval", "Reranking and recall@k", "Latency and cost"]),
+        ("LLM Serving & Cost", "An LLM application has rising latency and token costs under concurrent load. Design a serving strategy that balances quality, throughput, and cost.", ["Caching and batching", "Model routing", "Streaming and concurrency limits", "Quality-cost evaluation"]),
+    ],
+    TargetRole.CYBERSECURITY.value: [
+        ("Incident Response & Forensics", "An organization detects unusual outbound traffic from a production host. Describe how you would contain the incident, preserve evidence, and identify the attack path.", ["Containment and evidence integrity", "Endpoint and network telemetry", "Scope and root-cause analysis", "Recovery"]),
+        ("Network Segmentation & Zero Trust", "Design access controls for a hybrid environment containing employee devices, cloud workloads, and sensitive databases.", ["Identity and device posture", "Least privilege and segmentation", "Policy enforcement", "Continuous verification"]),
+        ("Secure SDLC & Threat Modeling", "A new API handles sensitive customer data. Explain how you would threat-model it and integrate security checks into development.", ["Trust boundaries and abuse cases", "Authentication and authorization", "SAST/DAST and dependency checks", "Security testing"]),
+    ],
+}
+
+
+def build_role_specific_question_bank(
+    target_role: str,
+    experience_level: str,
+    num_questions: int = 5,
+) -> List[QuestionItem]:
+    """Build a technical-only quiz from the selected role's curated question pool."""
+    role_key = target_role if target_role in TECHNICAL_QUESTIONS_BY_ROLE else TargetRole.SOFTWARE_ENGINEERING.value
+    base_pool = list(TECHNICAL_QUESTIONS_BY_ROLE[role_key])
+    extensions = ROLE_SPECIFIC_QUESTION_EXTENSIONS.get(role_key, [])
+    pool = base_pool + [
+        {
+            "id": f"role_extension_{index + 1}",
+            "topic": topic,
+            "question_text": question,
+            "rubric_hints": hints,
+            "default_followup": f"What measurable evidence would validate your approach to {topic.lower()}?",
+        }
+        for index, (topic, question, hints) in enumerate(extensions)
+    ]
+    random.shuffle(pool)
+    count = max(1, min(10, num_questions))
+    if len(pool) < count:
+        raise ValueError(f"The {role_key} question bank has {len(pool)} unique questions; {count} were requested.")
+    return [
+        QuestionItem(
+            id=f"{item['id']}_{uuid.uuid4().hex[:8]}",
+            category=QuestionCategory.TECHNICAL,
+            role=role_key,
+            question_text=item["question_text"],
+            competency_or_topic=item.get("topic", "Role-specific technical knowledge"),
+            rubric_hints=item.get("rubric_hints", []),
+            default_followup=item.get("default_followup", ""),
+        )
+        for item in pool[:count]
+    ]
 
 
 def build_interview_plan(

@@ -28,6 +28,7 @@ from backend.question_bank import (
     PROJECT_QUESTIONS,
     TECHNICAL_QUESTIONS_BY_ROLE,
     build_interview_plan,
+    build_role_specific_question_bank,
 )
 from backend.evaluator import (
     evaluate_heuristically,
@@ -46,6 +47,7 @@ from backend.report_generator import (
 from backend.config import get_llm_config
 from backend.career_review import (extract_resume_pdf, fetch_public_repository, evaluate_candidate_materials, calculate_ats_score, generate_resume_based_questions)
 from backend.speech import transcribe_audio
+from backend.healthcheck import check_llm_connection
 
 # Page configuration
 st.set_page_config(
@@ -248,12 +250,17 @@ def get_active_llm_settings() -> dict:
     configured = get_llm_config()
     selection = st.session_state.get("sb_provider", "Auto (via .env / Secrets)")
     provider_by_label = {
-        "Groq Cloud — Llama 3.3 70B": "groq",
+        "Groq Cloud — GPT-OSS 120B": "groq",
         "Google Gemini 3.8 Flash (Free tier available)": "gemini",
         "OpenAI GPT-4o Mini": "openai",
         "Built-In Offline Engine": "heuristic",
     }
-    provider = provider_by_label.get(selection, configured.get("provider") or "heuristic")
+    # Auto mode prefers Gemini for answer evaluation when both provider keys exist.
+    # Groq is reserved for speech transcription by get_speech_settings().
+    if selection == "Auto (via .env / Secrets)" and configured.get("gemini_api_key"):
+        provider = "gemini"
+    else:
+        provider = provider_by_label.get(selection, configured.get("provider") or "heuristic")
     if provider not in {"groq", "gemini", "openai", "heuristic"}:
         provider = "heuristic"
 
@@ -266,7 +273,7 @@ def get_active_llm_settings() -> dict:
     api_key = None if provider == "heuristic" else (manual_key or configured.get(key_field))
 
     default_models = {
-        "groq": "llama-3.3-70b-versatile",
+        "groq": "openai/gpt-oss-120b",
         "gemini": "gemini-3.8-flash",
         "openai": "gpt-4o-mini",
         "heuristic": "built-in-diagnostic-engine",
@@ -279,6 +286,16 @@ def get_active_llm_settings() -> dict:
             if provider == configured.get("provider")
             else default_models[provider]
         ),
+    }
+
+
+def get_speech_settings() -> dict:
+    """Always use the dedicated Groq Whisper key for audio transcription."""
+    configured = get_llm_config()
+    return {
+        "provider": "groq",
+        "api_key": configured.get("groq_api_key"),
+        "model_name": os.environ.get("GROQ_TRANSCRIPTION_MODEL", "whisper-large-v3-turbo"),
     }
 
 
@@ -473,12 +490,6 @@ with st.sidebar:
         active_profile = st.session_state.get("browser_data", {}).get("profiles", {}).get(active_candidate_id, {})
         st.caption(f"Signed in: {active_profile.get('name', 'Candidate')}")
         st.code(active_candidate_id, language=None)
-        if st.button("Sign out", key="candidate_sign_out", use_container_width=True):
-            st.session_state.authenticated_candidate_id = ""
-            st.session_state.authenticated_email = ""
-            st.session_state.session = None
-            st.session_state.pop("sb_candidate_name", None)
-            st.rerun()
     if st.session_state.get("new_candidate_id_notice"):
         st.success(f"Save your Candidate ID: {st.session_state.new_candidate_id_notice}")
         st.session_state.pop("new_candidate_id_notice", None)
@@ -504,160 +515,207 @@ with st.sidebar:
         label_visibility="collapsed",
         help="Choose a section to open it in the main workspace.",
     )
-    st.caption("Select any section above to open it. Your session settings remain below.")
+    if active_section == "mock_interview":
+        st.caption("Interview Setup is available below while Mock Interview is selected.")
+    else:
+        st.caption("Interview Setup is hidden in other sections. Select Mock Interview to configure a session.")
     st.markdown("---")
 
-    st.subheader("\u2699\ufe0f Session Setup")
+    # Reuse saved setup values in the challenge workspace without showing Mock Interview setup.
+    target_role = st.session_state.get("sb_target_role", [r.value for r in TargetRole][0])
+    experience_level = st.session_state.get("sb_experience_level", [e.value for e in ExperienceLevel][0])
+    candidate_context = st.session_state.get("sb_candidate_context", "")
+    num_questions = st.session_state.get("sb_num_questions", 6)
 
-    _active_user_id = st.session_state.get("authenticated_candidate_id") or st.session_state.get("authenticated_email", "local_guest")
-    _active_profile = st.session_state.get("browser_data", {}).get("profiles", {}).get(_active_user_id, {})
-    candidate_name = st.text_input(
-        "Your Name",
-        value=_active_profile.get("name", "Student Candidate"),
-        help="Personalises practice reports and rubric summaries.",
-        key="sb_candidate_name",
-    )
-
-    target_role = st.selectbox(
-        "\U0001f3ad Target Role",
-        [r.value for r in TargetRole],
-        index=0,
-        help="Sets technical depth, domain questions and rubric expectations.",
-        key="sb_target_role",
-    )
-
-    experience_level = st.selectbox(
-        "\U0001f4c8 Experience Level",
-        [e.value for e in ExperienceLevel],
-        index=0,
-        help="Tailors question difficulty and scoring criteria.",
-        key="sb_experience_level",
-    )
-
-    interview_type = st.selectbox(
-        "\U0001f5c2\ufe0f Interview Type",
-        [t.value for t in InterviewType],
-        index=0,
-        help="Comprehensive Mix, Technical Deep-Dive, Behavioural, or Architecture.",
-        key="sb_interview_type",
-    )
-
-    interviewer_persona = st.selectbox(
-        "\U0001f935 Interviewer Persona",
-        [
-            "Jordan — Principal Architect (Scale & Failure Modes)",
-            "Alex — Staff Engineer (Algorithms & Clean Code)",
-            "Taylor — VP Engineering (Vision & Culture Fit)",
-        ],
-        index=0,
-        help="Shapes tone and technical rigour of follow-up questions.",
-        key="sb_interviewer_persona",
-    )
-    st.session_state.interviewer_persona = interviewer_persona
-
-    num_questions = st.slider(
-        "\U0001f522 Questions in Round",
-        min_value=5,
-        max_value=8,
-        value=6,
-        help="5-8 questions to simulate a 45-minute technical loop.",
-        key="sb_num_questions",
-    )
-
-    candidate_context = st.text_area(
-        "\U0001f4dd Your Projects / Coursework (Optional)",
-        placeholder=(
-            "e.g. Distributed KV-Store in Go; Virtual Memory Manager in C; "
-            "React & PostgreSQL e-commerce; PyTorch RAG pipeline..."
-        ),
-        help="Grounds AI feedback in your real background - no fabrication.",
-        height=90,
-        key="sb_candidate_context",
-    )
-
-    st.markdown("---")
-    with st.expander("\U0001f511 LLM Provider & API Key", expanded=False):
-        provider_opts = [
-            "Auto (via .env / Secrets)",
-            "Groq Cloud — Llama 3.3 70B",
-            "Google Gemini 3.8 Flash (Free tier available)",
-            "OpenAI GPT-4o Mini",
-            "Built-In Offline Engine",
-        ]
-        chosen_provider = st.selectbox(
-            "Provider",
-            provider_opts,
-            index=0,
-            help="Keys live in .env locally or Streamlit Secrets on Cloud.",
-            key="sb_provider",
-        )
-        manual_key = st.text_input(
-            "API Key Override",
-            value="",
-            type="password",
-            placeholder="Paste key to override...",
-            help="Never committed or logged.",
-            key="sb_manual_key",
-        )
-        if manual_key:
-            st.session_state.api_key = manual_key
-
-        active_settings = get_active_llm_settings()
-        if active_settings["provider"] == "heuristic":
-            st.info("Offline diagnostic mode is selected. No API key is required.")
-        elif active_settings.get("api_key"):
-            st.success(f"Selected provider is configured: {active_settings['provider'].upper()} · {active_settings['model_name']}")
-        else:
-            st.warning(
-                f"No API key is configured for {active_settings['provider'].upper()}. "
-                "The app will fall back to offline diagnostic feedback until a matching key is available."
+    if active_section == "mock_interview":
+        with st.expander("⚙️ Interview Setup", expanded=True):
+            st.subheader("\u2699\ufe0f Session Setup")
+        
+            _active_user_id = st.session_state.get("authenticated_candidate_id") or st.session_state.get("authenticated_email", "local_guest")
+            _active_profile = st.session_state.get("browser_data", {}).get("profiles", {}).get(_active_user_id, {})
+            candidate_name = st.text_input(
+                "Your Name",
+                value=_active_profile.get("name", "Student Candidate"),
+                help="Personalises practice reports and rubric summaries.",
+                key="sb_candidate_name",
             )
-
-    st.markdown("---")
-    if st.button("\U0001f680 Start Interview Round", type="primary", use_container_width=True):
-        questions = build_interview_plan(
-            target_role=target_role,
-            experience_level=experience_level,
-            interview_type=interview_type,
-            num_questions=num_questions,
-        )
-        turns = [
-            InterviewTurn(
-                question_index=i,
-                question=q,
-                followup_question=q.default_followup,
+        
+            target_role = st.selectbox(
+                "\U0001f3ad Target Role",
+                [r.value for r in TargetRole],
+                index=0,
+                help="Sets technical depth, domain questions and rubric expectations.",
+                key="sb_target_role",
             )
-            for i, q in enumerate(questions)
-        ]
-        new_sess = InterviewSession(
-            session_id=uuid.uuid4().hex,
-            candidate_name=candidate_name.strip() or "Student Candidate",
-            target_role=target_role,
-            experience_level=experience_level,
-            interview_type=interview_type,
-            total_questions=len(questions),
-            candidate_context=candidate_context.strip(),
-            turns=turns,
-            current_turn_index=0,
-            in_followup=False,
-            is_finished=False,
-        )
-        st.session_state.pop("integrity_termination_reason", None)
-        st.session_state.session = new_sess
-        persist_browser_session(new_sess)
-        st.success(f"\u2705 Round started - {len(questions)} questions queued!")
-        st.rerun()
-
-    if st.session_state.session and not st.session_state.session.is_finished:
-        st.markdown("---")
-        if st.button("\u23f9\ufe0f End Session Early", use_container_width=True):
-            st.session_state.session.is_finished = True
-            st.session_state.session.completed_at = time.time()
-            save_session(st.session_state.session)
-            st.rerun()
-
+        
+            experience_level = st.selectbox(
+                "\U0001f4c8 Experience Level",
+                [e.value for e in ExperienceLevel],
+                index=0,
+                help="Tailors question difficulty and scoring criteria.",
+                key="sb_experience_level",
+            )
+        
+            interview_type = st.selectbox(
+                "\U0001f5c2\ufe0f Interview Type",
+                [t.value for t in InterviewType],
+                index=0,
+                help="Comprehensive Mix, Technical Deep-Dive, Behavioural, or Architecture.",
+                key="sb_interview_type",
+            )
+        
+            interviewer_persona = st.selectbox(
+                "\U0001f935 Interviewer Persona",
+                [
+                    "Jordan — Principal Architect (Scale & Failure Modes)",
+                    "Alex — Staff Engineer (Algorithms & Clean Code)",
+                    "Taylor — VP Engineering (Vision & Culture Fit)",
+                ],
+                index=0,
+                help="Shapes tone and technical rigour of follow-up questions.",
+                key="sb_interviewer_persona",
+            )
+            st.session_state.interviewer_persona = interviewer_persona
+        
+            num_questions = st.slider(
+                "\U0001f522 Questions in Round",
+                min_value=5,
+                max_value=8,
+                value=6,
+                help="5-8 questions to simulate a 45-minute technical loop.",
+                key="sb_num_questions",
+            )
+        
+            candidate_context = st.text_area(
+                "\U0001f4dd Your Projects / Coursework (Optional)",
+                placeholder=(
+                    "e.g. Distributed KV-Store in Go; Virtual Memory Manager in C; "
+                    "React & PostgreSQL e-commerce; PyTorch RAG pipeline..."
+                ),
+                help="Grounds AI feedback in your real background - no fabrication.",
+                height=90,
+                key="sb_candidate_context",
+            )
+        
+            st.markdown("---")
+            with st.container(border=True):
+                st.caption("LLM Provider & API Key")
+                provider_opts = [
+                    "Auto (via .env / Secrets)",
+                    "Groq Cloud — GPT-OSS 120B",
+                    "Google Gemini 3.8 Flash (Free tier available)",
+                    "OpenAI GPT-4o Mini",
+                    "Built-In Offline Engine",
+                ]
+                chosen_provider = st.selectbox(
+                    "Provider",
+                    provider_opts,
+                    index=0,
+                    help="Keys live in .env locally or Streamlit Secrets on Cloud.",
+                    key="sb_provider",
+                )
+                manual_key = st.text_input(
+                    "API Key Override",
+                    value="",
+                    type="password",
+                    placeholder="Paste key to override...",
+                    help="Never committed or logged.",
+                    key="sb_manual_key",
+                )
+                if manual_key:
+                    st.session_state.api_key = manual_key
+        
+                active_settings = get_active_llm_settings()
+                speech_settings = get_speech_settings()
+                st.caption("Voice answers always use Groq Whisper for transcription. Typed and transcribed answers are evaluated by the selected AI provider (Gemini in Auto mode when its key is configured).")
+                if not speech_settings.get("api_key"):
+                    st.warning("Voice transcription is not configured: add GROQ_API_KEY to Streamlit Secrets. Typed answers can still be evaluated.")
+                if active_settings["provider"] == "heuristic":
+                    st.info("Offline diagnostic mode is selected. No API key is required.")
+                elif active_settings.get("api_key"):
+                    st.success(f"Selected provider is configured: {active_settings['provider'].upper()} · {active_settings['model_name']}")
+                else:
+                    st.warning(
+                        f"No API key is configured for {active_settings['provider'].upper()}. "
+                        "The app will fall back to offline diagnostic feedback until a matching key is available."
+                    )
+                if active_settings["provider"] != "heuristic" and active_settings.get("api_key"):
+                    if st.button("Test AI API Connection", use_container_width=True, key="test_ai_provider_connection"):
+                        try:
+                            with st.spinner("Checking the selected provider and model..."):
+                                connection_message = check_llm_connection(active_settings["provider"], active_settings["api_key"], active_settings["model_name"])
+                            st.session_state["ai_connection_test"] = ("success", connection_message)
+                        except (ValueError, RuntimeError) as exc:
+                            st.session_state["ai_connection_test"] = ("error", str(exc))
+                    test_result = st.session_state.get("ai_connection_test")
+                    if test_result:
+                        if test_result[0] == "success":
+                            st.success(test_result[1])
+                        else:
+                            st.error(test_result[1])
+        
+            st.markdown("---")
+            if st.button("\U0001f680 Start Interview Round", type="primary", use_container_width=True):
+                questions = build_interview_plan(
+                    target_role=target_role,
+                    experience_level=experience_level,
+                    interview_type=interview_type,
+                    num_questions=num_questions,
+                )
+                turns = [
+                    InterviewTurn(
+                        question_index=i,
+                        question=q,
+                        followup_question=q.default_followup,
+                    )
+                    for i, q in enumerate(questions)
+                ]
+                new_sess = InterviewSession(
+                    session_id=uuid.uuid4().hex,
+                    candidate_name=candidate_name.strip() or "Student Candidate",
+                    target_role=target_role,
+                    experience_level=experience_level,
+                    interview_type=interview_type,
+                    total_questions=len(questions),
+                    candidate_context=candidate_context.strip(),
+                    turns=turns,
+                    current_turn_index=0,
+                    in_followup=False,
+                    is_finished=False,
+                )
+                st.session_state.pop("integrity_termination_reason", None)
+                st.session_state.pop("session_ended_early", None)
+                st.session_state.session = new_sess
+                persist_browser_session(new_sess)
+                st.success(f"\u2705 Round started - {len(questions)} questions queued!")
+                st.rerun()
+        
+            if st.session_state.session and not st.session_state.session.is_finished:
+                st.markdown("---")
+                if st.button("\u23f9\ufe0f End Session Early", use_container_width=True):
+                    active_session = st.session_state.session
+                    active_session.is_finished = True
+                    active_session.completed_at = time.time()
+                    scored = [turn.turn_evaluation or turn.initial_evaluation for turn in active_session.turns]
+                    scored = [item for item in scored if item is not None]
+                    if scored:
+                        active_session.overall_session_score = round(sum(item.overall_score for item in scored) / len(scored), 1)
+                    st.session_state["session_ended_early"] = True
+                    persist_browser_session(active_session)
+                    st.rerun()
+        
+        
     st.markdown("---")
     st.page_link("pages/1_History.py", label="\U0001f4da History & Performance", icon="\U0001f4ca")
+    if active_candidate_id:
+        st.markdown("---")
+        if st.button("Sign out", key="candidate_sign_out", use_container_width=True):
+            st.session_state.authenticated_candidate_id = ""
+            st.session_state.authenticated_email = ""
+            st.session_state.session = None
+            st.session_state.pop("sb_candidate_name", None)
+            st.session_state.pop("session_ended_early", None)
+            st.rerun()
 
 
 # ==============================================================================
@@ -760,6 +818,8 @@ if active_section == "mock_interview":
         termination_reason = st.session_state.get("integrity_termination_reason")
         if termination_reason:
             st.error(f"**Interview session terminated:** {termination_reason}")
+        elif st.session_state.get("session_ended_early"):
+            st.info("This interview was ended early by you. Submitted answers have been saved to browser history.")
         else:
             st.success("\\U0001f389 **Interview Round Completed!** Full diagnostic transcript compiled below.")
 
@@ -818,11 +878,23 @@ if active_section == "mock_interview":
 
         if st.button("\U0001f504 Start Fresh Practice Round"):
             st.session_state.session = None
+            st.session_state.pop("session_ended_early", None)
+            st.session_state.pop("integrity_termination_reason", None)
             st.rerun()
 
     else:
         # ACTIVE INTERVIEW ROUND IN PROGRESS
         st.markdown("### 🎙️ Audio + Text Interview Mode")
+        if st.button("⏹️ End this interview now", key="end_interview_from_workspace"):
+            session.is_finished = True
+            session.completed_at = time.time()
+            scored = [turn.turn_evaluation or turn.initial_evaluation for turn in session.turns]
+            scored = [item for item in scored if item is not None]
+            if scored:
+                session.overall_session_score = round(sum(item.overall_score for item in scored) / len(scored), 1)
+            st.session_state["session_ended_early"] = True
+            persist_browser_session(session)
+            st.rerun()
         st.info("Answer by audio or text. Audio transcription needs a working connection to a configured provider, so use typed answers if recording/transcription fails. A detected browser-tab/window visibility change terminates the round. Detection is not foolproof and normal browser apps cannot block every switch.")
         monitor_status = interview_monitor(key="interviewiq_monitor", default={"camera": "starting", "tab_switches": 0})
         if isinstance(monitor_status, dict):
@@ -943,16 +1015,22 @@ if active_section == "mock_interview":
                     st.warning("Record an audio answer, or use the typed-answer option above.")
                 else:
                     try:
-                        settings = get_active_llm_settings()
-                        transcript = transcribe_audio(
-                            audio_answer.getvalue(),
-                            getattr(audio_answer, "type", None) or "audio/wav",
-                            settings.get("provider", "heuristic"),
-                            settings.get("api_key"),
-                            settings.get("model_name"),
-                        )
+                        speech_settings = get_speech_settings()
+                        if not speech_settings.get("api_key"):
+                            raise RuntimeError(
+                                "GROQ_API_KEY is missing. Add it to Streamlit Secrets to enable fast voice transcription."
+                            )
+                        with st.spinner("Transcribing audio with Groq Whisper..."):
+                            transcript = transcribe_audio(
+                                audio_answer.getvalue(),
+                                getattr(audio_answer, "type", None) or "audio/wav",
+                                speech_settings["provider"],
+                                speech_settings["api_key"],
+                                speech_settings["model_name"],
+                            )
                         turn.initial_answer = transcript
-                        with st.spinner("Evaluating your spoken answer and generating a follow-up…"):
+                        st.success("Audio transcribed. Evaluating your answer with Gemini...")
+                        with st.spinner("Evaluating your spoken answer with Gemini and generating a follow-up..."):
                             init_eval = evaluate_with_llm(
                                 q_item,
                                 turn.initial_answer,
@@ -1027,14 +1105,19 @@ if active_section == "mock_interview":
                         st.warning("Record a follow-up answer, or use the typed-answer option above.")
                     else:
                         try:
-                            settings = get_active_llm_settings()
-                            transcript = transcribe_audio(
-                                followup_audio.getvalue(),
-                                getattr(followup_audio, "type", None) or "audio/wav",
-                                settings.get("provider", "heuristic"),
-                                settings.get("api_key"),
-                                settings.get("model_name"),
-                            )
+                            speech_settings = get_speech_settings()
+                            if not speech_settings.get("api_key"):
+                                raise RuntimeError(
+                                    "GROQ_API_KEY is missing. Add it to Streamlit Secrets to enable fast voice transcription."
+                                )
+                            with st.spinner("Transcribing follow-up with Groq Whisper..."):
+                                transcript = transcribe_audio(
+                                    followup_audio.getvalue(),
+                                    getattr(followup_audio, "type", None) or "audio/wav",
+                                    speech_settings["provider"],
+                                    speech_settings["api_key"],
+                                    speech_settings["model_name"],
+                                )
                             turn.followup_answer = transcript
                             st.markdown("**Follow-up transcript to be evaluated**")
                             st.write(transcript)
@@ -1117,145 +1200,203 @@ if active_section == "mock_interview":
 if active_section == "technical_challenge":
     st.header("⚡ Build and Practice a Technical Challenge")
     st.write(
-        "Choose a topic and difficulty, generate a question, write your answer, "
-        "then review your score and feedback. You can edit your answer and score it again."
+        "Generate three technical challenges on the same topic: Beginner, Intermediate, and Advanced. "
+        "Each round contains exactly three questions: one Beginner, one Intermediate, and one Advanced. Each answer is scored separately with rubric feedback."
     )
 
     with st.container(border=True):
-        st.subheader("1. Set up your challenge")
-        col_g1, col_g2 = st.columns([2, 1])
-        with col_g1:
-            custom_topic = st.text_input(
-                "Topic or technology",
-                value="Kafka Partition Rebalancing & Consumer Lag",
-                placeholder="For example: SQL indexes, Python concurrency, RAG, Redis caching",
-                help="Choose one topic so the question can focus on a specific skill.",
-                key="challenge_topic",
-            )
-        with col_g2:
-            custom_difficulty = st.selectbox(
-                "Difficulty",
-                ["Internship / Entry-Level", "Mid-Level Engineer", "Staff / Principal Architect"],
-                index=0,
-                help="Choose the level you want the question to target.",
-                key="challenge_difficulty",
-            )
+        st.subheader("1. Set up your challenges")
+        custom_topic = st.text_input(
+            "Topic or technology",
+            value="Kafka Partition Rebalancing & Consumer Lag",
+            placeholder="For example: SQL indexes, Python concurrency, RAG, Redis caching",
+            help="All three difficulty levels will focus on this topic.",
+            key="challenge_topic",
+        )
+        st.info("Exactly 3 questions are generated per round: one Beginner, one Intermediate, and one Advanced.")
+        challenge_levels = [
+            ("Beginner", "Internship / Entry-Level"),
+            ("Intermediate", "Mid-Level Engineer"),
+            ("Advanced", "Staff / Principal Architect"),
+        ]
 
-        if st.button("Generate challenge", type="primary", use_container_width=True, key="generate_dynamic_challenge"):
+        if st.button("🔄 Generate 3 Challenges", type="primary", use_container_width=True, key="generate_dynamic_challenge"):
             if not custom_topic.strip():
-                st.warning("Enter a topic before generating a challenge.")
+                st.warning("Enter a topic before generating the challenges.")
             else:
-                with st.spinner("Creating your question and evaluation guide..."):
-                    dyn_q = generate_dynamic_ai_technical_question(
-                        topic=custom_topic.strip(),
-                        role=target_role,
-                        experience_level=custom_difficulty,
-                        **get_active_llm_settings(),
-                    )
-                    st.session_state.current_dyn_q = dyn_q
-                    st.session_state.current_dyn_eval = None
-                    st.session_state.current_dyn_answer = ""
+                focus_pool = [
+                    "production incident diagnosis, logs, and observability",
+                    "scaling bottlenecks, capacity planning, and performance",
+                    "security, data integrity, and recovery from failure",
+                    "concurrency, consistency, and difficult edge cases",
+                    "cost, maintainability, and comparison with simpler alternatives",
+                    "database query planning, indexing, and transaction isolation",
+                    "API reliability, rate limiting, and backward compatibility",
+                    "deployment migrations, rollback strategy, and zero downtime",
+                    "data pipeline quality, delayed events, and idempotent processing",
+                    "latency profiling, memory pressure, and resource optimisation",
+                ]
+                previous_shift = st.session_state.get("challenge_focus_shift", -1)
+                shift = (previous_shift + 1) % len(focus_pool)
+                st.session_state["challenge_focus_shift"] = shift
+                generated = []
+                generated_levels = []
+                settings = get_active_llm_settings()
+                try:
+                    with st.spinner("Generating three distinct questions with level-specific difficulty..."):
+                        for level_index, (level_label, experience_level) in enumerate(challenge_levels):
+                            angle = focus_pool[(shift + level_index) % len(focus_pool)]
+                            prior_questions = [item.question_text for item in generated]
+                            question = None
+                            for attempt in range(3):
+                                distinct_hint = (
+                                    f"{level_label} difficulty: {angle}. "
+                                    f"Do not repeat or paraphrase these questions: {prior_questions}. "
+                                    f"Use a different scenario and reasoning depth. Attempt {attempt + 1}."
+                                )
+                                candidate = generate_dynamic_ai_technical_question(
+                                    topic=custom_topic.strip(),
+                                    variation_hint=distinct_hint,
+                                    difficulty_level=level_label,
+                                    role=target_role,
+                                    experience_level=experience_level,
+                                    **settings,
+                                )
+                                normalized = re.sub(r"\W+", " ", candidate.question_text.lower()).strip()
+                                previous_normalized = {
+                                    re.sub(r"\W+", " ", item.lower()).strip()
+                                    for item in prior_questions
+                                }
+                                if normalized and normalized not in previous_normalized:
+                                    question = candidate
+                                    break
+                            if question is None:
+                                raise RuntimeError(f"Could not generate a distinct {level_label} question. Refresh and try again.")
+                            generated.append(question)
+                            generated_levels.append(level_label)
+                    token = uuid.uuid4().hex
+                    st.session_state["challenge_set"] = generated
+                    st.session_state["challenge_set_levels"] = generated_levels
+                    st.session_state["challenge_set_token"] = token
+                    st.session_state["challenge_set_topic"] = custom_topic.strip()
+                    st.session_state["challenge_set_difficulty"] = "Beginner · Intermediate · Advanced"
+                    st.session_state["challenge_set_results"] = None
                     st.rerun()
+                except (RuntimeError, ValueError) as exc:
+                    st.error(str(exc))
 
-    if "current_dyn_q" in st.session_state:
-        dq: QuestionItem = st.session_state.current_dyn_q
-
+    challenge_set = st.session_state.get("challenge_set", [])
+    # Discard challenge sets from the previous 15-question implementation so
+    # an existing Streamlit session cannot keep rendering the old layout.
+    if challenge_set and len(challenge_set) != 3:
+        st.session_state.pop("challenge_set", None)
+        st.session_state.pop("challenge_set_levels", None)
+        st.session_state.pop("challenge_set_token", None)
+        st.session_state.pop("challenge_set_results", None)
+        challenge_set = []
+    challenge_token = st.session_state.get("challenge_set_token")
+    if challenge_set:
         st.markdown("---")
-        st.subheader("2. Your challenge")
-        st.caption(f"Topic: {dq.competency_or_topic}  ·  Role: {target_role}  ·  Level: {custom_difficulty}")
-        with st.container(border=True):
-            st.markdown("**Main question**")
-            st.markdown(dq.question_text)
-
-            st.markdown("**Follow-up question**")
-            st.info(dq.default_followup or "Explain the trade-offs, limitations, and failure cases.")
-
-            with st.expander("What a strong answer should cover", expanded=False):
-                for hint in dq.rubric_hints:
-                    st.markdown(f"- {hint}")
-
-        st.markdown("---")
-        st.subheader("3. Write or update your answer")
+        st.subheader("2. Your 3 challenges — one question at each level")
         st.caption(
-            "Use this space to draft your response. You can change it at any time and select "
-            "**Score / update feedback** again to evaluate the latest version."
+            f"Topic: {st.session_state.get('challenge_set_topic', custom_topic)} · "
+            f"{len(challenge_set)} questions total · one question per difficulty"
         )
-        answer_key = f"dyn_answer_{dq.id}"
-        if answer_key not in st.session_state:
-            st.session_state[answer_key] = st.session_state.get("current_dyn_answer", "")
+        ai_count = sum(1 for question in challenge_set if question.generation_source == "ai")
+        if ai_count == len(challenge_set):
+            st.success("All questions were generated by the selected AI provider.")
+        elif ai_count:
+            st.warning(f"{ai_count} of {len(challenge_set)} questions came from AI; the rest used offline fallback.")
+        else:
+            st.info("These questions came from the built-in offline generator. Configure and test an AI API key for live generation.")
 
-        challenge_answer = st.text_area(
-            "Your answer",
-            key=answer_key,
-            height=220,
-            placeholder=(
-                "Explain the core idea, how it works, your approach, trade-offs, edge cases, "
-                "and a practical example..."
-            ),
-            help="Write in your own words. You can revise your response after seeing the feedback.",
-        )
-        word_count = len(challenge_answer.split()) if challenge_answer.strip() else 0
-        st.caption(f"{word_count} words · A useful structure is: concept → approach → trade-offs → example.")
-
-        if st.button("Score / update feedback", type="primary", use_container_width=True, key=f"score_dyn_{dq.id}"):
-            if not challenge_answer.strip():
-                st.warning("Write an answer before requesting feedback.")
-            else:
-                with st.spinner("Reviewing your answer against the interview rubric..."):
-                    dyn_eval = evaluate_with_llm(
-                        dq,
-                        challenge_answer.strip(),
-                        candidate_context=st.session_state.get("sb_candidate_context", "").strip(),
-                        **get_active_llm_settings(),
+        saved_levels = st.session_state.get("challenge_set_levels", ["Beginner"] * len(challenge_set))
+        with st.form(f"challenge_answers_{challenge_token}"):
+            challenge_answers = {}
+            for level_label, _experience_level in challenge_levels:
+                level_questions = [
+                    (idx, question) for idx, question in enumerate(challenge_set)
+                    if idx < len(saved_levels) and saved_levels[idx] == level_label
+                ]
+                st.markdown(f"### {level_label} Challenge")
+                for idx, question in level_questions:
+                    st.markdown(f"**Question {idx + 1}**")
+                    st.markdown(question.question_text)
+                    st.caption(f"Focus: {question.competency_or_topic}")
+                    with st.expander("Follow-up and answer guidance", expanded=False):
+                        st.markdown(f"**Follow-up:** {question.default_followup}")
+                        for hint in question.rubric_hints:
+                            st.markdown(f"- {hint}")
+                    challenge_answers[question.id] = st.text_area(
+                        f"Your answer · {level_label} · Question {idx + 1}",
+                        key=f"challenge_answer_{challenge_token}_{idx}",
+                        height=130,
+                        placeholder="Explain the concept, your approach, trade-offs, edge cases and a practical example...",
                     )
-                    st.session_state.current_dyn_answer = challenge_answer.strip()
-                    st.session_state.current_dyn_eval = {
-                        "question_id": dq.id,
-                        "answer": challenge_answer.strip(),
-                        "evaluation": dyn_eval,
-                    }
-                st.rerun()
-
-        saved_eval = st.session_state.get("current_dyn_eval")
-        if saved_eval and saved_eval.get("question_id") == dq.id:
-            result = saved_eval["evaluation"]
-            st.markdown("---")
-            st.subheader("4. Feedback on your latest answer")
-            score_col, level_col = st.columns([1, 2])
-            score_col.metric("Overall practice score", f"{result.overall_score:.1f} / 5.0")
-            with level_col:
-                st.markdown("**What this score means**")
-                st.write(
-                    "4.2–5.0: Strong · 3.2–4.1: Good foundation · Below 3.2: Focus on the improvements below"
-                )
-
-            if result.key_strengths:
-                st.markdown("**What you did well**")
-                for item in result.key_strengths:
-                    st.markdown(f"- {item}")
-
-            if result.actionable_improvements:
-                st.markdown("**What to improve next**")
-                for item in result.actionable_improvements:
-                    st.markdown(f"- {item}")
-
-            if result.rubric_scores:
-                st.markdown("**Rubric breakdown**")
-                rubric_rows = [{"Criterion": rubric.display_name, "Score": rubric.score} for rubric in result.rubric_scores.values()]
-                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
-                for rubric in result.rubric_scores.values():
-                    st.markdown(f"**{rubric.display_name}: {rubric.score:.1f}/5** — {rubric.feedback}")
-
-            if result.stronger_answer_outline:
-                with st.expander("Suggested answer structure", expanded=False):
-                    st.markdown(result.stronger_answer_outline)
-
-            st.caption(
-                "This is practice feedback, not a hiring prediction. Your answer remains editable above; "
-                "score it again after making changes."
+                    st.divider()
+            evaluate_all = st.form_submit_button(
+                "Evaluate All 3 Questions",
+                type="primary",
+                use_container_width=True,
             )
 
-# ==============================================================================
+        if evaluate_all:
+            results = []
+            settings = get_active_llm_settings()
+            with st.spinner("Evaluating each answer against the four-part interview rubric..."):
+                for idx, question in enumerate(challenge_set):
+                    answer = (challenge_answers.get(question.id) or "").strip()
+                    level_label = saved_levels[idx] if idx < len(saved_levels) else "Challenge"
+                    if not answer:
+                        results.append({"question": question, "level": level_label, "answer": "", "evaluation": None, "error": "No answer submitted."})
+                        continue
+                    try:
+                        evaluation = evaluate_with_llm(
+                            question,
+                            answer,
+                            candidate_context=candidate_context,
+                            **settings,
+                        )
+                        results.append({"question": question, "level": level_label, "answer": answer, "evaluation": evaluation, "error": None})
+                    except (ValueError, RuntimeError) as exc:
+                        results.append({"question": question, "level": level_label, "answer": answer, "evaluation": None, "error": str(exc)})
+            st.session_state["challenge_set_results"] = results
+            st.rerun()
+
+        results = st.session_state.get("challenge_set_results")
+        if results is not None:
+            scored = [item["evaluation"] for item in results if item.get("evaluation")]
+            if scored:
+                average = sum(item.overall_score for item in scored) / len(scored)
+                st.metric("Overall challenge score", f"{average:.1f} / 5.0", help=f"Average across {len(scored)} evaluated answers.")
+            for level_label, _experience_level in challenge_levels:
+                level_results = [item for item in results if item.get("level") == level_label]
+                if not level_results:
+                    continue
+                level_scored = [item["evaluation"] for item in level_results if item.get("evaluation")]
+                if level_scored:
+                    level_average = sum(item.overall_score for item in level_scored) / len(level_scored)
+                    st.subheader(f"{level_label} · {level_average:.1f}/5 average")
+                for idx, item in enumerate(level_results, 1):
+                    with st.expander(f"{level_label} · Question {idx} evaluation", expanded=(idx == 1)):
+                        if not item.get("evaluation"):
+                            st.warning(item.get("error") or "This answer was not evaluated.")
+                            continue
+                        result = item["evaluation"]
+                        st.metric("Practice score", f"{result.overall_score:.1f} / 5.0")
+                        st.markdown("**What you did well**")
+                        for strength in result.key_strengths:
+                            st.markdown(f"- {strength}")
+                        st.markdown("**What to improve**")
+                        for improvement in result.actionable_improvements:
+                            st.markdown(f"- {improvement}")
+                        st.markdown("**Rubric breakdown**")
+                        for rubric in result.rubric_scores.values():
+                            st.markdown(f"**{rubric.display_name}: {rubric.score:.1f}/5** — {rubric.feedback}")
+                        if result.stronger_answer_outline:
+                            with st.expander("Suggested answer structure", expanded=False):
+                                st.markdown(result.stronger_answer_outline)
+
 # TAB 3: SPOT THE FLAW INTERACTIVE GAME
 # ==============================================================================
 if active_section == "spot_the_flaw":
@@ -1509,37 +1650,118 @@ if active_section == "question_bank":
         horizontal=True,
     )
 
-    if b_type == "Behavioral Competencies (STAR)":
-        st.subheader("Behavioral Prompts with Rubric Expectations")
-        for q in BEHAVIORAL_QUESTIONS:
-            with st.expander(f"📌 {q['competency']}: {q['question_text']}"):
-                st.markdown(f"**Full Prompt:** {q['question_text']}")
-                st.markdown(f"**Default Follow-up Question:** *\"{q['default_followup']}\"*")
-                st.markdown("**What Interviewers Look For:**")
-                for h in q["rubric_hints"]:
-                    st.markdown(f"- {h}")
+    category_track = {
+        "Behavioral Competencies (STAR)": InterviewType.BEHAVIORAL.value,
+        "Role-Specific Technical Quizzes": InterviewType.TECHNICAL.value,
+        "Project Architecture & Deep-Dive": InterviewType.PROJECT_EXPLANATION.value,
+    }
+    default_track = category_track[b_type]
+    track_options = (
+        [InterviewType.TECHNICAL.value, InterviewType.COMPREHENSIVE.value]
+        if b_type == "Role-Specific Technical Quizzes"
+        else [default_track]
+    )
 
-    elif b_type == "Role-Specific Technical Quizzes":
-        st.subheader("Role-Specific Technical Question Pool")
-        role_filter = st.selectbox("Select Domain:", list(TECHNICAL_QUESTIONS_BY_ROLE.keys()))
-        t_list = TECHNICAL_QUESTIONS_BY_ROLE.get(role_filter, [])
-        for q in t_list:
-            with st.expander(f"⚙️ {q['topic']}: {q['question_text']}"):
-                st.markdown(f"**Prompt:** {q['question_text']}")
-                st.markdown(f"**Follow-Up Challenge:** *\"{q['default_followup']}\"*")
-                st.markdown("**Core Technical Rubric Hints:**")
-                for h in q["rubric_hints"]:
-                    st.markdown(f"- {h}")
+    st.subheader("Five-Question Practice Session")
+    st.caption("Each quiz contains exactly five fresh questions. Select the role and difficulty, then answer and submit for AI rubric feedback.")
 
-    else:
-        st.subheader("Project Architecture & Engineering Retrospective Bank")
-        for q in PROJECT_QUESTIONS:
-            with st.expander(f"🏗️ {q['competency']}: {q['question_text']}"):
-                st.markdown(f"**Architecture Prompt:** {q['question_text']}")
-                st.markdown(f"**Follow-Up Probe:** *\"{q['default_followup']}\"*")
-                st.markdown("**Architectural Expectations:**")
-                for h in q["rubric_hints"]:
-                    st.markdown(f"- {h}")
+    role_filter = st.selectbox("Target role / domain", [item.value for item in TargetRole], key="qb_role_filter")
+    quiz_track = st.selectbox("Interview format", track_options, key="qb_interview_track")
+    quiz_level = st.selectbox("Candidate level", [item.value for item in ExperienceLevel], key="qb_candidate_level")
+    quiz_count = 5
+    st.caption("Questions per quiz: 5")
+    quiz_config = (b_type, role_filter, quiz_track, quiz_level, quiz_count)
+
+    def _create_question_bank_quiz():
+        previous = st.session_state.get("question_bank_quiz", {})
+        previous_ids = {item.id for item in previous.get("questions", [])}
+        fresh_questions = []
+        for _ in range(12):
+            if b_type == "Role-Specific Technical Quizzes":
+                fresh_questions = build_role_specific_question_bank(
+                    target_role=role_filter,
+                    experience_level=quiz_level,
+                    num_questions=quiz_count,
+                )
+            else:
+                fresh_questions = build_interview_plan(
+                    target_role=role_filter,
+                    experience_level=quiz_level,
+                    interview_type=quiz_track,
+                    num_questions=quiz_count,
+                )
+            if {item.id for item in fresh_questions} != previous_ids:
+                break
+        st.session_state["question_bank_quiz"] = {
+            "config": quiz_config, "questions": fresh_questions, "token": uuid.uuid4().hex[:10]
+        }
+        st.session_state.pop("question_bank_quiz_results", None)
+
+    current_quiz = st.session_state.get("question_bank_quiz")
+    if not current_quiz or current_quiz.get("config") != quiz_config:
+        _create_question_bank_quiz()
+    if st.button("🔄 Generate New Quiz", type="primary", use_container_width=True, key="generate_question_bank_quiz"):
+        _create_question_bank_quiz()
+        st.rerun()
+
+    current_quiz = st.session_state["question_bank_quiz"]
+    quiz_questions, quiz_token = current_quiz["questions"], current_quiz["token"]
+    st.success(f"{len(quiz_questions)} questions generated · {b_type} · {role_filter}")
+    with st.form(f"question_bank_quiz_form_{quiz_token}"):
+        quiz_answers = {}
+        for idx, question in enumerate(quiz_questions, 1):
+            st.markdown(f"**Question {idx} · {question.competency_or_topic}**")
+            st.write(question.question_text)
+            quiz_answers[question.id] = st.text_area(
+                f"Your answer to question {idx}", key=f"qb_answer_{quiz_token}_{idx}",
+                height=110, placeholder="Explain the concept, reasoning, example, and trade-offs..."
+            )
+            if question.default_followup:
+                st.caption(f"Possible follow-up: {question.default_followup}")
+            st.divider()
+        submitted_quiz = st.form_submit_button("Submit session and evaluate answers", type="primary", use_container_width=True)
+
+    if submitted_quiz:
+        quiz_results, active_quiz_settings = [], get_active_llm_settings()
+        with st.spinner("Evaluating your answers..."):
+            for question in quiz_questions:
+                answer = (quiz_answers.get(question.id) or "").strip()
+                if not answer:
+                    quiz_results.append({"question": question, "answer": "", "evaluation": None, "error": "No answer submitted."})
+                    continue
+                try:
+                    evaluation = evaluate_with_llm(
+                        question, answer,
+                        candidate_context=st.session_state.get("sb_candidate_context", "").strip(),
+                        **active_quiz_settings,
+                    )
+                    quiz_results.append({"question": question, "answer": answer, "evaluation": evaluation, "error": None})
+                except (ValueError, RuntimeError) as exc:
+                    quiz_results.append({"question": question, "answer": answer, "evaluation": None, "error": str(exc)})
+        st.session_state["question_bank_quiz_results"] = {"token": quiz_token, "results": quiz_results}
+
+    saved_results = st.session_state.get("question_bank_quiz_results")
+    if saved_results and saved_results.get("token") == quiz_token:
+        scores = [row["evaluation"].overall_score for row in saved_results["results"] if row.get("evaluation")]
+        if scores:
+            st.metric("Overall practice score", f"{sum(scores) / len(scores):.1f} / 5.0")
+            st.caption(f"{len(scores)} of {len(quiz_questions)} answers evaluated.")
+        for idx, row in enumerate(saved_results["results"], 1):
+            question, evaluation = row["question"], row.get("evaluation")
+            with st.expander(f"Question {idx} feedback · {question.competency_or_topic}"):
+                st.write(question.question_text)
+                if not evaluation:
+                    st.warning(row.get("error") or "Answer not evaluated.")
+                else:
+                    st.metric("Practice score", f"{evaluation.overall_score:.1f} / 5.0")
+                    for criterion in evaluation.rubric_scores.values():
+                        st.markdown(f"**{criterion.display_name}: {criterion.score:.1f}/5** — {criterion.feedback}")
+                    st.markdown("**Strengths**")
+                    for strength in evaluation.key_strengths:
+                        st.markdown(f"- {strength}")
+                    st.markdown("**Improvements**")
+                    for improvement in evaluation.actionable_improvements:
+                        st.markdown(f"- {improvement}")
 
 
 # ==============================================================================

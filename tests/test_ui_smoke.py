@@ -128,33 +128,92 @@ def test_followup_round_uses_audio_input_and_allows_skip():
     assert app.session_state["session"].turns[0].completed
 
 
+def test_session_setup_is_only_shown_for_mock_interview():
+    mock_app = build_offline_app("mock_interview").run()
+    assert not mock_app.exception
+    assert any("Target Role" in item.label for item in mock_app.selectbox)
+
+    challenge_app = build_offline_app("technical_challenge").run()
+    assert not challenge_app.exception
+    assert not any("Target Role" in item.label for item in challenge_app.selectbox)
+
+
 def test_blank_custom_challenge_topic_is_rejected():
     app = build_offline_app("technical_challenge").run()
 
     topic = next(item for item in app.text_input if item.label == "Topic or technology")
     topic.set_value("")
-    generate = next(item for item in app.button if item.label == "Generate challenge")
+    generate = next(item for item in app.button if "Generate 3 Challenges" in item.label)
     generate.click().run()
 
     assert not app.exception
     assert any("enter a topic" in item.value.lower() for item in app.warning)
-    assert "current_dyn_q" not in app.session_state
+    assert not app.session_state.get("challenge_set")
 
 
-def test_custom_challenge_topic_generates_offline_question():
+def test_generates_three_challenges_at_distinct_levels_and_refreshes():
     app = build_offline_app("technical_challenge").run()
 
     topic = next(item for item in app.text_input if item.label == "Topic or technology")
     topic.set_value("SQL indexing and query plans")
-    generate = next(item for item in app.button if item.label == "Generate challenge")
+    generate = next(item for item in app.button if "Generate 3 Challenges" in item.label)
     generate.click().run()
 
     assert not app.exception
-    assert "current_dyn_q" in app.session_state
-    question = app.session_state["current_dyn_q"]
-    assert question.question_text.strip()
-    assert question.competency_or_topic
+    first_set = app.session_state["challenge_set"]
+    assert len(first_set) == 3
+    assert len({item.question_text for item in first_set}) == 3
+    levels = app.session_state["challenge_set_levels"]
+    assert levels == ["Beginner", "Intermediate", "Advanced"]
+    assert sum("Your answer ·" in item.label for item in app.text_area) == 3
+    first_token = app.session_state["challenge_set_token"]
 
+    generate = next(item for item in app.button if "Generate 3 Challenges" in item.label)
+    generate.click().run()
+
+    assert not app.exception
+    second_set = app.session_state["challenge_set"]
+    assert len(second_set) == 3
+    assert app.session_state["challenge_set_token"] != first_token
+    assert len({item.question_text for item in second_set}) == 3
+    assert {item.question_text for item in second_set} != {item.question_text for item in first_set}
+
+
+def test_role_specific_question_bank_uses_selected_role():
+    app = build_offline_app("question_bank").run()
+    assert not app.exception
+    category = next(item for item in app.radio if item.label == "Question Category")
+    category.set_value("Role-Specific Technical Quizzes").run()
+    role_selector = next(item for item in app.selectbox if item.label == "Target role / domain")
+    role_selector.select("Cybersecurity & Information Security").run()
+    assert not app.exception
+    questions = app.session_state["question_bank_quiz"]["questions"]
+    assert len(questions) == 5
+    assert all(item.role == "Cybersecurity & Information Security" for item in questions)
+    assert all(item.category.value == "technical" for item in questions)
+    assert any(
+        any(term in item.competency_or_topic.lower() for term in ("security", "incident", "network"))
+        for item in questions
+    )
+
+
+
+def test_offline_challenge_questions_change_with_difficulty():
+    from backend.evaluator import generate_dynamic_ai_technical_question
+    questions = [
+        generate_dynamic_ai_technical_question(
+            topic="SQL indexing",
+            role="Software Engineering",
+            difficulty_level=level,
+            variation_hint="different database scenario",
+            provider="heuristic",
+        )
+        for level in ("Beginner", "Intermediate", "Advanced")
+    ]
+    assert len({item.question_text for item in questions}) == 3
+    assert "Beginner-level" in questions[0].question_text
+    assert "Intermediate-level" in questions[1].question_text
+    assert "Advanced system-design" in questions[2].question_text
 
 
 def test_typed_primary_answer_is_evaluated_offline():
@@ -225,3 +284,76 @@ def test_user_can_navigate_to_resume_and_project_review():
     assert not app.exception
     assert app.session_state["workspace_navigation"] == "resume_review"
     assert any(item.value == "Resume & Project Review" for item in app.header)
+
+
+def test_early_end_saves_session_to_browser_history():
+    app = start_one_question_offline_app()
+    end_button = next(item for item in app.button if "End Session Early" in item.label)
+    end_button.click().run()
+
+    assert not app.exception
+    session = app.session_state["session"]
+    assert session.is_finished
+    assert session.completed_at is not None
+    saved = app.session_state["browser_data"]["sessions"]["offline-test@example.com"]
+    assert any(item["session_id"] == session.session_id and item["is_finished"] for item in saved)
+
+
+def test_question_bank_generates_five_to_eight_questions_and_can_refresh():
+    app = build_offline_app("question_bank").run()
+    category = next(item for item in app.radio if item.label == "Question Category")
+    category.set_value("Role-Specific Technical Quizzes").run()
+
+    assert not app.exception
+    quiz = app.session_state["question_bank_quiz"]
+    assert len(quiz["questions"]) == 5
+    first_token = quiz["token"]
+
+    generate = next(item for item in app.button if "Generate New Quiz" in item.label)
+    generate.click().run()
+
+    assert not app.exception
+    refreshed = app.session_state["question_bank_quiz"]
+    assert 5 <= len(refreshed["questions"]) <= 8
+    assert refreshed["token"] != first_token
+
+
+def test_interview_setup_expands_on_mock_interview_workspace():
+    app = build_offline_app("mock_interview").run()
+
+    assert not app.exception
+    assert any("Target Role" in item.label for item in app.selectbox)
+    assert any("Experience Level" in item.label for item in app.selectbox)
+    assert any("Interview Type" in item.label for item in app.selectbox)
+    assert any("Questions in Round" in item.label for item in app.slider)
+
+
+def test_behavioral_and_project_question_bank_categories_generate_five_questions():
+    for category in ("Behavioral Competencies (STAR)", "Project Architecture & Deep-Dive"):
+        app = build_offline_app("question_bank").run()
+        selector = next(item for item in app.radio if item.label == "Question Category")
+        selector.set_value(category).run()
+
+        assert not app.exception
+        quiz = app.session_state["question_bank_quiz"]
+        assert 5 <= len(quiz["questions"]) <= 8
+        if category == "Behavioral Competencies (STAR)":
+            assert all(item.category.value == "behavioral" for item in quiz["questions"])
+        else:
+            assert sum(item.category.value == "project" for item in quiz["questions"]) >= 2
+
+def test_mock_interview_setup_only_appears_when_mock_interview_is_selected():
+    mock_app = build_offline_app("mock_interview").run()
+    assert not mock_app.exception
+    assert any("Interview Setup" in item.label for item in mock_app.expander)
+
+    challenge_app = build_offline_app("technical_challenge").run()
+    assert not challenge_app.exception
+    assert not any("Interview Setup" in item.label for item in challenge_app.expander)
+
+
+def test_question_bank_quiz_always_generates_exactly_five_questions():
+    app = build_offline_app("question_bank").run()
+    assert not app.exception
+    assert len(app.session_state["question_bank_quiz"]["questions"]) == 5
+    assert any("exactly five" in item.value.lower() for item in app.caption)
