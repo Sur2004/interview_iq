@@ -535,7 +535,7 @@ def evaluate_with_llm(
 ) -> EvaluationResult:
     """
     Evaluates responses using a hosted LLM API (Groq, Google Gemini, or OpenAI).
-    Falls back gracefully to the heuristic evaluator if the API call fails or no key is provided.
+    Uses the offline generator only when the offline provider is explicitly selected.
     """
     from .config import get_llm_config, get_setting
 
@@ -920,7 +920,7 @@ def generate_dynamic_ai_technical_question(
     configured = get_llm_config()
     provider = (provider or configured.get("provider") or "heuristic").strip().lower()
     if provider not in {"groq", "gemini", "openai", "heuristic"}:
-        provider = "heuristic"
+        raise ValueError(f"Unsupported question-generation provider: {provider}")
     if api_key is None:
         key_names = {"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY"}
         api_key = get_setting(key_names[provider]) if provider in key_names else None
@@ -931,7 +931,12 @@ def generate_dynamic_ai_technical_question(
     }
     configured_model = configured.get("model_name") if configured.get("provider") == provider else None
     model_name = model_name or configured_model or default_models.get(provider)
-    if api_key and provider != "heuristic":
+    if provider != "heuristic" and not api_key:
+        raise RuntimeError(
+            f"No API key is configured for {provider.upper()}. Add the matching key in Streamlit Secrets "
+            "or select Built-In Offline Engine explicitly."
+        )
+    if provider != "heuristic":
         try:
             import requests
             prompt = (
@@ -952,6 +957,8 @@ def generate_dynamic_ai_technical_question(
                     "response_format": {"type": "json_object"}
                 }
                 resp = requests.post(url, headers=headers, json=payload, timeout=30)
+                if resp.status_code != 200:
+                    raise RuntimeError(f"{provider.toUpperCase()} API returned HTTP {resp.status_code}.")
                 if resp.status_code == 200:
                     raw = resp.json()["choices"][0]["message"]["content"]
                     data = json.loads(raw)
@@ -973,6 +980,8 @@ def generate_dynamic_ai_technical_question(
                     "generationConfig": {"responseMimeType": "application/json", "temperature": 0.3}
                 }
                 resp = requests.post(url, headers=headers, json=payload, timeout=30)
+                if resp.status_code != 200:
+                    raise RuntimeError(f"{provider.toUpperCase()} API returned HTTP {resp.status_code}.")
                 if resp.status_code == 200:
                     raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                     data = json.loads(raw)
@@ -996,6 +1005,8 @@ def generate_dynamic_ai_technical_question(
                     "response_format": {"type": "json_object"},
                 }
                 resp = requests.post(url, headers=headers, json=payload, timeout=30)
+                if resp.status_code != 200:
+                    raise RuntimeError(f"{provider.toUpperCase()} API returned HTTP {resp.status_code}.")
                 if resp.status_code == 200:
                     raw = resp.json()["choices"][0]["message"]["content"]
                     data = json.loads(raw)
@@ -1010,9 +1021,12 @@ def generate_dynamic_ai_technical_question(
                     generation_source="ai",
                     )
         except Exception as e:
-            logger.warning(f"Live dynamic question generation failed: {e}")
+            logger.warning("%s dynamic question generation failed: %s", provider.upper(), e)
+            raise RuntimeError(
+                f"{provider.upper()} question generation failed. Check the API key, model access, quota, and network, then retry."
+            ) from e
 
-    # Fallback intelligent generator
+    # Built-in offline generator (only when explicitly selected)
     hints = [
         f"Internal algorithmic mechanics and data structures of {clean_topic}",
         "Big-O time and space complexity under nominal vs worst-case load",
