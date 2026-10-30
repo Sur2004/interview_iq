@@ -499,7 +499,10 @@ with st.sidebar:
         label_visibility="collapsed",
         help="Choose a section to open it in the main workspace.",
     )
-    st.caption("Select any section above to open it. Your session settings remain below.")
+    if active_section == "mock_interview":
+        st.caption("Interview Setup is available below while Mock Interview is selected.")
+    else:
+        st.caption("Interview Setup is hidden in other sections. Select Mock Interview to configure a session.")
     st.markdown("---")
 
     # Reuse saved setup values in the challenge workspace without showing Mock Interview setup.
@@ -1586,13 +1589,14 @@ if active_section == "question_bank":
         else [default_track]
     )
 
-    st.subheader("Generated 5–8 Question Practice Session")
-    st.caption("All three question-bank categories now generate a complete practice set. Select the role, difficulty, and question count, then answer and submit for rubric feedback.")
+    st.subheader("Five-Question Practice Session")
+    st.caption("Each quiz contains exactly five fresh questions. Select the role and difficulty, then answer and submit for AI rubric feedback.")
 
     role_filter = st.selectbox("Target role / domain", [item.value for item in TargetRole], key="qb_role_filter")
     quiz_track = st.selectbox("Interview format", track_options, key="qb_interview_track")
     quiz_level = st.selectbox("Candidate level", [item.value for item in ExperienceLevel], key="qb_candidate_level")
-    quiz_count = st.slider("Questions in this session", min_value=5, max_value=8, value=6, key="qb_question_count")
+    quiz_count = 5
+    st.caption("Questions per quiz: 5")
     quiz_config = (b_type, role_filter, quiz_track, quiz_level, quiz_count)
 
     def _create_question_bank_quiz():
