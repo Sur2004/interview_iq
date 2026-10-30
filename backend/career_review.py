@@ -406,7 +406,7 @@ Be specific and cite resume section names or repository file paths when possible
                 raw = response.json()["candidates"][0]["content"]["parts"][0]["text"]
             elif name == "groq":
                 model = config.get("model_name") if provider == "groq" else None
-                model = model or "llama-3.3-70b-versatile"
+                model = model or "openai/gpt-oss-120b"
                 response = requests.post(
                     "https://api.groq.com/openai/v1/chat/completions",
                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
