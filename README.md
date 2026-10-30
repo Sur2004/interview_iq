@@ -54,7 +54,7 @@ Furthermore, existing automated tools often function as opaque "pass/fail" filte
   - Algorithmic Time & Space Complexity detection ($O(1)$, $O(\log N)$, $O(N)$).
   - Concurrency analysis (Mutex, Atomic CAS, Deadlock, Race condition defenses).
   - Dynamic Mermaid Architecture graph generation derived from candidate responses.
-- **Dynamic AI Technical Challenge Generator:** Synthesize FAANG/Principal-level technical questions on any custom subsystem (e.g. Kafka, Postgres MVCC, Raft, RAG).
+- **Three-level AI Technical Challenge:** Generate exactly three questions per round on a chosen topic—one Beginner, one Intermediate, and one Advanced—with a separate answer field and individual rubric evaluation for each. Refresh creates a new set. Live generation and evaluation require the selected provider's API key; the built-in offline engine is explicitly labelled when selected.
 - **Spot the Flaw Interactive Game:** Train an "interviewer's eye" by diagnosing classic candidate errors (*The 'We' Trap*, *Unsubstantiated Metrics*, *The Defensive Blame Game*, *Buzzword Salad*).
 - **STAR Story Builder:** Step-by-step wizard that outputs a clean, editable Situation / Task / Action / Result narrative instead of a pitch-card layout.
 - **Guest Access:** The current app opens directly in guest mode; email OTP sign-in is not part of the active user workflow.
