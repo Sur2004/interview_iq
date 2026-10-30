@@ -631,7 +631,7 @@ Format output as pure JSON:
                 "temperature": 0.2,
                 "response_format": {"type": "json_object"}
             }
-            resp = requests.post(url, headers=headers, json=payload, timeout=12)
+            resp = requests.post(url, headers=headers, json=payload, timeout=45)
             if resp.status_code == 200:
                 raw_text = resp.json()["choices"][0]["message"]["content"]
                 data = json.loads(raw_text)
@@ -652,7 +652,7 @@ Format output as pure JSON:
                     "responseMimeType": "application/json"
                 }
             }
-            resp = requests.post(url, headers=headers, json=payload, timeout=12)
+            resp = requests.post(url, headers=headers, json=payload, timeout=45)
             if resp.status_code == 200:
                 raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                 data = json.loads(raw_text)
@@ -674,7 +674,7 @@ Format output as pure JSON:
                 "temperature": 0.2,
                 "response_format": {"type": "json_object"}
             }
-            resp = requests.post(url, headers=headers, json=payload, timeout=12)
+            resp = requests.post(url, headers=headers, json=payload, timeout=45)
             if resp.status_code == 200:
                 raw_text = resp.json()["choices"][0]["message"]["content"]
                 data = json.loads(raw_text)
