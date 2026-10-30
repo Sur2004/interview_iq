@@ -904,7 +904,7 @@ def generate_dynamic_ai_technical_question(
                     "temperature": 0.3,
                     "response_format": {"type": "json_object"}
                 }
-                resp = requests.post(url, headers=headers, json=payload, timeout=8)
+                resp = requests.post(url, headers=headers, json=payload, timeout=30)
                 if resp.status_code == 200:
                     raw = resp.json()["choices"][0]["message"]["content"]
                     data = json.loads(raw)
@@ -916,6 +916,7 @@ def generate_dynamic_ai_technical_question(
                         competency_or_topic=data.get("competency_or_topic", clean_topic),
                         rubric_hints=data.get("rubric_hints", ["Time and space complexity", "Concurrency safety", "Trade-offs"]),
                         default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
+                    generation_source="ai",
                     )
             elif provider == "gemini":
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or 'gemini-3.8-flash'}:generateContent"
@@ -924,7 +925,7 @@ def generate_dynamic_ai_technical_question(
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {"responseMimeType": "application/json", "temperature": 0.3}
                 }
-                resp = requests.post(url, headers=headers, json=payload, timeout=8)
+                resp = requests.post(url, headers=headers, json=payload, timeout=30)
                 if resp.status_code == 200:
                     raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                     data = json.loads(raw)
@@ -936,6 +937,7 @@ def generate_dynamic_ai_technical_question(
                         competency_or_topic=data.get("competency_or_topic", clean_topic),
                         rubric_hints=data.get("rubric_hints", ["Time and space complexity", "Concurrency safety", "Trade-offs"]),
                         default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
+                    generation_source="ai",
                     )
             elif provider == "openai":
                 url = "https://api.openai.com/v1/chat/completions"
@@ -946,7 +948,7 @@ def generate_dynamic_ai_technical_question(
                     "temperature": 0.3,
                     "response_format": {"type": "json_object"},
                 }
-                resp = requests.post(url, headers=headers, json=payload, timeout=8)
+                resp = requests.post(url, headers=headers, json=payload, timeout=30)
                 if resp.status_code == 200:
                     raw = resp.json()["choices"][0]["message"]["content"]
                     data = json.loads(raw)
@@ -958,6 +960,7 @@ def generate_dynamic_ai_technical_question(
                         competency_or_topic=data.get("competency_or_topic", clean_topic),
                         rubric_hints=data.get("rubric_hints", ["Time and space complexity", "Concurrency safety", "Trade-offs"]),
                         default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
+                    generation_source="ai",
                     )
         except Exception as e:
             logger.warning(f"Live dynamic question generation failed: {e}")
