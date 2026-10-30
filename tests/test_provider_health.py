@@ -17,7 +17,7 @@ def test_invalid_api_key_is_reported():
     response = Mock(status_code=401)
     with patch("backend.healthcheck.requests.post", return_value=response):
         with pytest.raises(RuntimeError, match="rejected the API key"):
-            test_llm_connection("groq", "bad-key", "openai/gpt-oss-120b")
+            check_llm_connection("groq", "bad-key", "openai/gpt-oss-120b")
 
 def test_openai_audio_is_sent_to_transcription_endpoint_and_returned_as_text():
     response = Mock(status_code=200)
