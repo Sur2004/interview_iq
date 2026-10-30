@@ -28,6 +28,7 @@ from backend.question_bank import (
     PROJECT_QUESTIONS,
     TECHNICAL_QUESTIONS_BY_ROLE,
     build_interview_plan,
+    build_role_specific_question_bank,
 )
 from backend.evaluator import (
     evaluate_heuristically,
@@ -1211,27 +1212,48 @@ if active_section == "technical_challenge":
                 generated = []
                 generated_levels = []
                 settings = get_active_llm_settings()
-                with st.spinner("Generating 3 questions: Beginner, Intermediate, and Advanced..."):
-                    for level_index, (level_label, experience_level) in enumerate(challenge_levels):
-                        angle = focus_pool[(shift + level_index) % len(focus_pool)]
-                        generated.append(
-                            generate_dynamic_ai_technical_question(
-                                topic=custom_topic.strip(),
-                                variation_hint=f"{level_label} difficulty: {angle}",
-                                role=target_role,
-                                experience_level=experience_level,
-                                **settings,
-                            )
-                        )
-                        generated_levels.append(level_label)
-                token = uuid.uuid4().hex
-                st.session_state["challenge_set"] = generated
-                st.session_state["challenge_set_levels"] = generated_levels
-                st.session_state["challenge_set_token"] = token
-                st.session_state["challenge_set_topic"] = custom_topic.strip()
-                st.session_state["challenge_set_difficulty"] = "Beginner · Intermediate · Advanced"
-                st.session_state["challenge_set_results"] = None
-                st.rerun()
+                try:
+                    with st.spinner("Generating three distinct questions with level-specific difficulty..."):
+                        for level_index, (level_label, experience_level) in enumerate(challenge_levels):
+                            angle = focus_pool[(shift + level_index) % len(focus_pool)]
+                            prior_questions = [item.question_text for item in generated]
+                            question = None
+                            for attempt in range(3):
+                                distinct_hint = (
+                                    f"{level_label} difficulty: {angle}. "
+                                    f"Do not repeat or paraphrase these questions: {prior_questions}. "
+                                    f"Use a different scenario and reasoning depth. Attempt {attempt + 1}."
+                                )
+                                candidate = generate_dynamic_ai_technical_question(
+                                    topic=custom_topic.strip(),
+                                    variation_hint=distinct_hint,
+                                    difficulty_level=level_label,
+                                    role=target_role,
+                                    experience_level=experience_level,
+                                    **settings,
+                                )
+                                normalized = re.sub(r"\\W+", " ", candidate.question_text.lower()).strip()
+                                previous_normalized = {
+                                    re.sub(r"\\W+", " ", item.lower()).strip()
+                                    for item in prior_questions
+                                }
+                                if normalized and normalized not in previous_normalized:
+                                    question = candidate
+                                    break
+                            if question is None:
+                                raise RuntimeError(f"Could not generate a distinct {level_label} question. Refresh and try again.")
+                            generated.append(question)
+                            generated_levels.append(level_label)
+                    token = uuid.uuid4().hex
+                    st.session_state["challenge_set"] = generated
+                    st.session_state["challenge_set_levels"] = generated_levels
+                    st.session_state["challenge_set_token"] = token
+                    st.session_state["challenge_set_topic"] = custom_topic.strip()
+                    st.session_state["challenge_set_difficulty"] = "Beginner · Intermediate · Advanced"
+                    st.session_state["challenge_set_results"] = None
+                    st.rerun()
+                except (RuntimeError, ValueError) as exc:
+                    st.error(str(exc))
 
     challenge_set = st.session_state.get("challenge_set", [])
     # Discard challenge sets from the previous 15-question implementation so
@@ -1625,12 +1647,19 @@ if active_section == "question_bank":
         previous_ids = {item.id for item in previous.get("questions", [])}
         fresh_questions = []
         for _ in range(12):
-            fresh_questions = build_interview_plan(
-                target_role=role_filter,
-                experience_level=quiz_level,
-                interview_type=quiz_track,
-                num_questions=quiz_count,
-            )
+            if b_type == "Role-Specific Technical Quizzes":
+                fresh_questions = build_role_specific_question_bank(
+                    target_role=role_filter,
+                    experience_level=quiz_level,
+                    num_questions=quiz_count,
+                )
+            else:
+                fresh_questions = build_interview_plan(
+                    target_role=role_filter,
+                    experience_level=quiz_level,
+                    interview_type=quiz_track,
+                    num_questions=quiz_count,
+                )
             if {item.id for item in fresh_questions} != previous_ids:
                 break
         st.session_state["question_bank_quiz"] = {
