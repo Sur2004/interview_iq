@@ -191,7 +191,7 @@ def get_active_llm_settings() -> dict:
     configured = get_llm_config()
     selection = st.session_state.get("sb_provider", "Auto (via .env / Secrets)")
     provider_by_label = {
-        "Groq Cloud — Llama 3.3 70B": "groq",
+        "Groq Cloud — GPT-OSS 120B": "groq",
         "Google Gemini 3.8 Flash (Free tier available)": "gemini",
         "OpenAI GPT-4o Mini": "openai",
         "Built-In Offline Engine": "heuristic",
@@ -209,7 +209,7 @@ def get_active_llm_settings() -> dict:
     api_key = None if provider == "heuristic" else (manual_key or configured.get(key_field))
 
     default_models = {
-        "groq": "llama-3.3-70b-versatile",
+        "groq": "openai/gpt-oss-120b",
         "gemini": "gemini-3.8-flash",
         "openai": "gpt-4o-mini",
         "heuristic": "built-in-diagnostic-engine",
@@ -507,7 +507,7 @@ with st.sidebar:
     with st.expander("\U0001f511 LLM Provider & API Key", expanded=False):
         provider_opts = [
             "Auto (via .env / Secrets)",
-            "Groq Cloud — Llama 3.3 70B",
+            "Groq Cloud — GPT-OSS 120B",
             "Google Gemini 3.8 Flash (Free tier available)",
             "OpenAI GPT-4o Mini",
             "Built-In Offline Engine",
