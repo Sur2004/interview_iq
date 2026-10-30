@@ -26,6 +26,8 @@ The **Resume & Project Review** tab accepts a text-based PDF resume, a public Gi
 For hosted evaluation, configure your own API key. Gemini API and Groq may offer free-tier access subject to their current account/model limits; no shared key is bundled. Without a key, the review uses an explicitly labeled offline checklist. See [Free-tier AI setup](docs/FREE_TIER_AI_SETUP.md).
 
 
+- **Role-Specific Question Bank:** Technical quizzes draw five technical questions only from the selected role's curated pool (Software Engineering, Frontend, Data Science/ML, Product Management, DevOps/Cloud, AI/LLM Engineering, or Cybersecurity).
+
 ## 1. Problem Statement
 Internship and graduate-job applicants frequently struggle during competitive technical and behavioral interview loops. The default reaction for many students is memorizing static, generic answers from question lists. However, when experienced interviewers probe deeper with unscripted follow-up questions regarding edge cases, computational complexity, and architectural trade-offs, memorized scripts quickly fall apart.
 
@@ -54,7 +56,7 @@ Furthermore, existing automated tools often function as opaque "pass/fail" filte
   - Algorithmic Time & Space Complexity detection ($O(1)$, $O(\log N)$, $O(N)$).
   - Concurrency analysis (Mutex, Atomic CAS, Deadlock, Race condition defenses).
   - Dynamic Mermaid Architecture graph generation derived from candidate responses.
-- **Three-level AI Technical Challenge:** Generate exactly three questions per round on a chosen topic—one Beginner, one Intermediate, and one Advanced—with a separate answer field and individual rubric evaluation for each. Refresh creates a new set. Live generation and evaluation require the selected provider's API key; the built-in offline engine is explicitly labelled when selected.
+- **Three-level AI Technical Challenge:** Generate exactly three distinct questions per round on a chosen topic—one Beginner, one Intermediate, and one Advanced—with explicit level-specific depth, separate answer fields, and individual rubric evaluation. Duplicate questions are retried and rejected if they cannot be made distinct. Refresh creates a new set. Live generation and evaluation require the selected provider's API key; the built-in offline engine is explicitly labelled when selected.
 - **Spot the Flaw Interactive Game:** Train an "interviewer's eye" by diagnosing classic candidate errors (*The 'We' Trap*, *Unsubstantiated Metrics*, *The Defensive Blame Game*, *Buzzword Salad*).
 - **STAR Story Builder:** Step-by-step wizard that outputs a clean, editable Situation / Task / Action / Result narrative instead of a pitch-card layout.
 - **Guest Access:** The current app opens directly in guest mode; email OTP sign-in is not part of the active user workflow.
