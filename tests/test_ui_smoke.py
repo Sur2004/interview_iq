@@ -267,3 +267,18 @@ def test_interview_setup_expands_on_mock_interview_workspace():
     assert any("Experience Level" in item.label for item in app.selectbox)
     assert any("Interview Type" in item.label for item in app.selectbox)
     assert any("Questions in Round" in item.label for item in app.slider)
+
+
+def test_behavioral_and_project_question_bank_categories_also_generate_five_to_eight():
+    for category in ("Behavioral Competencies (STAR)", "Project Architecture & Deep-Dive"):
+        app = build_offline_app("question_bank").run()
+        selector = next(item for item in app.radio if item.label == "Question Category")
+        selector.set_value(category).run()
+
+        assert not app.exception
+        quiz = app.session_state["question_bank_quiz"]
+        assert 5 <= len(quiz["questions"]) <= 8
+        if category == "Behavioral Competencies (STAR)":
+            assert all(item.category.value == "behavioral" for item in quiz["questions"])
+        else:
+            assert sum(item.category.value == "project" for item in quiz["questions"]) >= 3
