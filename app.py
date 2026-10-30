@@ -1235,6 +1235,14 @@ if active_section == "technical_challenge":
                 st.rerun()
 
     challenge_set = st.session_state.get("challenge_set", [])
+    # Discard challenge sets from the previous 15-question implementation so
+    # an existing Streamlit session cannot keep rendering the old layout.
+    if challenge_set and len(challenge_set) != 3:
+        st.session_state.pop("challenge_set", None)
+        st.session_state.pop("challenge_set_levels", None)
+        st.session_state.pop("challenge_set_token", None)
+        st.session_state.pop("challenge_set_results", None)
+        challenge_set = []
     challenge_token = st.session_state.get("challenge_set_token")
     if challenge_set:
         st.markdown("---")
