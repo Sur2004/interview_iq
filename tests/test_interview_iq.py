@@ -29,6 +29,7 @@ from backend.question_bank import (
     PROJECT_QUESTIONS,
     TECHNICAL_QUESTIONS_BY_ROLE,
     build_interview_plan,
+    build_role_specific_question_bank,
 )
 from backend.evaluator import (
     evaluate_heuristically,
@@ -73,6 +74,18 @@ class TestQuestionBank:
                 assert "question_text" in q
                 assert "topic" in q
                 assert len(q["rubric_hints"]) > 0
+
+    def test_role_specific_quiz_returns_five_technical_questions_for_every_role(self):
+        for role in TECHNICAL_QUESTIONS_BY_ROLE:
+            questions = build_role_specific_question_bank(
+                target_role=role,
+                experience_level=ExperienceLevel.GRADUATE.value,
+                num_questions=5,
+            )
+            assert len(questions) == 5
+            assert all(item.category == QuestionCategory.TECHNICAL for item in questions)
+            assert all(item.role == role for item in questions)
+            assert len({item.question_text for item in questions}) == 5
 
     def test_project_questions_cover_architecture_and_tradeoffs(self):
         assert len(PROJECT_QUESTIONS) >= 3
