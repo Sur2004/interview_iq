@@ -2,7 +2,7 @@
 from typing import Optional
 import requests
 
-def test_llm_connection(provider: str, api_key: Optional[str], model_name: Optional[str] = None) -> str:
+def check_llm_connection(provider: str, api_key: Optional[str], model_name: Optional[str] = None) -> str:
     """Make a minimal authenticated request; never log or return the secret."""
     provider = (provider or "").strip().lower()
     if provider == "heuristic":
