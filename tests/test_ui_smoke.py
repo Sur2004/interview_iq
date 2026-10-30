@@ -225,3 +225,45 @@ def test_user_can_navigate_to_resume_and_project_review():
     assert not app.exception
     assert app.session_state["workspace_navigation"] == "resume_review"
     assert any(item.value == "Resume & Project Review" for item in app.header)
+
+
+def test_early_end_saves_session_to_browser_history():
+    app = start_one_question_offline_app()
+    end_button = next(item for item in app.button if "End Session Early" in item.label)
+    end_button.click().run()
+
+    assert not app.exception
+    session = app.session_state["session"]
+    assert session.is_finished
+    assert session.completed_at is not None
+    saved = app.session_state["browser_data"]["sessions"]["offline-test@example.com"]
+    assert any(item["session_id"] == session.session_id and item["is_finished"] for item in saved)
+
+
+def test_question_bank_generates_five_to_eight_questions_and_can_refresh():
+    app = build_offline_app("question_bank").run()
+    category = next(item for item in app.radio if item.label == "Question Category")
+    category.set_value("Role-Specific Technical Quizzes").run()
+
+    assert not app.exception
+    quiz = app.session_state["question_bank_quiz"]
+    assert 5 <= len(quiz["questions"]) <= 8
+    first_token = quiz["token"]
+
+    generate = next(item for item in app.button if "Generate New Quiz" in item.label)
+    generate.click().run()
+
+    assert not app.exception
+    refreshed = app.session_state["question_bank_quiz"]
+    assert 5 <= len(refreshed["questions"]) <= 8
+    assert refreshed["token"] != first_token
+
+
+def test_interview_setup_expands_on_mock_interview_workspace():
+    app = build_offline_app("mock_interview").run()
+
+    assert not app.exception
+    assert any("Target Role" in item.label for item in app.selectbox)
+    assert any("Experience Level" in item.label for item in app.selectbox)
+    assert any("Interview Type" in item.label for item in app.selectbox)
+    assert any("Questions in Round" in item.label for item in app.slider)
