@@ -571,7 +571,8 @@ with st.sidebar:
         )
     
         st.markdown("---")
-        with st.expander("\U0001f511 LLM Provider & API Key", expanded=False):
+        with st.container("\U0001f511 LLM Provider & API Key", expanded=False):
+            st.caption("LLM Provider & API Key")
             provider_opts = [
                 "Auto (via .env / Secrets)",
                 "Groq Cloud — GPT-OSS 120B",
