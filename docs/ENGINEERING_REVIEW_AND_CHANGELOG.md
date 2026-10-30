@@ -246,3 +246,10 @@ When Groq, Gemini, or OpenAI is selected, generation and evaluation require that
 ## 5. Repository cleanup
 
 The canonical Streamlit entry point is app.py. The old app_full.py snapshot and unused components/interview_monitor/ implementation were removed after confirming that the active app imports neither; the active monitor component is components/interview_monitor_v2/. No API secrets are committed.
+
+
+## 6. Role-specific question bank and challenge differentiation
+
+Role-specific technical quizzes use a dedicated technical-only builder. It selects five questions from the selected role's curated pool and role-specific extension questions; it does not mix in generic behavioral or project questions. All seven supported role pools are covered by regression tests.
+
+Technical Challenge generation passes an explicit difficulty requirement (Beginner, Intermediate, Advanced) to the model, alongside the selected role and experience band. Subsequent requests include previous questions to discourage paraphrases. Returned text is normalized and checked; duplicate questions are retried up to three times, and the round is not saved unless three distinct questions are available. Offline questions also receive distinct level-specific framing.
