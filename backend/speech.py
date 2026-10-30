@@ -1,6 +1,6 @@
 """Speech transcription for voice-first interview answers.
 
-Uses a configured Gemini or Groq API key. Audio is sent to that selected provider
+Uses a configured Gemini, Groq, or OpenAI API key. Audio is sent to that selected provider
 for transcription; no local speech model or shared API key is bundled.
 """
 import base64
@@ -12,28 +12,32 @@ import requests
 from requests.exceptions import RequestException
 
 
+def _audio_filename(mime_type: str) -> str:
+    mime = (mime_type or "").split(";")[0].lower()
+    return {"audio/wav": "answer.wav", "audio/x-wav": "answer.wav", "audio/mpeg": "answer.mp3", "audio/mp3": "answer.mp3", "audio/mp4": "answer.m4a", "audio/webm": "answer.webm", "audio/ogg": "answer.ogg"}.get(mime, "answer.wav")
+
 def transcribe_audio(audio_bytes: bytes, mime_type: str, provider: str, api_key: Optional[str], model_name: Optional[str] = None) -> str:
     if not audio_bytes:
         raise ValueError("Record an answer before submitting.")
-    if not api_key or provider not in {"gemini", "groq"}:
+    if not api_key or provider not in {"gemini", "groq", "openai"}:
         raise ValueError("Voice transcription requires a configured Gemini or Groq API key.")
     mime_type = mime_type or "audio/wav"
 
-    if provider == "groq":
+    if provider in {"groq", "openai"}:
         try:
             response = requests.post(
-                "https://api.groq.com/openai/v1/audio/transcriptions",
+                ("https://api.groq.com/openai/v1" if provider == "groq" else "https://api.openai.com/v1") + "/audio/transcriptions",
                 headers={"Authorization": f"Bearer {api_key}"},
-                files={"file": ("answer.webm", io.BytesIO(audio_bytes), mime_type)},
-                data={"model": "whisper-large-v3-turbo", "response_format": "json"},
+                files={"file": (_audio_filename(mime_type), io.BytesIO(audio_bytes), mime_type)},
+                data={"model": "whisper-large-v3-turbo" if provider == "groq" else "whisper-1", "response_format": "json"},
                 timeout=90,
             )
         except RequestException as exc:
             raise RuntimeError(
-                "Could not reach Groq for speech transcription. Check your internet connection or use the typed-answer option."
+                "Could not reach the speech transcription provider. Check your internet connection or use the typed-answer option."
             ) from exc
         if response.status_code != 200:
-            raise RuntimeError(f"Speech transcription failed (Groq HTTP {response.status_code}). Check your key, quota, and audio format.")
+            raise RuntimeError(f"Speech transcription failed ({provider.upper()} HTTP {response.status_code}). Check your key, quota, and audio format.")
         transcript = response.json().get("text", "").strip()
     else:
         model = model_name or "gemini-3.8-flash"
