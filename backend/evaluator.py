@@ -528,7 +528,7 @@ def evaluate_with_llm(
     if api_key is None and provider in provider_key_names:
         api_key = get_setting(provider_key_names[provider])
     default_models = {
-        "groq": "llama-3.3-70b-versatile",
+        "groq": "openai/gpt-oss-120b",
         "gemini": "gemini-3.8-flash",
         "openai": "gpt-4o-mini",
         "heuristic": "built-in-diagnostic-engine",
@@ -620,7 +620,7 @@ Format output as pure JSON:
         # Groq API endpoint (fastest inference for interviews)
         if provider == "groq":
             url = "https://api.groq.com/openai/v1/chat/completions"
-            model = model_name or "llama-3.3-70b-versatile"
+            model = model_name or "openai/gpt-oss-120b"
             headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
             payload = {
                 "model": model,
@@ -877,7 +877,7 @@ def generate_dynamic_ai_technical_question(
         key_names = {"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY"}
         api_key = get_setting(key_names[provider]) if provider in key_names else None
     default_models = {
-        "groq": "llama-3.3-70b-versatile",
+        "groq": "openai/gpt-oss-120b",
         "gemini": "gemini-3.8-flash",
         "openai": "gpt-4o-mini",
     }
