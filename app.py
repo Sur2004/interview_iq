@@ -1182,15 +1182,8 @@ if active_section == "technical_challenge":
             help="All three difficulty levels will focus on this topic.",
             key="challenge_topic",
         )
-        challenge_question_count = st.slider(
-            "Questions in each challenge",
-            min_value=5,
-            max_value=10,
-            value=5,
-            step=1,
-            key="challenge_question_count",
-            help="Each of the three challenges contains this many questions.",
-        )
+        st.info("Exactly 3 questions are generated per round: one Beginner, one Intermediate, and one Advanced.")
+        challenge_question_count = 1
         challenge_levels = [
             ("Beginner", "Internship / Entry-Level"),
             ("Intermediate", "Mid-Level Engineer"),
@@ -1219,21 +1212,19 @@ if active_section == "technical_challenge":
                 generated = []
                 generated_levels = []
                 settings = get_active_llm_settings()
-                total_questions = challenge_question_count * len(challenge_levels)
-                with st.spinner(f"Generating 3 challenges with {total_questions} questions..."):
+                with st.spinner("Generating 3 questions: Beginner, Intermediate, and Advanced..."):
                     for level_index, (level_label, experience_level) in enumerate(challenge_levels):
-                        for question_index in range(challenge_question_count):
-                            angle = focus_pool[(shift + level_index * challenge_question_count + question_index) % len(focus_pool)]
-                            generated.append(
-                                generate_dynamic_ai_technical_question(
-                                    topic=custom_topic.strip(),
-                                    variation_hint=f"{level_label} difficulty: {angle}",
-                                    role=target_role,
-                                    experience_level=experience_level,
-                                    **settings,
-                                )
+                        angle = focus_pool[(shift + level_index) % len(focus_pool)]
+                        generated.append(
+                            generate_dynamic_ai_technical_question(
+                                topic=custom_topic.strip(),
+                                variation_hint=f"{level_label} difficulty: {angle}",
+                                role=target_role,
+                                experience_level=experience_level,
+                                **settings,
                             )
-                            generated_levels.append(level_label)
+                        )
+                        generated_levels.append(level_label)
                 token = uuid.uuid4().hex
                 st.session_state["challenge_set"] = generated
                 st.session_state["challenge_set_levels"] = generated_levels
@@ -1247,10 +1238,10 @@ if active_section == "technical_challenge":
     challenge_token = st.session_state.get("challenge_set_token")
     if challenge_set:
         st.markdown("---")
-        st.subheader("2. Your three technical challenges")
+        st.subheader("2. Your 3 challenges — one question at each level")
         st.caption(
             f"Topic: {st.session_state.get('challenge_set_topic', custom_topic)} · "
-            f"{len(challenge_set)} questions total · {challenge_question_count} per difficulty"
+            f"{len(challenge_set)} questions total · one question per difficulty"
         )
         ai_count = sum(1 for question in challenge_set if question.generation_source == "ai")
         if ai_count == len(challenge_set):
@@ -1285,7 +1276,7 @@ if active_section == "technical_challenge":
                     )
                     st.divider()
             evaluate_all = st.form_submit_button(
-                "Evaluate All 3 Challenges",
+                "Evaluate All 3 Questions",
                 type="primary",
                 use_container_width=True,
             )
