@@ -1179,16 +1179,24 @@ if active_section == "technical_challenge":
             if not custom_topic.strip():
                 st.warning("Enter a topic before generating a challenge set.")
             else:
-                focus_angles = [
+                focus_pool = [
                     "production incident diagnosis, logs, and observability",
                     "scaling bottlenecks, capacity planning, and performance",
                     "security, data integrity, and recovery from failure",
                     "concurrency, consistency, and difficult edge cases",
                     "cost, maintainability, and comparison with simpler alternatives",
+                    "database query planning, indexing, and transaction isolation",
+                    "API reliability, rate limiting, and backward compatibility",
+                    "deployment migrations, rollback strategy, and zero downtime",
+                    "data pipeline quality, delayed events, and idempotent processing",
+                    "latency profiling, memory pressure, and resource optimisation",
                 ]
-                previous_token = st.session_state.get("challenge_set_token", "")
-                shift = (int(previous_token[:4], 16) + 1) % len(focus_angles) if previous_token else 0
-                focus_angles = focus_angles[shift:] + focus_angles[:shift]
+                previous_shift = st.session_state.get("challenge_focus_shift", -1)
+                shift = (previous_shift + 1) % len(focus_pool)
+                st.session_state["challenge_focus_shift"] = shift
+                # A sliding window of five from ten angles guarantees each refresh
+                # replaces at least one question focus instead of only shuffling order.
+                focus_angles = [focus_pool[(shift + offset) % len(focus_pool)] for offset in range(5)]
                 generated = []
                 settings = get_active_llm_settings()
                 with st.spinner("Generating five different technical questions..."):
