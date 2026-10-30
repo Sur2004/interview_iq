@@ -1017,6 +1017,8 @@ def generate_dynamic_ai_technical_question(
                 if resp.status_code == 200:
                     raw = resp.json()["choices"][0]["message"]["content"]
                     data = json.loads(raw)
+                    if not isinstance(data, dict) or not str(data.get("question_text", "")).strip():
+                        raise ValueError("Provider returned an empty or invalid question.")
                     return QuestionItem(
                         id=f"dyn_ai_{time.time_ns()}",
                         category=QuestionCategory.TECHNICAL,
