@@ -128,33 +128,51 @@ def test_followup_round_uses_audio_input_and_allows_skip():
     assert app.session_state["session"].turns[0].completed
 
 
+def test_session_setup_is_only_shown_for_mock_interview():
+    mock_app = build_offline_app("mock_interview").run()
+    assert not mock_app.exception
+    assert any("Target Role" in item.label for item in mock_app.selectbox)
+
+    challenge_app = build_offline_app("technical_challenge").run()
+    assert not challenge_app.exception
+    assert not any("Target Role" in item.label for item in challenge_app.selectbox)
+
+
 def test_blank_custom_challenge_topic_is_rejected():
     app = build_offline_app("technical_challenge").run()
 
     topic = next(item for item in app.text_input if item.label == "Topic or technology")
     topic.set_value("")
-    generate = next(item for item in app.button if item.label == "Generate challenge")
+    generate = next(item for item in app.button if "Generate New Challenge Set" in item.label)
     generate.click().run()
 
     assert not app.exception
     assert any("enter a topic" in item.value.lower() for item in app.warning)
-    assert "current_dyn_q" not in app.session_state
+    assert not app.session_state.get("challenge_set")
 
 
-def test_custom_challenge_topic_generates_offline_question():
+def test_custom_challenge_generates_five_distinct_questions_and_refreshes():
     app = build_offline_app("technical_challenge").run()
 
     topic = next(item for item in app.text_input if item.label == "Topic or technology")
     topic.set_value("SQL indexing and query plans")
-    generate = next(item for item in app.button if item.label == "Generate challenge")
+    generate = next(item for item in app.button if "Generate New Challenge Set" in item.label)
     generate.click().run()
 
     assert not app.exception
-    assert "current_dyn_q" in app.session_state
-    question = app.session_state["current_dyn_q"]
-    assert question.question_text.strip()
-    assert question.competency_or_topic
+    first_set = app.session_state["challenge_set"]
+    assert len(first_set) == 5
+    assert len({item.question_text for item in first_set}) == 5
+    first_token = app.session_state["challenge_set_token"]
 
+    generate = next(item for item in app.button if "Generate New Challenge Set" in item.label)
+    generate.click().run()
+
+    assert not app.exception
+    second_set = app.session_state["challenge_set"]
+    assert len(second_set) == 5
+    assert app.session_state["challenge_set_token"] != first_token
+    assert len({item.question_text for item in second_set}) == 5
 
 
 def test_typed_primary_answer_is_evaluated_offline():
