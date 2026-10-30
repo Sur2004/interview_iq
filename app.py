@@ -501,165 +501,172 @@ with st.sidebar:
     st.caption("Select any section above to open it. Your session settings remain below.")
     st.markdown("---")
 
-    with st.expander("⚙️ Interview Setup", expanded=(active_section == "mock_interview")):
-        st.subheader("\u2699\ufe0f Session Setup")
-    
-        _active_user_id = st.session_state.get("authenticated_candidate_id") or st.session_state.get("authenticated_email", "local_guest")
-        _active_profile = st.session_state.get("browser_data", {}).get("profiles", {}).get(_active_user_id, {})
-        candidate_name = st.text_input(
-            "Your Name",
-            value=_active_profile.get("name", "Student Candidate"),
-            help="Personalises practice reports and rubric summaries.",
-            key="sb_candidate_name",
-        )
-    
-        target_role = st.selectbox(
-            "\U0001f3ad Target Role",
-            [r.value for r in TargetRole],
-            index=0,
-            help="Sets technical depth, domain questions and rubric expectations.",
-            key="sb_target_role",
-        )
-    
-        experience_level = st.selectbox(
-            "\U0001f4c8 Experience Level",
-            [e.value for e in ExperienceLevel],
-            index=0,
-            help="Tailors question difficulty and scoring criteria.",
-            key="sb_experience_level",
-        )
-    
-        interview_type = st.selectbox(
-            "\U0001f5c2\ufe0f Interview Type",
-            [t.value for t in InterviewType],
-            index=0,
-            help="Comprehensive Mix, Technical Deep-Dive, Behavioural, or Architecture.",
-            key="sb_interview_type",
-        )
-    
-        interviewer_persona = st.selectbox(
-            "\U0001f935 Interviewer Persona",
-            [
-                "Jordan — Principal Architect (Scale & Failure Modes)",
-                "Alex — Staff Engineer (Algorithms & Clean Code)",
-                "Taylor — VP Engineering (Vision & Culture Fit)",
-            ],
-            index=0,
-            help="Shapes tone and technical rigour of follow-up questions.",
-            key="sb_interviewer_persona",
-        )
-        st.session_state.interviewer_persona = interviewer_persona
-    
-        num_questions = st.slider(
-            "\U0001f522 Questions in Round",
-            min_value=5,
-            max_value=8,
-            value=6,
-            help="5-8 questions to simulate a 45-minute technical loop.",
-            key="sb_num_questions",
-        )
-    
-        candidate_context = st.text_area(
-            "\U0001f4dd Your Projects / Coursework (Optional)",
-            placeholder=(
-                "e.g. Distributed KV-Store in Go; Virtual Memory Manager in C; "
-                "React & PostgreSQL e-commerce; PyTorch RAG pipeline..."
-            ),
-            help="Grounds AI feedback in your real background - no fabrication.",
-            height=90,
-            key="sb_candidate_context",
-        )
-    
-        st.markdown("---")
-        with st.container(border=True):
-            st.caption("LLM Provider & API Key")
-            provider_opts = [
-                "Auto (via .env / Secrets)",
-                "Groq Cloud — GPT-OSS 120B",
-                "Google Gemini 3.8 Flash (Free tier available)",
-                "OpenAI GPT-4o Mini",
-                "Built-In Offline Engine",
-            ]
-            chosen_provider = st.selectbox(
-                "Provider",
-                provider_opts,
+    # Reuse saved setup values in the challenge workspace without showing Mock Interview setup.
+    target_role = st.session_state.get("sb_target_role", [r.value for r in TargetRole][0])
+    experience_level = st.session_state.get("sb_experience_level", [e.value for e in ExperienceLevel][0])
+    candidate_context = st.session_state.get("sb_candidate_context", "")
+    num_questions = st.session_state.get("sb_num_questions", 6)
+
+    if active_section == "mock_interview":
+        with st.expander("⚙️ Interview Setup", expanded=True):
+            st.subheader("\u2699\ufe0f Session Setup")
+        
+            _active_user_id = st.session_state.get("authenticated_candidate_id") or st.session_state.get("authenticated_email", "local_guest")
+            _active_profile = st.session_state.get("browser_data", {}).get("profiles", {}).get(_active_user_id, {})
+            candidate_name = st.text_input(
+                "Your Name",
+                value=_active_profile.get("name", "Student Candidate"),
+                help="Personalises practice reports and rubric summaries.",
+                key="sb_candidate_name",
+            )
+        
+            target_role = st.selectbox(
+                "\U0001f3ad Target Role",
+                [r.value for r in TargetRole],
                 index=0,
-                help="Keys live in .env locally or Streamlit Secrets on Cloud.",
-                key="sb_provider",
+                help="Sets technical depth, domain questions and rubric expectations.",
+                key="sb_target_role",
             )
-            manual_key = st.text_input(
-                "API Key Override",
-                value="",
-                type="password",
-                placeholder="Paste key to override...",
-                help="Never committed or logged.",
-                key="sb_manual_key",
+        
+            experience_level = st.selectbox(
+                "\U0001f4c8 Experience Level",
+                [e.value for e in ExperienceLevel],
+                index=0,
+                help="Tailors question difficulty and scoring criteria.",
+                key="sb_experience_level",
             )
-            if manual_key:
-                st.session_state.api_key = manual_key
-    
-            active_settings = get_active_llm_settings()
-            if active_settings["provider"] == "heuristic":
-                st.info("Offline diagnostic mode is selected. No API key is required.")
-            elif active_settings.get("api_key"):
-                st.success(f"Selected provider is configured: {active_settings['provider'].upper()} · {active_settings['model_name']}")
-            else:
-                st.warning(
-                    f"No API key is configured for {active_settings['provider'].upper()}. "
-                    "The app will fall back to offline diagnostic feedback until a matching key is available."
-                )
-    
-        st.markdown("---")
-        if st.button("\U0001f680 Start Interview Round", type="primary", use_container_width=True):
-            questions = build_interview_plan(
-                target_role=target_role,
-                experience_level=experience_level,
-                interview_type=interview_type,
-                num_questions=num_questions,
+        
+            interview_type = st.selectbox(
+                "\U0001f5c2\ufe0f Interview Type",
+                [t.value for t in InterviewType],
+                index=0,
+                help="Comprehensive Mix, Technical Deep-Dive, Behavioural, or Architecture.",
+                key="sb_interview_type",
             )
-            turns = [
-                InterviewTurn(
-                    question_index=i,
-                    question=q,
-                    followup_question=q.default_followup,
-                )
-                for i, q in enumerate(questions)
-            ]
-            new_sess = InterviewSession(
-                session_id=uuid.uuid4().hex,
-                candidate_name=candidate_name.strip() or "Student Candidate",
-                target_role=target_role,
-                experience_level=experience_level,
-                interview_type=interview_type,
-                total_questions=len(questions),
-                candidate_context=candidate_context.strip(),
-                turns=turns,
-                current_turn_index=0,
-                in_followup=False,
-                is_finished=False,
+        
+            interviewer_persona = st.selectbox(
+                "\U0001f935 Interviewer Persona",
+                [
+                    "Jordan — Principal Architect (Scale & Failure Modes)",
+                    "Alex — Staff Engineer (Algorithms & Clean Code)",
+                    "Taylor — VP Engineering (Vision & Culture Fit)",
+                ],
+                index=0,
+                help="Shapes tone and technical rigour of follow-up questions.",
+                key="sb_interviewer_persona",
             )
-            st.session_state.pop("integrity_termination_reason", None)
-            st.session_state.pop("session_ended_early", None)
-            st.session_state.session = new_sess
-            persist_browser_session(new_sess)
-            st.success(f"\u2705 Round started - {len(questions)} questions queued!")
-            st.rerun()
-    
-        if st.session_state.session and not st.session_state.session.is_finished:
+            st.session_state.interviewer_persona = interviewer_persona
+        
+            num_questions = st.slider(
+                "\U0001f522 Questions in Round",
+                min_value=5,
+                max_value=8,
+                value=6,
+                help="5-8 questions to simulate a 45-minute technical loop.",
+                key="sb_num_questions",
+            )
+        
+            candidate_context = st.text_area(
+                "\U0001f4dd Your Projects / Coursework (Optional)",
+                placeholder=(
+                    "e.g. Distributed KV-Store in Go; Virtual Memory Manager in C; "
+                    "React & PostgreSQL e-commerce; PyTorch RAG pipeline..."
+                ),
+                help="Grounds AI feedback in your real background - no fabrication.",
+                height=90,
+                key="sb_candidate_context",
+            )
+        
             st.markdown("---")
-            if st.button("\u23f9\ufe0f End Session Early", use_container_width=True):
-                active_session = st.session_state.session
-                active_session.is_finished = True
-                active_session.completed_at = time.time()
-                scored = [turn.turn_evaluation or turn.initial_evaluation for turn in active_session.turns]
-                scored = [item for item in scored if item is not None]
-                if scored:
-                    active_session.overall_session_score = round(sum(item.overall_score for item in scored) / len(scored), 1)
-                st.session_state["session_ended_early"] = True
-                persist_browser_session(active_session)
+            with st.container(border=True):
+                st.caption("LLM Provider & API Key")
+                provider_opts = [
+                    "Auto (via .env / Secrets)",
+                    "Groq Cloud — GPT-OSS 120B",
+                    "Google Gemini 3.8 Flash (Free tier available)",
+                    "OpenAI GPT-4o Mini",
+                    "Built-In Offline Engine",
+                ]
+                chosen_provider = st.selectbox(
+                    "Provider",
+                    provider_opts,
+                    index=0,
+                    help="Keys live in .env locally or Streamlit Secrets on Cloud.",
+                    key="sb_provider",
+                )
+                manual_key = st.text_input(
+                    "API Key Override",
+                    value="",
+                    type="password",
+                    placeholder="Paste key to override...",
+                    help="Never committed or logged.",
+                    key="sb_manual_key",
+                )
+                if manual_key:
+                    st.session_state.api_key = manual_key
+        
+                active_settings = get_active_llm_settings()
+                if active_settings["provider"] == "heuristic":
+                    st.info("Offline diagnostic mode is selected. No API key is required.")
+                elif active_settings.get("api_key"):
+                    st.success(f"Selected provider is configured: {active_settings['provider'].upper()} · {active_settings['model_name']}")
+                else:
+                    st.warning(
+                        f"No API key is configured for {active_settings['provider'].upper()}. "
+                        "The app will fall back to offline diagnostic feedback until a matching key is available."
+                    )
+        
+            st.markdown("---")
+            if st.button("\U0001f680 Start Interview Round", type="primary", use_container_width=True):
+                questions = build_interview_plan(
+                    target_role=target_role,
+                    experience_level=experience_level,
+                    interview_type=interview_type,
+                    num_questions=num_questions,
+                )
+                turns = [
+                    InterviewTurn(
+                        question_index=i,
+                        question=q,
+                        followup_question=q.default_followup,
+                    )
+                    for i, q in enumerate(questions)
+                ]
+                new_sess = InterviewSession(
+                    session_id=uuid.uuid4().hex,
+                    candidate_name=candidate_name.strip() or "Student Candidate",
+                    target_role=target_role,
+                    experience_level=experience_level,
+                    interview_type=interview_type,
+                    total_questions=len(questions),
+                    candidate_context=candidate_context.strip(),
+                    turns=turns,
+                    current_turn_index=0,
+                    in_followup=False,
+                    is_finished=False,
+                )
+                st.session_state.pop("integrity_termination_reason", None)
+                st.session_state.pop("session_ended_early", None)
+                st.session_state.session = new_sess
+                persist_browser_session(new_sess)
+                st.success(f"\u2705 Round started - {len(questions)} questions queued!")
                 st.rerun()
-    
-    
+        
+            if st.session_state.session and not st.session_state.session.is_finished:
+                st.markdown("---")
+                if st.button("\u23f9\ufe0f End Session Early", use_container_width=True):
+                    active_session = st.session_state.session
+                    active_session.is_finished = True
+                    active_session.completed_at = time.time()
+                    scored = [turn.turn_evaluation or turn.initial_evaluation for turn in active_session.turns]
+                    scored = [item for item in scored if item is not None]
+                    if scored:
+                        active_session.overall_session_score = round(sum(item.overall_score for item in scored) / len(scored), 1)
+                    st.session_state["session_ended_early"] = True
+                    persist_browser_session(active_session)
+                    st.rerun()
+        
+        
     st.markdown("---")
     st.page_link("pages/1_History.py", label="\U0001f4da History & Performance", icon="\U0001f4ca")
     if active_candidate_id:
@@ -1144,8 +1151,8 @@ if active_section == "mock_interview":
 if active_section == "technical_challenge":
     st.header("⚡ Build and Practice a Technical Challenge")
     st.write(
-        "Choose a topic and difficulty, generate a question, write your answer, "
-        "then review your score and feedback. You can edit your answer and score it again."
+        "Generate a fresh set of five technical interview questions, answer each one, "
+        "and receive individual rubric-based feedback. Generate another set whenever you want."
     )
 
     with st.container(border=True):
@@ -1156,7 +1163,7 @@ if active_section == "technical_challenge":
                 "Topic or technology",
                 value="Kafka Partition Rebalancing & Consumer Lag",
                 placeholder="For example: SQL indexes, Python concurrency, RAG, Redis caching",
-                help="Choose one topic so the question can focus on a specific skill.",
+                help="All five questions focus on this topic from different engineering angles.",
                 key="challenge_topic",
             )
         with col_g2:
@@ -1164,137 +1171,124 @@ if active_section == "technical_challenge":
                 "Difficulty",
                 ["Internship / Entry-Level", "Mid-Level Engineer", "Staff / Principal Architect"],
                 index=0,
-                help="Choose the level you want the question to target.",
+                help="Choose the level you want the questions to target.",
                 key="challenge_difficulty",
             )
 
-        if st.button("Generate challenge", type="primary", use_container_width=True, key="generate_dynamic_challenge"):
+        if st.button("🔄 Generate New Challenge Set", type="primary", use_container_width=True, key="generate_dynamic_challenge"):
             if not custom_topic.strip():
-                st.warning("Enter a topic before generating a challenge.")
+                st.warning("Enter a topic before generating a challenge set.")
             else:
-                with st.spinner("Creating your question and evaluation guide..."):
-                    focus_angles = [
-                        "production incident diagnosis, logs, and observability",
-                        "scaling bottlenecks, capacity planning, and performance",
-                        "security, data integrity, and recovery from failure",
-                        "concurrency, consistency, and difficult edge cases",
-                        "cost, maintainability, and comparison with simpler alternatives",
-                    ]
-                    previous_focus = st.session_state.get("last_challenge_focus")
-                    available_focuses = [item for item in focus_angles if item != previous_focus]
-                    selected_focus = available_focuses[uuid.uuid4().int % len(available_focuses)]
-                    st.session_state["last_challenge_focus"] = selected_focus
-                    dyn_q = generate_dynamic_ai_technical_question(
-                        topic=custom_topic.strip(),
-                        variation_hint=selected_focus,
-                        role=target_role,
-                        experience_level=custom_difficulty,
-                        **get_active_llm_settings(),
-                    )
-                    st.session_state.current_dyn_q = dyn_q
-                    st.session_state.current_dyn_eval = None
-                    st.session_state.current_dyn_answer = ""
-                    st.rerun()
-
-    if "current_dyn_q" in st.session_state:
-        dq: QuestionItem = st.session_state.current_dyn_q
-
-        st.markdown("---")
-        st.subheader("2. Your challenge")
-        st.caption(f"Topic: {dq.competency_or_topic}  ·  Role: {target_role}  ·  Level: {custom_difficulty}")
-        with st.container(border=True):
-            st.markdown("**Main question**")
-            st.markdown(dq.question_text)
-
-            st.markdown("**Follow-up question**")
-            st.info(dq.default_followup or "Explain the trade-offs, limitations, and failure cases.")
-
-            with st.expander("What a strong answer should cover", expanded=False):
-                for hint in dq.rubric_hints:
-                    st.markdown(f"- {hint}")
-
-        st.markdown("---")
-        st.subheader("3. Write or update your answer")
-        st.caption(
-            "Use this space to draft your response. You can change it at any time and select "
-            "**Score / update feedback** again to evaluate the latest version."
-        )
-        answer_key = f"dyn_answer_{dq.id}"
-        if answer_key not in st.session_state:
-            st.session_state[answer_key] = st.session_state.get("current_dyn_answer", "")
-
-        challenge_answer = st.text_area(
-            "Your answer",
-            key=answer_key,
-            height=220,
-            placeholder=(
-                "Explain the core idea, how it works, your approach, trade-offs, edge cases, "
-                "and a practical example..."
-            ),
-            help="Write in your own words. You can revise your response after seeing the feedback.",
-        )
-        word_count = len(challenge_answer.split()) if challenge_answer.strip() else 0
-        st.caption(f"{word_count} words · A useful structure is: concept → approach → trade-offs → example.")
-
-        if st.button("Score / update feedback", type="primary", use_container_width=True, key=f"score_dyn_{dq.id}"):
-            if not challenge_answer.strip():
-                st.warning("Write an answer before requesting feedback.")
-            else:
-                with st.spinner("Reviewing your answer against the interview rubric..."):
-                    dyn_eval = evaluate_with_llm(
-                        dq,
-                        challenge_answer.strip(),
-                        candidate_context=st.session_state.get("sb_candidate_context", "").strip(),
-                        **get_active_llm_settings(),
-                    )
-                    st.session_state.current_dyn_answer = challenge_answer.strip()
-                    st.session_state.current_dyn_eval = {
-                        "question_id": dq.id,
-                        "answer": challenge_answer.strip(),
-                        "evaluation": dyn_eval,
-                    }
+                focus_angles = [
+                    "production incident diagnosis, logs, and observability",
+                    "scaling bottlenecks, capacity planning, and performance",
+                    "security, data integrity, and recovery from failure",
+                    "concurrency, consistency, and difficult edge cases",
+                    "cost, maintainability, and comparison with simpler alternatives",
+                ]
+                previous_token = st.session_state.get("challenge_set_token", "")
+                shift = (int(previous_token[:4], 16) + 1) % len(focus_angles) if previous_token else 0
+                focus_angles = focus_angles[shift:] + focus_angles[:shift]
+                generated = []
+                settings = get_active_llm_settings()
+                with st.spinner("Generating five different technical questions..."):
+                    for angle in focus_angles:
+                        generated.append(
+                            generate_dynamic_ai_technical_question(
+                                topic=custom_topic.strip(),
+                                variation_hint=angle,
+                                role=target_role,
+                                experience_level=custom_difficulty,
+                                **settings,
+                            )
+                        )
+                token = uuid.uuid4().hex
+                st.session_state["challenge_set"] = generated
+                st.session_state["challenge_set_token"] = token
+                st.session_state["challenge_set_topic"] = custom_topic.strip()
+                st.session_state["challenge_set_difficulty"] = custom_difficulty
+                st.session_state["challenge_set_results"] = None
                 st.rerun()
 
-        saved_eval = st.session_state.get("current_dyn_eval")
-        if saved_eval and saved_eval.get("question_id") == dq.id:
-            result = saved_eval["evaluation"]
-            st.markdown("---")
-            st.subheader("4. Feedback on your latest answer")
-            score_col, level_col = st.columns([1, 2])
-            score_col.metric("Overall practice score", f"{result.overall_score:.1f} / 5.0")
-            with level_col:
-                st.markdown("**What this score means**")
-                st.write(
-                    "4.2–5.0: Strong · 3.2–4.1: Good foundation · Below 3.2: Focus on the improvements below"
+    challenge_set = st.session_state.get("challenge_set", [])
+    challenge_token = st.session_state.get("challenge_set_token")
+    if challenge_set:
+        st.markdown("---")
+        st.subheader(f"2. Your challenge set · {len(challenge_set)} questions")
+        st.caption(
+            f"Topic: {st.session_state.get('challenge_set_topic', custom_topic)} · "
+            f"Level: {st.session_state.get('challenge_set_difficulty', custom_difficulty)}"
+        )
+        with st.form(f"challenge_answers_{challenge_token}"):
+            challenge_answers = {}
+            for idx, question in enumerate(challenge_set, 1):
+                st.markdown(f"### Question {idx}")
+                st.markdown(question.question_text)
+                st.caption(f"Focus: {question.competency_or_topic}")
+                with st.expander("Follow-up and answer guidance", expanded=False):
+                    st.markdown(f"**Follow-up:** {question.default_followup}")
+                    for hint in question.rubric_hints:
+                        st.markdown(f"- {hint}")
+                challenge_answers[question.id] = st.text_area(
+                    f"Your answer to Question {idx}",
+                    key=f"challenge_answer_{challenge_token}_{idx}",
+                    height=150,
+                    placeholder="Explain the concept, your approach, trade-offs, edge cases and a practical example...",
                 )
-
-            if result.key_strengths:
-                st.markdown("**What you did well**")
-                for item in result.key_strengths:
-                    st.markdown(f"- {item}")
-
-            if result.actionable_improvements:
-                st.markdown("**What to improve next**")
-                for item in result.actionable_improvements:
-                    st.markdown(f"- {item}")
-
-            if result.rubric_scores:
-                st.markdown("**Rubric breakdown**")
-                rubric_rows = [{"Criterion": rubric.display_name, "Score": rubric.score} for rubric in result.rubric_scores.values()]
-                st.bar_chart(pd.DataFrame(rubric_rows).set_index("Criterion"), y="Score", use_container_width=True)
-                for rubric in result.rubric_scores.values():
-                    st.markdown(f"**{rubric.display_name}: {rubric.score:.1f}/5** — {rubric.feedback}")
-
-            if result.stronger_answer_outline:
-                with st.expander("Suggested answer structure", expanded=False):
-                    st.markdown(result.stronger_answer_outline)
-
-            st.caption(
-                "This is practice feedback, not a hiring prediction. Your answer remains editable above; "
-                "score it again after making changes."
+            evaluate_all = st.form_submit_button(
+                "Evaluate All Answers",
+                type="primary",
+                use_container_width=True,
             )
 
-# ==============================================================================
+        if evaluate_all:
+            results = []
+            settings = get_active_llm_settings()
+            with st.spinner("Evaluating your answers against the four-part interview rubric..."):
+                for question in challenge_set:
+                    answer = (challenge_answers.get(question.id) or "").strip()
+                    if not answer:
+                        results.append({"question": question, "answer": "", "evaluation": None, "error": "No answer submitted."})
+                        continue
+                    try:
+                        evaluation = evaluate_with_llm(
+                            question,
+                            answer,
+                            candidate_context=candidate_context,
+                            **settings,
+                        )
+                        results.append({"question": question, "answer": answer, "evaluation": evaluation, "error": None})
+                    except (ValueError, RuntimeError) as exc:
+                        results.append({"question": question, "answer": answer, "evaluation": None, "error": str(exc)})
+            st.session_state["challenge_set_results"] = results
+            st.rerun()
+
+        results = st.session_state.get("challenge_set_results")
+        if results is not None:
+            scored = [item["evaluation"] for item in results if item.get("evaluation")]
+            if scored:
+                average = sum(item.overall_score for item in scored) / len(scored)
+                st.metric("Overall challenge score", f"{average:.1f} / 5.0", help=f"Average across {len(scored)} evaluated answers.")
+            for idx, item in enumerate(results, 1):
+                with st.expander(f"Question {idx} · Evaluation", expanded=(idx == 1)):
+                    if not item.get("evaluation"):
+                        st.warning(item.get("error") or "This answer was not evaluated.")
+                        continue
+                    result = item["evaluation"]
+                    st.metric("Practice score", f"{result.overall_score:.1f} / 5.0")
+                    st.markdown("**What you did well**")
+                    for strength in result.key_strengths:
+                        st.markdown(f"- {strength}")
+                    st.markdown("**What to improve**")
+                    for improvement in result.actionable_improvements:
+                        st.markdown(f"- {improvement}")
+                    st.markdown("**Rubric breakdown**")
+                    for rubric in result.rubric_scores.values():
+                        st.markdown(f"**{rubric.display_name}: {rubric.score:.1f}/5** — {rubric.feedback}")
+                    if result.stronger_answer_outline:
+                        with st.expander("Suggested answer structure", expanded=False):
+                            st.markdown(result.stronger_answer_outline)
+
 # TAB 3: SPOT THE FLAW INTERACTIVE GAME
 # ==============================================================================
 if active_section == "spot_the_flaw":
