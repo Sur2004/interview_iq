@@ -547,7 +547,7 @@ def test_gemini_provider_uses_configured_model_and_header(monkeypatch):
         return FakeResponse()
 
     monkeypatch.setenv("LLM_PROVIDER", "groq")
-    monkeypatch.setenv("MODEL_NAME", "llama-3.3-70b-versatile")
+    monkeypatch.setenv("MODEL_NAME", "openai/gpt-oss-120b")
     monkeypatch.setattr(requests, "post", fake_post)
     question = QuestionItem(
         id="gemini-model-test",
