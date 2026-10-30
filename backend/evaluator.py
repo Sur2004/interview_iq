@@ -203,6 +203,34 @@ def validate_answer_relevance(question: QuestionItem, answer: str) -> None:
             "Please write a meaningful answer to the interview question."
         )
 
+def _is_non_answer(text: str) -> bool:
+    """Catch greetings, filler, and near-empty replies before an LLM can over-score them."""
+    tokens = re.findall(r"[a-zA-Z][a-zA-Z0-9+#.-]*", (text or "").lower())
+    meaningful = [token for token in tokens if token not in _ANSWER_STOPWORDS]
+    return len(tokens) <= 2 or len(meaningful) == 0 or (len(tokens) <= 4 and len(meaningful) <= 1)
+
+
+def _non_answer_result(question: QuestionItem) -> EvaluationResult:
+    """Return a strict, transparent minimum score for a non-answer."""
+    feedback = "This response does not address the interview question. A greeting or a few generic words provide no assessable explanation, reasoning, or evidence."
+    rubric = {}
+    for key, meta in RUBRIC_CRITERIA_META.items():
+        rubric[key] = RubricScore(
+            criterion=key, display_name=meta["display_name"], score=1.0,
+            feedback=feedback if key != "clarity" else "The words are understandable, but there is not enough answer content to assess professional communication.",
+        )
+    return EvaluationResult(
+        overall_score=1.0, rubric_scores=rubric, key_strengths=[],
+        actionable_improvements=[
+            "Answer the exact question instead of using a greeting or filler.",
+            "Explain the relevant concept or approach in complete sentences.",
+            "Add one accurate mechanism, example, or reason that supports your answer.",
+        ],
+        stronger_answer_outline=generate_ethical_outline(question),
+        suggested_followup_question="Could you explain the core idea in your own words and give one relevant example?",
+    )
+
+
 def evaluate_heuristically(
     question: QuestionItem,
     candidate_answer: str,
@@ -512,6 +540,12 @@ def evaluate_with_llm(
     from .config import get_llm_config, get_setting
 
     validate_answer_relevance(question, candidate_answer)
+    combined_response = (candidate_answer or "").strip()
+    if followup_answer:
+        combined_response += " " + followup_answer.strip()
+    if _is_non_answer(combined_response):
+        return _non_answer_result(question)
+
     configured = get_llm_config()
     provider = (provider or configured.get("provider") or "heuristic").strip().lower()
     supported_providers = {"groq", "gemini", "openai", "heuristic"}
@@ -540,9 +574,14 @@ def evaluate_with_llm(
     )
     model_name = model_name or configured_model or default_models[provider]
 
-    if provider == "heuristic" or not api_key:
-        logger.info("No LLM API key provided; using intelligent heuristic evaluation engine.")
+    if provider == "heuristic":
+        logger.info("Built-in offline evaluation explicitly selected.")
         return evaluate_heuristically(question, candidate_answer, followup_answer, candidate_context)
+    if not api_key:
+        raise RuntimeError(
+            f"No API key is configured for {provider.upper()}. Add the matching key in Streamlit Secrets "
+            "or select Built-In Offline Engine explicitly."
+        )
 
     # If key is available, attempt live LLM evaluation with strict ethical prompt
     system_prompt = (
@@ -637,7 +676,7 @@ Format output as pure JSON:
                 data = json.loads(raw_text)
                 return _parse_llm_json(data, question, candidate_answer=candidate_answer)
             else:
-                logger.warning(f"Groq API returned status {resp.status_code}; falling back to heuristic.")
+                raise RuntimeError(f"Groq evaluation failed (HTTP {resp.status_code}). Check the key, model access, and quota.")
 
         elif provider == "gemini":
             # Call Google Gemini API (v1beta)
@@ -658,7 +697,7 @@ Format output as pure JSON:
                 data = json.loads(raw_text)
                 return _parse_llm_json(data, question, candidate_answer=candidate_answer)
             else:
-                logger.warning(f"Gemini API returned status {resp.status_code}; falling back to heuristic.")
+                raise RuntimeError(f"Gemini evaluation failed (HTTP {resp.status_code}). Check the key, model access, and quota.")
 
         else:
             # OpenAI compatible endpoint
@@ -680,12 +719,20 @@ Format output as pure JSON:
                 data = json.loads(raw_text)
                 return _parse_llm_json(data, question, candidate_answer=candidate_answer)
             else:
-                logger.warning(f"OpenAI API returned status {resp.status_code}; falling back to heuristic.")
+                raise RuntimeError(f"OpenAI evaluation failed (HTTP {resp.status_code}). Check the key, model access, and quota.")
 
-    except Exception as e:
-        logger.warning(f"LLM evaluation failed ({e}); falling back to heuristic evaluation.")
-
-    return evaluate_heuristically(question, candidate_answer, followup_answer, candidate_context)
+    except RuntimeError:
+        raise
+    except requests.RequestException as exc:
+        logger.warning("LLM evaluation request failed for provider %s.", provider)
+        raise RuntimeError(
+            f"Could not reach {provider.upper()} for answer evaluation. Check the app network connection."
+        ) from exc
+    except Exception as exc:
+        logger.exception("LLM evaluation failed while parsing provider response.")
+        raise RuntimeError(
+            f"{provider.upper()} returned an invalid evaluation response. Please retry or check the selected model."
+        ) from exc
 
 
 def _parse_llm_json(data: dict, question: QuestionItem, candidate_answer: str = "") -> EvaluationResult:
