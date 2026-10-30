@@ -255,7 +255,12 @@ def get_active_llm_settings() -> dict:
         "OpenAI GPT-4o Mini": "openai",
         "Built-In Offline Engine": "heuristic",
     }
-    provider = provider_by_label.get(selection, configured.get("provider") or "heuristic")
+    # Auto mode prefers Gemini for answer evaluation when both provider keys exist.
+    # Groq is reserved for speech transcription by get_speech_settings().
+    if selection == "Auto (via .env / Secrets)" and configured.get("gemini_api_key"):
+        provider = "gemini"
+    else:
+        provider = provider_by_label.get(selection, configured.get("provider") or "heuristic")
     if provider not in {"groq", "gemini", "openai", "heuristic"}:
         provider = "heuristic"
 
@@ -281,6 +286,16 @@ def get_active_llm_settings() -> dict:
             if provider == configured.get("provider")
             else default_models[provider]
         ),
+    }
+
+
+def get_speech_settings() -> dict:
+    """Always use the dedicated Groq Whisper key for audio transcription."""
+    configured = get_llm_config()
+    return {
+        "provider": "groq",
+        "api_key": configured.get("groq_api_key"),
+        "model_name": os.environ.get("GROQ_TRANSCRIPTION_MODEL", "whisper-large-v3-turbo"),
     }
 
 
@@ -996,16 +1011,22 @@ if active_section == "mock_interview":
                     st.warning("Record an audio answer, or use the typed-answer option above.")
                 else:
                     try:
-                        settings = get_active_llm_settings()
-                        transcript = transcribe_audio(
-                            audio_answer.getvalue(),
-                            getattr(audio_answer, "type", None) or "audio/wav",
-                            settings.get("provider", "heuristic"),
-                            settings.get("api_key"),
-                            settings.get("model_name"),
-                        )
+                        speech_settings = get_speech_settings()
+                        if not speech_settings.get("api_key"):
+                            raise RuntimeError(
+                                "GROQ_API_KEY is missing. Add it to Streamlit Secrets to enable fast voice transcription."
+                            )
+                        with st.spinner("Transcribing audio with Groq Whisper..."):
+                            transcript = transcribe_audio(
+                                audio_answer.getvalue(),
+                                getattr(audio_answer, "type", None) or "audio/wav",
+                                speech_settings["provider"],
+                                speech_settings["api_key"],
+                                speech_settings["model_name"],
+                            )
                         turn.initial_answer = transcript
-                        with st.spinner("Evaluating your spoken answer and generating a follow-up…"):
+                        st.success("Audio transcribed. Evaluating your answer with Gemini...")
+                        with st.spinner("Evaluating your spoken answer with Gemini and generating a follow-up..."):
                             init_eval = evaluate_with_llm(
                                 q_item,
                                 turn.initial_answer,
@@ -1080,14 +1101,19 @@ if active_section == "mock_interview":
                         st.warning("Record a follow-up answer, or use the typed-answer option above.")
                     else:
                         try:
-                            settings = get_active_llm_settings()
-                            transcript = transcribe_audio(
-                                followup_audio.getvalue(),
-                                getattr(followup_audio, "type", None) or "audio/wav",
-                                settings.get("provider", "heuristic"),
-                                settings.get("api_key"),
-                                settings.get("model_name"),
-                            )
+                            speech_settings = get_speech_settings()
+                            if not speech_settings.get("api_key"):
+                                raise RuntimeError(
+                                    "GROQ_API_KEY is missing. Add it to Streamlit Secrets to enable fast voice transcription."
+                                )
+                            with st.spinner("Transcribing follow-up with Groq Whisper..."):
+                                transcript = transcribe_audio(
+                                    followup_audio.getvalue(),
+                                    getattr(followup_audio, "type", None) or "audio/wav",
+                                    speech_settings["provider"],
+                                    speech_settings["api_key"],
+                                    speech_settings["model_name"],
+                                )
                             turn.followup_answer = transcript
                             st.markdown("**Follow-up transcript to be evaluated**")
                             st.write(transcript)
