@@ -899,7 +899,7 @@ def generate_dynamic_ai_technical_question(
                 url = "https://api.groq.com/openai/v1/chat/completions"
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                 payload = {
-                    "model": model_name or "llama-3.3-70b-versatile",
+                    "model": model_name or "openai/gpt-oss-120b",
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.3,
                     "response_format": {"type": "json_object"}
@@ -909,7 +909,7 @@ def generate_dynamic_ai_technical_question(
                     raw = resp.json()["choices"][0]["message"]["content"]
                     data = json.loads(raw)
                     return QuestionItem(
-                        id=f"dyn_ai_{int(time.time())}",
+                        id=f"dyn_ai_{time.time_ns()}",
                         category=QuestionCategory.TECHNICAL,
                         role=role,
                         question_text=data.get("question_text", f"Explain the core technical mechanics and trade-offs of {clean_topic}."),
@@ -929,7 +929,7 @@ def generate_dynamic_ai_technical_question(
                     raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                     data = json.loads(raw)
                     return QuestionItem(
-                        id=f"dyn_ai_{int(time.time())}",
+                        id=f"dyn_ai_{time.time_ns()}",
                         category=QuestionCategory.TECHNICAL,
                         role=role,
                         question_text=data.get("question_text", f"Explain the core technical mechanics and trade-offs of {clean_topic}."),
@@ -951,7 +951,7 @@ def generate_dynamic_ai_technical_question(
                     raw = resp.json()["choices"][0]["message"]["content"]
                     data = json.loads(raw)
                     return QuestionItem(
-                        id=f"dyn_ai_{int(time.time())}",
+                        id=f"dyn_ai_{time.time_ns()}",
                         category=QuestionCategory.TECHNICAL,
                         role=role,
                         question_text=data.get("question_text", f"Explain the core technical mechanics and trade-offs of {clean_topic}."),
@@ -995,24 +995,24 @@ def generate_dynamic_ai_technical_question(
         q_text = f"Evaluate {clean_topic} against a simpler alternative for a small team. Compare operational cost, complexity, reliability, and maintainability, then justify when each choice is appropriate."
         followup = "What evidence would convince you to migrate away from your preferred option?"
 
-    if "kafka" in topic_lower or "queue" in topic_lower:
+    if not variation_hint and ("kafka" in topic_lower or "queue" in topic_lower):
         q_text = "Explain the mechanics of partition rebalancing and consumer offset commits in an event stream like Kafka. How do you prevent message loss and duplicate processing (at-least-once vs exactly-once semantics)?"
         followup = "What happens if a consumer's processing time exceeds the max poll interval during a heavy batch?"
-    elif "cache" in topic_lower or "redis" in topic_lower:
+    elif not variation_hint and ("cache" in topic_lower or "redis" in topic_lower):
         q_text = "Compare the Cache-Aside pattern with Write-Through and Write-Behind. How do you design cache eviction and invalidation when multiple application nodes update shared state?"
         followup = "How do you mitigate a Cache Stampede (thundering herd) when a hot key expires under 50,000 QPS?"
-    elif "rag" in topic_lower or "vector" in topic_lower or "llm" in topic_lower:
+    elif not variation_hint and ("rag" in topic_lower or "vector" in topic_lower or "llm" in topic_lower):
         q_text = "Explain the end-to-end retrieval flow in a production RAG system. How do chunk size, overlapping boundaries, and vector index choices (HNSW vs IVFFlat) impact recall, latency, and context window economics?"
         followup = "How do you detect and rerank retrieved chunks to eliminate conflicting or hallucinated context before LLM synthesis?"
-    elif "btree" in topic_lower or "index" in topic_lower or "sql" in topic_lower:
+    elif not variation_hint and ("btree" in topic_lower or "index" in topic_lower or "sql" in topic_lower):
         q_text = "Explain how database indexing utilizes B-Trees and composite indexes. Why does column ordering matter for the leading-prefix rule, and what is the exact write amplification cost on disk pages during inserts?"
         followup = "What causes the database query planner to ignore an index and execute a sequential scan even when an index exists?"
-    elif "concurrency" in topic_lower or "lock" in topic_lower:
+    elif not variation_hint and ("concurrency" in topic_lower or "lock" in topic_lower):
         q_text = "Compare Pessimistic Locking with Optimistic Concurrency Control (OCC) using versioning. In a high-concurrency seat-booking system, how do you prevent race conditions without starving worker threads?"
         followup = "How would you structure a deadlock detector to identify circular wait graphs in a distributed transaction?"
 
     return QuestionItem(
-        id=f"dyn_tech_{int(time.time())}",
+        id=f"dyn_tech_{time.time_ns()}",
         category=QuestionCategory.TECHNICAL,
         role=role,
         question_text=q_text,
