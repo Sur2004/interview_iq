@@ -20,7 +20,7 @@ def transcribe_audio(audio_bytes: bytes, mime_type: str, provider: str, api_key:
     if not audio_bytes:
         raise ValueError("Record an answer before submitting.")
     if not api_key or provider not in {"gemini", "groq", "openai"}:
-        raise ValueError("Voice transcription requires a configured Gemini or Groq API key.")
+        raise ValueError("Voice transcription requires a configured Gemini, Groq, or OpenAI API key.")
     mime_type = mime_type or "audio/wav"
 
     if provider in {"groq", "openai"}:
