@@ -995,6 +995,22 @@ def generate_dynamic_ai_technical_question(
         q_text = f"Evaluate {clean_topic} against a simpler alternative for a small team. Compare operational cost, complexity, reliability, and maintainability, then justify when each choice is appropriate."
         followup = "What evidence would convince you to migrate away from your preferred option?"
 
+    elif "database" in angle or "query planning" in angle:
+        q_text = f"A workload using {clean_topic} has slow queries and lock contention. Explain how you would inspect query plans, choose indexes, and preserve transaction correctness."
+        followup = "How would you confirm the index improves the real workload without creating unacceptable write overhead?"
+    elif "api reliability" in angle or "rate limiting" in angle:
+        q_text = f"An API built around {clean_topic} is receiving bursts of traffic and inconsistent client retries. Design rate limits, timeout budgets, idempotency, and backward-compatible error handling."
+        followup = "How would you prevent retry storms when a downstream dependency is degraded?"
+    elif "deployment" in angle or "rollback" in angle:
+        q_text = f"You need to deploy a breaking change involving {clean_topic} without downtime. Explain the migration sequence, compatibility window, observability checks, and rollback plan."
+        followup = "What would make you stop the rollout, and how would you safely roll back after partial adoption?"
+    elif "data pipeline" in angle or "delayed events" in angle:
+        q_text = f"A pipeline using {clean_topic} receives duplicated, delayed, and out-of-order events. Design validation, idempotent processing, replay, and reconciliation controls."
+        followup = "How would you detect silent data loss and prove that a replay is safe?"
+    elif "latency profiling" in angle or "memory pressure" in angle:
+        q_text = f"A service using {clean_topic} has rising tail latency and memory pressure under load. Explain how you would profile it, isolate the bottleneck, and validate an optimisation."
+        followup = "Which percentile and resource metrics would you monitor before and after the change?"
+
     if not variation_hint and ("kafka" in topic_lower or "queue" in topic_lower):
         q_text = "Explain the mechanics of partition rebalancing and consumer offset commits in an event stream like Kafka. How do you prevent message loss and duplicate processing (at-least-once vs exactly-once semantics)?"
         followup = "What happens if a consumer's processing time exceeds the max poll interval during a heavy batch?"
