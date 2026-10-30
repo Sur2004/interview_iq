@@ -1169,42 +1169,37 @@ if active_section == "mock_interview":
 if active_section == "technical_challenge":
     st.header("⚡ Build and Practice a Technical Challenge")
     st.write(
-        "Generate a fresh set of 5–10 technical interview questions, answer each one, "
-        "and receive individual rubric-based feedback. Generate another set whenever you want."
+        "Generate three technical challenges on the same topic: Beginner, Intermediate, and Advanced. "
+        "Each challenge contains 5–10 questions and every answer receives individual AI rubric feedback."
     )
 
     with st.container(border=True):
-        st.subheader("1. Set up your challenge")
-        col_g1, col_g2 = st.columns([2, 1])
-        with col_g1:
-            custom_topic = st.text_input(
-                "Topic or technology",
-                value="Kafka Partition Rebalancing & Consumer Lag",
-                placeholder="For example: SQL indexes, Python concurrency, RAG, Redis caching",
-                help="All five questions focus on this topic from different engineering angles.",
-                key="challenge_topic",
-            )
-        with col_g2:
-            challenge_question_count = st.slider(
-                "Questions in this challenge",
-                min_value=5,
-                max_value=10,
-                value=5,
-                step=1,
-                key="challenge_question_count",
-                help="Choose between five and ten questions. Every submitted answer is evaluated separately.",
-            )
-            custom_difficulty = st.selectbox(
-                "Difficulty",
-                ["Internship / Entry-Level", "Mid-Level Engineer", "Staff / Principal Architect"],
-                index=0,
-                help="Choose the level you want the questions to target.",
-                key="challenge_difficulty",
-            )
+        st.subheader("1. Set up your challenges")
+        custom_topic = st.text_input(
+            "Topic or technology",
+            value="Kafka Partition Rebalancing & Consumer Lag",
+            placeholder="For example: SQL indexes, Python concurrency, RAG, Redis caching",
+            help="All three difficulty levels will focus on this topic.",
+            key="challenge_topic",
+        )
+        challenge_question_count = st.slider(
+            "Questions in each challenge",
+            min_value=5,
+            max_value=10,
+            value=5,
+            step=1,
+            key="challenge_question_count",
+            help="Each of the three challenges contains this many questions.",
+        )
+        challenge_levels = [
+            ("Beginner", "Internship / Entry-Level"),
+            ("Intermediate", "Mid-Level Engineer"),
+            ("Advanced", "Staff / Principal Architect"),
+        ]
 
-        if st.button("🔄 Generate New Challenge Set", type="primary", use_container_width=True, key="generate_dynamic_challenge"):
+        if st.button("🔄 Generate 3 Challenges", type="primary", use_container_width=True, key="generate_dynamic_challenge"):
             if not custom_topic.strip():
-                st.warning("Enter a topic before generating a challenge set.")
+                st.warning("Enter a topic before generating the challenges.")
             else:
                 focus_pool = [
                     "production incident diagnosis, logs, and observability",
@@ -1221,30 +1216,30 @@ if active_section == "technical_challenge":
                 previous_shift = st.session_state.get("challenge_focus_shift", -1)
                 shift = (previous_shift + 1) % len(focus_pool)
                 st.session_state["challenge_focus_shift"] = shift
-                # A sliding window from ten angles guarantees each refresh
-                # replaces at least one question focus instead of only shuffling order.
-                focus_angles = [
-                    focus_pool[(shift + offset) % len(focus_pool)]
-                    for offset in range(challenge_question_count)
-                ]
                 generated = []
+                generated_levels = []
                 settings = get_active_llm_settings()
-                with st.spinner(f"Generating {challenge_question_count} different technical questions..."):
-                    for angle in focus_angles:
-                        generated.append(
-                            generate_dynamic_ai_technical_question(
-                                topic=custom_topic.strip(),
-                                variation_hint=angle,
-                                role=target_role,
-                                experience_level=custom_difficulty,
-                                **settings,
+                total_questions = challenge_question_count * len(challenge_levels)
+                with st.spinner(f"Generating 3 challenges with {total_questions} questions..."):
+                    for level_index, (level_label, experience_level) in enumerate(challenge_levels):
+                        for question_index in range(challenge_question_count):
+                            angle = focus_pool[(shift + level_index * challenge_question_count + question_index) % len(focus_pool)]
+                            generated.append(
+                                generate_dynamic_ai_technical_question(
+                                    topic=custom_topic.strip(),
+                                    variation_hint=f"{level_label} difficulty: {angle}",
+                                    role=target_role,
+                                    experience_level=experience_level,
+                                    **settings,
+                                )
                             )
-                        )
+                            generated_levels.append(level_label)
                 token = uuid.uuid4().hex
                 st.session_state["challenge_set"] = generated
+                st.session_state["challenge_set_levels"] = generated_levels
                 st.session_state["challenge_set_token"] = token
                 st.session_state["challenge_set_topic"] = custom_topic.strip()
-                st.session_state["challenge_set_difficulty"] = custom_difficulty
+                st.session_state["challenge_set_difficulty"] = "Beginner · Intermediate · Advanced"
                 st.session_state["challenge_set_results"] = None
                 st.rerun()
 
@@ -1252,10 +1247,10 @@ if active_section == "technical_challenge":
     challenge_token = st.session_state.get("challenge_set_token")
     if challenge_set:
         st.markdown("---")
-        st.subheader(f"2. Your challenge set · {len(challenge_set)} questions")
+        st.subheader("2. Your three technical challenges")
         st.caption(
             f"Topic: {st.session_state.get('challenge_set_topic', custom_topic)} · "
-            f"Level: {st.session_state.get('challenge_set_difficulty', custom_difficulty)}"
+            f"{len(challenge_set)} questions total · {challenge_question_count} per difficulty"
         )
         ai_count = sum(1 for question in challenge_set if question.generation_source == "ai")
         if ai_count == len(challenge_set):
@@ -1264,26 +1259,33 @@ if active_section == "technical_challenge":
             st.warning(f"{ai_count} of {len(challenge_set)} questions came from AI; the rest used offline fallback.")
         else:
             st.info("These questions came from the built-in offline generator. Configure and test an AI API key for live generation.")
-        for idx, question in enumerate(challenge_set, 1):
-            st.markdown(f"### Question {idx}")
-            st.markdown(question.question_text)
-            st.caption(f"Focus: {question.competency_or_topic}")
-            with st.expander("Follow-up and answer guidance", expanded=False):
-                st.markdown(f"**Follow-up:** {question.default_followup}")
-                for hint in question.rubric_hints:
-                    st.markdown(f"- {hint}")
 
+        saved_levels = st.session_state.get("challenge_set_levels", ["Beginner"] * len(challenge_set))
         with st.form(f"challenge_answers_{challenge_token}"):
             challenge_answers = {}
-            for idx, question in enumerate(challenge_set, 1):
-                challenge_answers[question.id] = st.text_area(
-                    f"Your answer to Question {idx}",
-                    key=f"challenge_answer_{challenge_token}_{idx}",
-                    height=150,
-                    placeholder="Explain the concept, your approach, trade-offs, edge cases and a practical example...",
-                )
+            for level_label, _experience_level in challenge_levels:
+                level_questions = [
+                    (idx, question) for idx, question in enumerate(challenge_set)
+                    if idx < len(saved_levels) and saved_levels[idx] == level_label
+                ]
+                st.markdown(f"### {level_label} Challenge")
+                for idx, question in level_questions:
+                    st.markdown(f"**Question {idx + 1}**")
+                    st.markdown(question.question_text)
+                    st.caption(f"Focus: {question.competency_or_topic}")
+                    with st.expander("Follow-up and answer guidance", expanded=False):
+                        st.markdown(f"**Follow-up:** {question.default_followup}")
+                        for hint in question.rubric_hints:
+                            st.markdown(f"- {hint}")
+                    challenge_answers[question.id] = st.text_area(
+                        f"Your answer · {level_label} · Question {idx + 1}",
+                        key=f"challenge_answer_{challenge_token}_{idx}",
+                        height=130,
+                        placeholder="Explain the concept, your approach, trade-offs, edge cases and a practical example...",
+                    )
+                    st.divider()
             evaluate_all = st.form_submit_button(
-                "Evaluate All Answers",
+                "Evaluate All 3 Challenges",
                 type="primary",
                 use_container_width=True,
             )
@@ -1291,11 +1293,12 @@ if active_section == "technical_challenge":
         if evaluate_all:
             results = []
             settings = get_active_llm_settings()
-            with st.spinner("Evaluating your answers against the four-part interview rubric..."):
-                for question in challenge_set:
+            with st.spinner("Evaluating each answer against the four-part interview rubric..."):
+                for idx, question in enumerate(challenge_set):
                     answer = (challenge_answers.get(question.id) or "").strip()
+                    level_label = saved_levels[idx] if idx < len(saved_levels) else "Challenge"
                     if not answer:
-                        results.append({"question": question, "answer": "", "evaluation": None, "error": "No answer submitted."})
+                        results.append({"question": question, "level": level_label, "answer": "", "evaluation": None, "error": "No answer submitted."})
                         continue
                     try:
                         evaluation = evaluate_with_llm(
@@ -1304,9 +1307,9 @@ if active_section == "technical_challenge":
                             candidate_context=candidate_context,
                             **settings,
                         )
-                        results.append({"question": question, "answer": answer, "evaluation": evaluation, "error": None})
+                        results.append({"question": question, "level": level_label, "answer": answer, "evaluation": evaluation, "error": None})
                     except (ValueError, RuntimeError) as exc:
-                        results.append({"question": question, "answer": answer, "evaluation": None, "error": str(exc)})
+                        results.append({"question": question, "level": level_label, "answer": answer, "evaluation": None, "error": str(exc)})
             st.session_state["challenge_set_results"] = results
             st.rerun()
 
@@ -1316,25 +1319,33 @@ if active_section == "technical_challenge":
             if scored:
                 average = sum(item.overall_score for item in scored) / len(scored)
                 st.metric("Overall challenge score", f"{average:.1f} / 5.0", help=f"Average across {len(scored)} evaluated answers.")
-            for idx, item in enumerate(results, 1):
-                with st.expander(f"Question {idx} · Evaluation", expanded=(idx == 1)):
-                    if not item.get("evaluation"):
-                        st.warning(item.get("error") or "This answer was not evaluated.")
-                        continue
-                    result = item["evaluation"]
-                    st.metric("Practice score", f"{result.overall_score:.1f} / 5.0")
-                    st.markdown("**What you did well**")
-                    for strength in result.key_strengths:
-                        st.markdown(f"- {strength}")
-                    st.markdown("**What to improve**")
-                    for improvement in result.actionable_improvements:
-                        st.markdown(f"- {improvement}")
-                    st.markdown("**Rubric breakdown**")
-                    for rubric in result.rubric_scores.values():
-                        st.markdown(f"**{rubric.display_name}: {rubric.score:.1f}/5** — {rubric.feedback}")
-                    if result.stronger_answer_outline:
-                        with st.expander("Suggested answer structure", expanded=False):
-                            st.markdown(result.stronger_answer_outline)
+            for level_label, _experience_level in challenge_levels:
+                level_results = [item for item in results if item.get("level") == level_label]
+                if not level_results:
+                    continue
+                level_scored = [item["evaluation"] for item in level_results if item.get("evaluation")]
+                if level_scored:
+                    level_average = sum(item.overall_score for item in level_scored) / len(level_scored)
+                    st.subheader(f"{level_label} · {level_average:.1f}/5 average")
+                for idx, item in enumerate(level_results, 1):
+                    with st.expander(f"{level_label} · Question {idx} evaluation", expanded=(idx == 1)):
+                        if not item.get("evaluation"):
+                            st.warning(item.get("error") or "This answer was not evaluated.")
+                            continue
+                        result = item["evaluation"]
+                        st.metric("Practice score", f"{result.overall_score:.1f} / 5.0")
+                        st.markdown("**What you did well**")
+                        for strength in result.key_strengths:
+                            st.markdown(f"- {strength}")
+                        st.markdown("**What to improve**")
+                        for improvement in result.actionable_improvements:
+                            st.markdown(f"- {improvement}")
+                        st.markdown("**Rubric breakdown**")
+                        for rubric in result.rubric_scores.values():
+                            st.markdown(f"**{rubric.display_name}: {rubric.score:.1f}/5** — {rubric.feedback}")
+                        if result.stronger_answer_outline:
+                            with st.expander("Suggested answer structure", expanded=False):
+                                st.markdown(result.stronger_answer_outline)
 
 # TAB 3: SPOT THE FLAW INTERACTIVE GAME
 # ==============================================================================
