@@ -1170,7 +1170,7 @@ if active_section == "technical_challenge":
     st.header("⚡ Build and Practice a Technical Challenge")
     st.write(
         "Generate three technical challenges on the same topic: Beginner, Intermediate, and Advanced. "
-        "Each challenge contains 5–10 questions and every answer receives individual AI rubric feedback."
+        "Each round contains exactly three questions: one Beginner, one Intermediate, and one Advanced. Each answer is scored separately with rubric feedback."
     )
 
     with st.container(border=True):
@@ -1183,7 +1183,6 @@ if active_section == "technical_challenge":
             key="challenge_topic",
         )
         st.info("Exactly 3 questions are generated per round: one Beginner, one Intermediate, and one Advanced.")
-        challenge_question_count = 1
         challenge_levels = [
             ("Beginner", "Internship / Entry-Level"),
             ("Intermediate", "Mid-Level Engineer"),
