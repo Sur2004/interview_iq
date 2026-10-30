@@ -904,6 +904,7 @@ def generate_dynamic_ai_technical_question(
     role: str = "Software Engineering",
     experience_level: str = "Graduate / Entry-Level (0-1 yrs)",
     variation_hint: Optional[str] = None,
+    difficulty_level: str = "Intermediate",
     api_key: Optional[str] = None,
     provider: Optional[str] = None,
     model_name: Optional[str] = None,
@@ -940,10 +941,12 @@ def generate_dynamic_ai_technical_question(
         try:
             import requests
             prompt = (
-                f"You are a Principal Software Architect interviewing a {experience_level} candidate for a {role} role. "
-                f"Generate an in-depth technical interview question focused on '{clean_topic}'. "
-                f"Use this fresh angle and make the resulting question meaningfully different: '{variation_hint or 'a new practical engineering scenario'}'. "
-                "Do not simply append the angle to a generic question. Include concrete technical mechanisms, trade-offs, and failure modes. "
+                f"You are an expert interviewer for the {role} role. The candidate level is {experience_level}. "
+                f"Create exactly ONE {difficulty_level.upper()}-level technical interview question about {clean_topic}. "
+                f"Beginner tests core concepts and simple application; Intermediate requires applying concepts, diagnosing a realistic issue, and explaining trade-offs; Advanced requires system-level reasoning, scale, security, failure modes, and architectural trade-offs. "
+                f"Required distinct scenario/focus: {variation_hint or 'a new practical engineering scenario'}. "
+                "The question MUST be materially different from the other difficulty levels, match the requested level, and be specific to the selected role. Do not return the same generic definition question for every level. "
+                "Include a concrete scenario, technical mechanisms, and level-appropriate constraints. "
                 "Return JSON matching: "
                 '{"question_text": "...", "competency_or_topic": "...", "rubric_hints": ["...", "...", "..."], "default_followup": "..."}'
             )
@@ -958,10 +961,12 @@ def generate_dynamic_ai_technical_question(
                 }
                 resp = requests.post(url, headers=headers, json=payload, timeout=30)
                 if resp.status_code != 200:
-                    raise RuntimeError(f"{provider.toUpperCase()} API returned HTTP {resp.status_code}.")
+                    raise RuntimeError(f"{provider.upper()} API returned HTTP {resp.status_code}.")
                 if resp.status_code == 200:
                     raw = resp.json()["choices"][0]["message"]["content"]
                     data = json.loads(raw)
+                    if not isinstance(data, dict) or not str(data.get("question_text", "")).strip():
+                        raise ValueError("Provider returned an empty or invalid question.")
                     return QuestionItem(
                         id=f"dyn_ai_{time.time_ns()}",
                         category=QuestionCategory.TECHNICAL,
@@ -981,10 +986,12 @@ def generate_dynamic_ai_technical_question(
                 }
                 resp = requests.post(url, headers=headers, json=payload, timeout=30)
                 if resp.status_code != 200:
-                    raise RuntimeError(f"{provider.toUpperCase()} API returned HTTP {resp.status_code}.")
+                    raise RuntimeError(f"{provider.upper()} API returned HTTP {resp.status_code}.")
                 if resp.status_code == 200:
                     raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                     data = json.loads(raw)
+                    if not isinstance(data, dict) or not str(data.get("question_text", "")).strip():
+                        raise ValueError("Provider returned an empty or invalid question.")
                     return QuestionItem(
                         id=f"dyn_ai_{time.time_ns()}",
                         category=QuestionCategory.TECHNICAL,
@@ -1006,7 +1013,7 @@ def generate_dynamic_ai_technical_question(
                 }
                 resp = requests.post(url, headers=headers, json=payload, timeout=30)
                 if resp.status_code != 200:
-                    raise RuntimeError(f"{provider.toUpperCase()} API returned HTTP {resp.status_code}.")
+                    raise RuntimeError(f"{provider.upper()} API returned HTTP {resp.status_code}.")
                 if resp.status_code == 200:
                     raw = resp.json()["choices"][0]["message"]["content"]
                     data = json.loads(raw)
