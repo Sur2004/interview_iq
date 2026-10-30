@@ -11,7 +11,7 @@ InterviewIQ is a Streamlit application for technical and behavioral interview pr
 ### Main areas
 
 - **Mock Interview Studio:** A multi-turn interview flow with a primary answer, contextual follow-up, rubric scoring, and a session report.
-- **AI Technical Challenge Generator:** Creates a custom technical question from a topic and difficulty, accepts an answer, and returns rubric feedback.
+- **Three-level AI Technical Challenge:** Generates exactly three questions per round on one topic (Beginner, Intermediate, Advanced), collects three separate answers, and evaluates each answer independently. A selected hosted provider must return valid content; provider failures are surfaced rather than silently replaced with offline questions. The offline generator is used only when the offline engine is explicitly selected.
 - **Spot the Flaw Game:** Practice identifying weak interview responses.
 - **STAR Story Builder:** Helps structure authentic project/coursework examples.
 - **Question Bank / Playbooks / Analytics / Reports / Rubric:** Supporting question discovery, learning guidance, progress review, report export, and rubric explanation.
@@ -230,3 +230,19 @@ Prioritized by reliability and user impact:
 - Updated the README and project report to explain the new navigation control and reflect the current guest-mode/browser-local-storage behavior instead of requiring SMTP/OTP sign-in.
 - Updated the humanized project documentation to include all four team members and their responsibilities after the problem statement.
 - Verification limitation: the repository was inspected through GitHub file access, but a full local test run and real-browser check of the deployed Streamlit app were not available during this review. The added automated tests must be confirmed by the GitHub Actions run, and the live app should be checked after deployment refresh.
+
+
+## 4. Three-level challenge round and provider behavior
+
+The Technical Challenge page generates exactly three questions in one round:
+1. Beginner — Internship / Entry-Level framing.
+2. Intermediate — Mid-Level Engineer framing.
+3. Advanced — Staff / Principal Architect framing.
+
+Each level has one question and its own answer field. Submission evaluates each non-empty answer separately and displays per-answer rubric feedback and an average for the submitted answers. Refresh creates a new set with different engineering focus angles.
+
+When Groq, Gemini, or OpenAI is selected, generation and evaluation require that provider's own API key. Missing keys, unsuccessful HTTP responses, and invalid provider responses are reported as errors; the app does not silently substitute offline content. The built-in offline generator/evaluator is available only when the user explicitly selects the offline engine. Greeting-only or near-empty responses may be stopped by a deterministic relevance guard before an LLM request.
+
+## 5. Repository cleanup
+
+The canonical Streamlit entry point is app.py. The old app_full.py snapshot and unused components/interview_monitor/ implementation were removed after confirming that the active app imports neither; the active monitor component is components/interview_monitor_v2/. No API secrets are committed.
