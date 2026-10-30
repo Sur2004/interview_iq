@@ -856,6 +856,7 @@ def generate_dynamic_ai_technical_question(
     topic: str,
     role: str = "Software Engineering",
     experience_level: str = "Graduate / Entry-Level (0-1 yrs)",
+    variation_hint: Optional[str] = None,
     api_key: Optional[str] = None,
     provider: Optional[str] = None,
     model_name: Optional[str] = None,
@@ -889,7 +890,8 @@ def generate_dynamic_ai_technical_question(
             prompt = (
                 f"You are a Principal Software Architect interviewing a {experience_level} candidate for a {role} role. "
                 f"Generate an in-depth technical interview question focused on '{clean_topic}'. "
-                "Include concrete technical mechanisms, trade-offs, and failure modes. "
+                f"Use this fresh angle and make the resulting question meaningfully different: '{variation_hint or 'a new practical engineering scenario'}'. "
+                "Do not simply append the angle to a generic question. Include concrete technical mechanisms, trade-offs, and failure modes. "
                 "Return JSON matching: "
                 '{"question_text": "...", "competency_or_topic": "...", "rubric_hints": ["...", "...", "..."], "default_followup": "..."}'
             )
@@ -968,6 +970,7 @@ def generate_dynamic_ai_technical_question(
         "Real-world engineering trade-offs compared to simpler alternatives",
     ]
 
+    angle = (variation_hint or "").lower()
     q_text = (
         f"Deep-dive into {clean_topic}: Explain its architectural flow, how state is managed, "
         f"and how you would diagnose a performance bottleneck or race condition under 100x traffic."
@@ -976,6 +979,21 @@ def generate_dynamic_ai_technical_question(
         f"Under what specific production constraints would you explicitly reject {clean_topic} "
         f"in favor of a simpler, less distributed design?"
     )
+    if "incident" in angle or "observability" in angle:
+        q_text = f"A production system using {clean_topic} has started failing intermittently. Describe the logs, metrics, traces, and controlled experiments you would use to isolate the root cause and verify the fix."
+        followup = "Which alert would you add, and how would you avoid alert fatigue?"
+    elif "scaling" in angle or "capacity" in angle:
+        q_text = f"Your application using {clean_topic} must handle a sudden 20x traffic increase. Identify likely bottlenecks, estimate capacity, and propose a safe scaling plan with measurable validation."
+        followup = "What would you load-test first, and what metric would trigger a rollback?"
+    elif "security" in angle or "integrity" in angle:
+        q_text = f"Assess the security and data-integrity risks of using {clean_topic}. Explain the threat model, trust boundaries, validation controls, and recovery plan."
+        followup = "How would you test that the controls prevent the most important attack or corruption scenario?"
+    elif "concurrency" in angle or "consistency" in angle:
+        q_text = f"Two concurrent workers update shared state through {clean_topic} and produce inconsistent results. Explain the race, consistency guarantees, and a robust prevention strategy."
+        followup = "What failure or retry scenario could still produce duplicate or lost work?"
+    elif "cost" in angle or "maintainability" in angle:
+        q_text = f"Evaluate {clean_topic} against a simpler alternative for a small team. Compare operational cost, complexity, reliability, and maintainability, then justify when each choice is appropriate."
+        followup = "What evidence would convince you to migrate away from your preferred option?"
 
     if "kafka" in topic_lower or "queue" in topic_lower:
         q_text = "Explain the mechanics of partition rebalancing and consumer offset commits in an event stream like Kafka. How do you prevent message loss and duplicate processing (at-least-once vs exactly-once semantics)?"
