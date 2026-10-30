@@ -29,7 +29,7 @@ Create a key in the [Groq Console](https://console.groq.com/), then set:
 ```dotenv
 LLM_PROVIDER=groq
 GROQ_API_KEY=your_key_here
-MODEL_NAME=llama-3.3-70b-versatile
+MODEL_NAME=openai/gpt-oss-120b
 ```
 Check the [current Groq rate limits](https://console.groq.com/docs/rate-limits); availability and quotas depend on the account and model.
 
