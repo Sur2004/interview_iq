@@ -46,7 +46,7 @@ from backend.report_generator import (
 from backend.config import get_llm_config
 from backend.career_review import (extract_resume_pdf, fetch_public_repository, evaluate_candidate_materials, calculate_ats_score, generate_resume_based_questions)
 from backend.speech import transcribe_audio
-from backend.healthcheck import test_llm_connection
+from backend.healthcheck import check_llm_connection
 
 # Page configuration
 st.set_page_config(
@@ -620,7 +620,7 @@ with st.sidebar:
                     if st.button("Test AI API Connection", use_container_width=True, key="test_ai_provider_connection"):
                         try:
                             with st.spinner("Checking the selected provider and model..."):
-                                connection_message = test_llm_connection(active_settings["provider"], active_settings["api_key"], active_settings["model_name"])
+                                connection_message = check_llm_connection(active_settings["provider"], active_settings["api_key"], active_settings["model_name"])
                             st.session_state["ai_connection_test"] = ("success", connection_message)
                         except (ValueError, RuntimeError) as exc:
                             st.session_state["ai_connection_test"] = ("error", str(exc))
