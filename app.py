@@ -1169,7 +1169,7 @@ if active_section == "mock_interview":
 if active_section == "technical_challenge":
     st.header("⚡ Build and Practice a Technical Challenge")
     st.write(
-        "Generate a fresh set of five technical interview questions, answer each one, "
+        "Generate a fresh set of 5–10 technical interview questions, answer each one, "
         "and receive individual rubric-based feedback. Generate another set whenever you want."
     )
 
@@ -1185,6 +1185,15 @@ if active_section == "technical_challenge":
                 key="challenge_topic",
             )
         with col_g2:
+            challenge_question_count = st.slider(
+                "Questions in this challenge",
+                min_value=5,
+                max_value=10,
+                value=5,
+                step=1,
+                key="challenge_question_count",
+                help="Choose between five and ten questions. Every submitted answer is evaluated separately.",
+            )
             custom_difficulty = st.selectbox(
                 "Difficulty",
                 ["Internship / Entry-Level", "Mid-Level Engineer", "Staff / Principal Architect"],
@@ -1212,12 +1221,15 @@ if active_section == "technical_challenge":
                 previous_shift = st.session_state.get("challenge_focus_shift", -1)
                 shift = (previous_shift + 1) % len(focus_pool)
                 st.session_state["challenge_focus_shift"] = shift
-                # A sliding window of five from ten angles guarantees each refresh
+                # A sliding window from ten angles guarantees each refresh
                 # replaces at least one question focus instead of only shuffling order.
-                focus_angles = [focus_pool[(shift + offset) % len(focus_pool)] for offset in range(5)]
+                focus_angles = [
+                    focus_pool[(shift + offset) % len(focus_pool)]
+                    for offset in range(challenge_question_count)
+                ]
                 generated = []
                 settings = get_active_llm_settings()
-                with st.spinner("Generating five different technical questions..."):
+                with st.spinner(f"Generating {challenge_question_count} different technical questions..."):
                     for angle in focus_angles:
                         generated.append(
                             generate_dynamic_ai_technical_question(
