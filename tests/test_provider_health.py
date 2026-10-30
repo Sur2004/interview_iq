@@ -35,3 +35,57 @@ def test_groq_audio_transcription_returns_text():
     with patch("backend.speech.requests.post", return_value=response):
         transcript = transcribe_audio(b"fake-audio", "audio/webm", "groq", "test-secret")
     assert transcript.startswith("I would inspect the service logs")
+
+
+def test_ai_challenge_generation_requires_configured_provider_key():
+    from backend.evaluator import generate_dynamic_ai_technical_question
+
+    with pytest.raises(RuntimeError, match="No API key is configured"):
+        generate_dynamic_ai_technical_question(
+            "SQL indexing",
+            provider="groq",
+            api_key="",
+            model_name="openai/gpt-oss-120b",
+        )
+
+
+def test_ai_challenge_generation_does_not_fall_back_on_provider_error():
+    from backend.evaluator import generate_dynamic_ai_technical_question
+
+    response = Mock(status_code=401)
+    response.text = "unauthorized"
+    with patch("requests.post", return_value=response):
+        with pytest.raises(RuntimeError, match="GROQ question generation failed"):
+            generate_dynamic_ai_technical_question(
+                "SQL indexing",
+                provider="groq",
+                api_key="test-secret",
+                model_name="openai/gpt-oss-120b",
+            )
+
+
+def test_ai_challenge_generation_marks_live_questions_as_ai():
+    from backend.evaluator import generate_dynamic_ai_technical_question
+
+    response = Mock(status_code=200)
+    response.json.return_value = {
+        "choices": [{
+            "message": {
+                "content": (
+                    '{"question_text":"How would you design a composite index?",'
+                    '"competency_or_topic":"SQL indexing",'
+                    '"rubric_hints":["Query plan","Selectivity","Write cost"],'
+                    '"default_followup":"How would you validate the index?"}'
+                )
+            }
+        }]
+    }
+    with patch("requests.post", return_value=response):
+        question = generate_dynamic_ai_technical_question(
+            "SQL indexing",
+            provider="groq",
+            api_key="test-secret",
+            model_name="openai/gpt-oss-120b",
+        )
+    assert question.generation_source == "ai"
+    assert question.question_text == "How would you design a composite index?"
