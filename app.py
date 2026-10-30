@@ -1232,9 +1232,9 @@ if active_section == "technical_challenge":
                                     experience_level=experience_level,
                                     **settings,
                                 )
-                                normalized = re.sub(r"\\W+", " ", candidate.question_text.lower()).strip()
+                                normalized = re.sub(r"\W+", " ", candidate.question_text.lower()).strip()
                                 previous_normalized = {
-                                    re.sub(r"\\W+", " ", item.lower()).strip()
+                                    re.sub(r"\W+", " ", item.lower()).strip()
                                     for item in prior_questions
                                 }
                                 if normalized and normalized not in previous_normalized:
