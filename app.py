@@ -1548,146 +1548,110 @@ if active_section == "question_bank":
         horizontal=True,
     )
 
-    if b_type == "Behavioral Competencies (STAR)":
-        st.subheader("Behavioral Prompts with Rubric Expectations")
-        for q in BEHAVIORAL_QUESTIONS:
-            with st.expander(f"📌 {q['competency']}: {q['question_text']}"):
-                st.markdown(f"**Full Prompt:** {q['question_text']}")
-                st.markdown(f"**Default Follow-up Question:** *\"{q['default_followup']}\"*")
-                st.markdown("**What Interviewers Look For:**")
-                for h in q["rubric_hints"]:
-                    st.markdown(f"- {h}")
+    category_track = {
+        "Behavioral Competencies (STAR)": InterviewType.BEHAVIORAL.value,
+        "Role-Specific Technical Quizzes": InterviewType.TECHNICAL.value,
+        "Project Architecture & Deep-Dive": InterviewType.PROJECT_EXPLANATION.value,
+    }
+    default_track = category_track[b_type]
+    track_options = (
+        [InterviewType.TECHNICAL.value, InterviewType.COMPREHENSIVE.value]
+        if b_type == "Role-Specific Technical Quizzes"
+        else [default_track]
+    )
 
-    elif b_type == "Role-Specific Technical Quizzes":
-        st.subheader("Role-Specific Technical Quiz Session")
-        st.caption("Generate a fresh 5–8 question set for your selected role and interview track. A browser refresh starts a new set; use Generate New Quiz whenever you want another one.")
+    st.subheader("Generated 5–8 Question Practice Session")
+    st.caption("All three question-bank categories now generate a complete practice set. Select the role, difficulty, and question count, then answer and submit for rubric feedback.")
 
-        role_filter = st.selectbox("Select Domain:", list(TECHNICAL_QUESTIONS_BY_ROLE.keys()), key="qb_role_filter")
-        quiz_track = st.selectbox(
-            "Interview track",
-            [item.value for item in InterviewType],
-            index=[item.value for item in InterviewType].index(InterviewType.TECHNICAL.value),
-            key="qb_interview_track",
-        )
-        quiz_level = st.selectbox(
-            "Candidate level",
-            [item.value for item in ExperienceLevel],
-            key="qb_candidate_level",
-        )
-        quiz_count = st.slider("Questions in this quiz", min_value=5, max_value=8, value=6, key="qb_question_count")
-        quiz_config = (role_filter, quiz_track, quiz_level, quiz_count)
+    role_filter = st.selectbox("Target role / domain", [item.value for item in TargetRole], key="qb_role_filter")
+    quiz_track = st.selectbox("Interview format", track_options, key="qb_interview_track")
+    quiz_level = st.selectbox("Candidate level", [item.value for item in ExperienceLevel], key="qb_candidate_level")
+    quiz_count = st.slider("Questions in this session", min_value=5, max_value=8, value=6, key="qb_question_count")
+    quiz_config = (b_type, role_filter, quiz_track, quiz_level, quiz_count)
 
-        def _create_question_bank_quiz():
-            previous = st.session_state.get("question_bank_quiz", {})
-            previous_ids = {item.id for item in previous.get("questions", [])}
-            fresh_questions = []
-            for _ in range(12):
-                candidate_set = build_interview_plan(
-                    target_role=role_filter,
-                    experience_level=quiz_level,
-                    interview_type=quiz_track,
-                    num_questions=quiz_count,
-                )
-                fresh_questions = candidate_set
-                if {item.id for item in candidate_set} != previous_ids:
-                    break
-            st.session_state["question_bank_quiz"] = {
-                "config": quiz_config,
-                "questions": fresh_questions,
-                "token": uuid.uuid4().hex[:10],
-            }
-            st.session_state.pop("question_bank_quiz_results", None)
+    def _create_question_bank_quiz():
+        previous = st.session_state.get("question_bank_quiz", {})
+        previous_ids = {item.id for item in previous.get("questions", [])}
+        fresh_questions = []
+        for _ in range(12):
+            fresh_questions = build_interview_plan(
+                target_role=role_filter,
+                experience_level=quiz_level,
+                interview_type=quiz_track,
+                num_questions=quiz_count,
+            )
+            if {item.id for item in fresh_questions} != previous_ids:
+                break
+        st.session_state["question_bank_quiz"] = {
+            "config": quiz_config, "questions": fresh_questions, "token": uuid.uuid4().hex[:10]
+        }
+        st.session_state.pop("question_bank_quiz_results", None)
 
-        current_quiz = st.session_state.get("question_bank_quiz")
-        if not current_quiz or current_quiz.get("config") != quiz_config:
-            _create_question_bank_quiz()
+    current_quiz = st.session_state.get("question_bank_quiz")
+    if not current_quiz or current_quiz.get("config") != quiz_config:
+        _create_question_bank_quiz()
+    if st.button("🔄 Generate New Quiz", type="primary", use_container_width=True, key="generate_question_bank_quiz"):
+        _create_question_bank_quiz()
+        st.rerun()
 
-        if st.button("🔄 Generate New Quiz", type="primary", use_container_width=True, key="generate_question_bank_quiz"):
-            _create_question_bank_quiz()
-            st.rerun()
+    current_quiz = st.session_state["question_bank_quiz"]
+    quiz_questions, quiz_token = current_quiz["questions"], current_quiz["token"]
+    st.success(f"{len(quiz_questions)} questions generated · {b_type} · {role_filter}")
+    with st.form(f"question_bank_quiz_form_{quiz_token}"):
+        quiz_answers = {}
+        for idx, question in enumerate(quiz_questions, 1):
+            st.markdown(f"**Question {idx} · {question.competency_or_topic}**")
+            st.write(question.question_text)
+            quiz_answers[question.id] = st.text_area(
+                f"Your answer to question {idx}", key=f"qb_answer_{quiz_token}_{idx}",
+                height=110, placeholder="Explain the concept, reasoning, example, and trade-offs..."
+            )
+            if question.default_followup:
+                st.caption(f"Possible follow-up: {question.default_followup}")
+            st.divider()
+        submitted_quiz = st.form_submit_button("Submit session and evaluate answers", type="primary", use_container_width=True)
 
-        current_quiz = st.session_state["question_bank_quiz"]
-        quiz_questions = current_quiz["questions"]
-        quiz_token = current_quiz["token"]
-        st.success(f"{len(quiz_questions)} questions generated · {role_filter} · {quiz_track}")
-        st.caption("Answer each question in your own words. Submit once to receive individual rubric feedback and an overall practice score.")
+    if submitted_quiz:
+        quiz_results, active_quiz_settings = [], get_active_llm_settings()
+        with st.spinner("Evaluating your answers..."):
+            for question in quiz_questions:
+                answer = (quiz_answers.get(question.id) or "").strip()
+                if not answer:
+                    quiz_results.append({"question": question, "answer": "", "evaluation": None, "error": "No answer submitted."})
+                    continue
+                try:
+                    evaluation = evaluate_with_llm(
+                        question, answer,
+                        candidate_context=st.session_state.get("sb_candidate_context", "").strip(),
+                        **active_quiz_settings,
+                    )
+                    quiz_results.append({"question": question, "answer": answer, "evaluation": evaluation, "error": None})
+                except (ValueError, RuntimeError) as exc:
+                    quiz_results.append({"question": question, "answer": answer, "evaluation": None, "error": str(exc)})
+        st.session_state["question_bank_quiz_results"] = {"token": quiz_token, "results": quiz_results}
 
-        with st.form(f"question_bank_quiz_form_{quiz_token}"):
-            quiz_answers = {}
-            for idx, question in enumerate(quiz_questions, 1):
-                st.markdown(f"**Question {idx} · {question.competency_or_topic}**")
+    saved_results = st.session_state.get("question_bank_quiz_results")
+    if saved_results and saved_results.get("token") == quiz_token:
+        scores = [row["evaluation"].overall_score for row in saved_results["results"] if row.get("evaluation")]
+        if scores:
+            st.metric("Overall practice score", f"{sum(scores) / len(scores):.1f} / 5.0")
+            st.caption(f"{len(scores)} of {len(quiz_questions)} answers evaluated.")
+        for idx, row in enumerate(saved_results["results"], 1):
+            question, evaluation = row["question"], row.get("evaluation")
+            with st.expander(f"Question {idx} feedback · {question.competency_or_topic}"):
                 st.write(question.question_text)
-                quiz_answers[question.id] = st.text_area(
-                    f"Your answer to question {idx}",
-                    key=f"qb_answer_{quiz_token}_{idx}",
-                    height=110,
-                    placeholder="Explain the concept, reasoning, example, and relevant trade-offs...",
-                )
-                if question.default_followup:
-                    st.caption(f"Possible follow-up: {question.default_followup}")
-                st.divider()
-            submitted_quiz = st.form_submit_button("Submit quiz and evaluate answers", type="primary", use_container_width=True)
-
-        if submitted_quiz:
-            quiz_results = []
-            active_quiz_settings = get_active_llm_settings()
-            with st.spinner("Evaluating your quiz answers..."):
-                for question in quiz_questions:
-                    answer = (quiz_answers.get(question.id) or "").strip()
-                    if not answer:
-                        quiz_results.append({"question": question, "answer": "", "evaluation": None, "error": "No answer submitted."})
-                        continue
-                    try:
-                        evaluation = evaluate_with_llm(
-                            question,
-                            answer,
-                            candidate_context=st.session_state.get("sb_candidate_context", "").strip(),
-                            **active_quiz_settings,
-                        )
-                        quiz_results.append({"question": question, "answer": answer, "evaluation": evaluation, "error": None})
-                    except (ValueError, RuntimeError) as exc:
-                        quiz_results.append({"question": question, "answer": answer, "evaluation": None, "error": str(exc)})
-            st.session_state["question_bank_quiz_results"] = {"token": quiz_token, "results": quiz_results}
-
-        saved_quiz_results = st.session_state.get("question_bank_quiz_results")
-        if saved_quiz_results and saved_quiz_results.get("token") == quiz_token:
-            completed_scores = [
-                item["evaluation"].overall_score
-                for item in saved_quiz_results["results"]
-                if item.get("evaluation") is not None
-            ]
-            if completed_scores:
-                st.metric("Overall quiz score", f"{sum(completed_scores) / len(completed_scores):.1f} / 5.0")
-                st.caption(f"{len(completed_scores)} of {len(quiz_questions)} answers evaluated.")
-            for idx, item in enumerate(saved_quiz_results["results"], 1):
-                question = item["question"]
-                evaluation = item.get("evaluation")
-                with st.expander(f"Question {idx} feedback · {question.competency_or_topic}", expanded=(evaluation is None)):
-                    st.write(question.question_text)
-                    if evaluation is None:
-                        st.warning(item.get("error") or "No answer submitted.")
-                    else:
-                        st.metric("Practice score", f"{evaluation.overall_score:.1f} / 5.0")
-                        for criterion in evaluation.rubric_scores.values():
-                            st.markdown(f"**{criterion.display_name}: {criterion.score:.1f}/5** — {criterion.feedback}")
-                        if evaluation.key_strengths:
-                            st.markdown("**Strengths**")
-                            for strength in evaluation.key_strengths:
-                                st.markdown(f"- {strength}")
-                        if evaluation.actionable_improvements:
-                            st.markdown("**Improvements**")
-                            for improvement in evaluation.actionable_improvements:
-                                st.markdown(f"- {improvement}")
-
-    else:
-        st.subheader("Project Architecture & Engineering Retrospective Bank")
-        for q in PROJECT_QUESTIONS:
-            with st.expander(f"🏗️ {q['competency']}: {q['question_text']}"):
-                st.markdown(f"**Architecture Prompt:** {q['question_text']}")
-                st.markdown(f"**Follow-Up Probe:** *\"{q['default_followup']}\"*")
-                st.markdown("**Architectural Expectations:**")
-                for h in q["rubric_hints"]:
-                    st.markdown(f"- {h}")
+                if not evaluation:
+                    st.warning(row.get("error") or "Answer not evaluated.")
+                else:
+                    st.metric("Practice score", f"{evaluation.overall_score:.1f} / 5.0")
+                    for criterion in evaluation.rubric_scores.values():
+                        st.markdown(f"**{criterion.display_name}: {criterion.score:.1f}/5** — {criterion.feedback}")
+                    st.markdown("**Strengths**")
+                    for strength in evaluation.key_strengths:
+                        st.markdown(f"- {strength}")
+                    st.markdown("**Improvements**")
+                    for improvement in evaluation.actionable_improvements:
+                        st.markdown(f"- {improvement}")
 
 
 # ==============================================================================
