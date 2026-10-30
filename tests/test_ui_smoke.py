@@ -179,6 +179,43 @@ def test_generates_three_challenges_at_distinct_levels_and_refreshes():
     assert {item.question_text for item in second_set} != {item.question_text for item in first_set}
 
 
+def test_role_specific_question_bank_uses_selected_role():
+    app = build_offline_app("question_bank").run()
+    assert not app.exception
+    category = next(item for item in app.radio if item.label == "Question Category")
+    category.set_value("Role-Specific Technical Quizzes").run()
+    role_selector = next(item for item in app.selectbox if item.label == "Target role / domain")
+    role_selector.select("Cybersecurity & Information Security").run()
+    assert not app.exception
+    questions = app.session_state["question_bank_quiz"]["questions"]
+    assert len(questions) == 5
+    assert all(item.role == "Cybersecurity & Information Security" for item in questions)
+    assert all(item.category.value == "technical" for item in questions)
+    assert any(
+        any(term in item.competency_or_topic.lower() for term in ("security", "incident", "network"))
+        for item in questions
+    )
+
+
+
+def test_offline_challenge_questions_change_with_difficulty():
+    from backend.evaluator import generate_dynamic_ai_technical_question
+    questions = [
+        generate_dynamic_ai_technical_question(
+            topic="SQL indexing",
+            role="Software Engineering",
+            difficulty_level=level,
+            variation_hint="different database scenario",
+            provider="heuristic",
+        )
+        for level in ("Beginner", "Intermediate", "Advanced")
+    ]
+    assert len({item.question_text for item in questions}) == 3
+    assert "Beginner-level" in questions[0].question_text
+    assert "Intermediate-level" in questions[1].question_text
+    assert "Advanced system-design" in questions[2].question_text
+
+
 def test_typed_primary_answer_is_evaluated_offline():
     app = start_one_question_offline_app()
     answer = next(item for item in app.text_area if item.label == "Or type your answer")
