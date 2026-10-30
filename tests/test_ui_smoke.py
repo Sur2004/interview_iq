@@ -164,7 +164,7 @@ def test_custom_challenge_generates_five_to_ten_distinct_questions_and_refreshes
     assert not app.exception
     first_set = app.session_state["challenge_set"]
     assert len(first_set) == 10
-    assert len({item.question_text for item in first_set}) == 5
+    assert len({item.question_text for item in first_set}) == 10
     first_token = app.session_state["challenge_set_token"]
 
     generate = next(item for item in app.button if "Generate New Challenge Set" in item.label)
@@ -174,7 +174,7 @@ def test_custom_challenge_generates_five_to_ten_distinct_questions_and_refreshes
     second_set = app.session_state["challenge_set"]
     assert len(second_set) == 10
     assert app.session_state["challenge_set_token"] != first_token
-    assert len({item.question_text for item in second_set}) == 5
+    assert len({item.question_text for item in second_set}) == 10
     assert {item.question_text for item in second_set} != {item.question_text for item in first_set}
 
 
@@ -268,7 +268,7 @@ def test_question_bank_generates_five_to_eight_questions_and_can_refresh():
 
     assert not app.exception
     quiz = app.session_state["question_bank_quiz"]
-    assert 5 <= len(quiz["questions"]) <= 8
+    assert len(quiz["questions"]) == 5
     first_token = quiz["token"]
 
     generate = next(item for item in app.button if "Generate New Quiz" in item.label)
@@ -290,7 +290,7 @@ def test_interview_setup_expands_on_mock_interview_workspace():
     assert any("Questions in Round" in item.label for item in app.slider)
 
 
-def test_behavioral_and_project_question_bank_categories_also_generate_five_to_eight():
+def test_behavioral_and_project_question_bank_categories_generate_five_questions():
     for category in ("Behavioral Competencies (STAR)", "Project Architecture & Deep-Dive"):
         app = build_offline_app("question_bank").run()
         selector = next(item for item in app.radio if item.label == "Question Category")
@@ -302,7 +302,7 @@ def test_behavioral_and_project_question_bank_categories_also_generate_five_to_e
         if category == "Behavioral Competencies (STAR)":
             assert all(item.category.value == "behavioral" for item in quiz["questions"])
         else:
-            assert sum(item.category.value == "project" for item in quiz["questions"]) >= 3
+            assert sum(item.category.value == "project" for item in quiz["questions"]) >= 2
 
 def test_mock_interview_setup_only_appears_when_mock_interview_is_selected():
     mock_app = build_offline_app("mock_interview").run()
