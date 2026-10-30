@@ -37,7 +37,7 @@ def transcribe_audio(audio_bytes: bytes, mime_type: str, provider: str, api_key:
                 "Could not reach the speech transcription provider. Check your internet connection or use the typed-answer option."
             ) from exc
         if response.status_code != 200:
-            raise RuntimeError(f"Speech transcription failed ({provider.upper()} HTTP {response.status_code}). Check your key, quota, and audio format.")
+            raise RuntimeError(f"Speech transcription failed ({provider.capitalize()} HTTP {response.status_code}). Check your key, quota, and audio format.")
         transcript = response.json().get("text", "").strip()
     else:
         model = model_name or "gemini-3.8-flash"
