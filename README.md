@@ -70,7 +70,7 @@ Furthermore, existing automated tools often function as opaque "pass/fail" filte
 - **Language & Runtime:** Python 3.10+ (Standard Library: `dataclasses`, `re`, `json`, `smtplib`)
 - **Frontend Framework:** Streamlit 1.39+ (for `st.audio_input`)
 - **Styling & Visuals:** Sky Blue, White, and Black Cyber-Engineering theme with dynamic CSS animations
-- **AI Providers Supported:** Groq Cloud (`llama-3.3-70b-versatile`), Google Gemini (`gemini-3.8-flash`), OpenAI (`gpt-4o-mini`), and Built-In Offline Diagnostic Engine
+- **AI Providers Supported:** Groq Cloud (`openai/gpt-oss-120b`), Google Gemini (`gemini-3.8-flash`), OpenAI (`gpt-4o-mini`), and Built-In Offline Diagnostic Engine
 - **Data & Visualization:** Pandas, Streamlit charts, and Mermaid.js for architecture diagrams
 - **Configuration & Secrets:** `python-dotenv`, Streamlit `st.secrets`, and environment-based API keys
 - **Testing:** Pytest
@@ -218,7 +218,7 @@ Environment variables can be configured in a local `.env` file or in Streamlit C
 | :--- | :---: | :---: | :--- |
 | `LLM_PROVIDER` | No | `groq` | Selected provider (`groq`, `gemini`, `openai`, or `heuristic`) |
 | `GROQ_API_KEY` | No | None | Your Groq Cloud API key (starts with `gsk_`) |
-| `MODEL_NAME` | No | `llama-3.3-70b-versatile` | Model identifier for inference |
+| `MODEL_NAME` | No | `openai/gpt-oss-120b` | Model identifier for inference |
 | `GEMINI_API_KEY` | No | None | Google Gemini API key (optional alternative) |
 | `OPENAI_API_KEY` | No | None | OpenAI API key (optional alternative) |
 | `SMTP_HOST` | Not required in guest mode | None | Legacy setting; not used by the active guest workflow |
