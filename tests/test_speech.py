@@ -69,3 +69,21 @@ def test_empty_transcript_is_rejected(monkeypatch):
     monkeypatch.setattr(speech.requests, "post", lambda *a, **k: response(payload={"text": "  "}))
     with pytest.raises(ValueError, match="No clear speech"):
         speech.transcribe_audio(b"audio", "audio/webm", "groq", "test-key")
+def test_groq_uses_configured_whisper_model_and_bounded_timeout(monkeypatch):
+    captured = {}
+
+    def fake_post(*args, **kwargs):
+        captured.update(kwargs)
+        return response(payload={"text": "A clear answer"})
+
+    monkeypatch.setattr(speech.requests, "post", fake_post)
+    assert speech.transcribe_audio(
+        b"audio", "audio/webm", "groq", "test-key", "whisper-large-v3-turbo"
+    ) == "A clear answer"
+    assert captured["data"]["model"] == "whisper-large-v3-turbo"
+    assert captured["timeout"] == 60
+
+
+def test_audio_over_25mb_is_rejected():
+    with pytest.raises(ValueError, match="25 MB"):
+        speech.transcribe_audio(b"x" * (25 * 1024 * 1024 + 1), "audio/wav", "groq", "key")
