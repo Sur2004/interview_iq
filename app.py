@@ -1227,16 +1227,18 @@ if active_section == "technical_challenge":
             f"Topic: {st.session_state.get('challenge_set_topic', custom_topic)} · "
             f"Level: {st.session_state.get('challenge_set_difficulty', custom_difficulty)}"
         )
+        for idx, question in enumerate(challenge_set, 1):
+            st.markdown(f"### Question {idx}")
+            st.markdown(question.question_text)
+            st.caption(f"Focus: {question.competency_or_topic}")
+            with st.expander("Follow-up and answer guidance", expanded=False):
+                st.markdown(f"**Follow-up:** {question.default_followup}")
+                for hint in question.rubric_hints:
+                    st.markdown(f"- {hint}")
+
         with st.form(f"challenge_answers_{challenge_token}"):
             challenge_answers = {}
             for idx, question in enumerate(challenge_set, 1):
-                st.markdown(f"### Question {idx}")
-                st.markdown(question.question_text)
-                st.caption(f"Focus: {question.competency_or_topic}")
-                with st.expander("Follow-up and answer guidance", expanded=False):
-                    st.markdown(f"**Follow-up:** {question.default_followup}")
-                    for hint in question.rubric_hints:
-                        st.markdown(f"- {hint}")
                 challenge_answers[question.id] = st.text_area(
                     f"Your answer to Question {idx}",
                     key=f"challenge_answer_{challenge_token}_{idx}",
