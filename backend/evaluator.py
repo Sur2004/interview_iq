@@ -1043,7 +1043,9 @@ def generate_dynamic_ai_technical_question(
         "Real-world engineering trade-offs compared to simpler alternatives",
     ]
 
-    angle = (variation_hint or "").lower()
+    # Ignore the anti-duplication context when selecting an offline scenario; otherwise
+    # words from previous questions can accidentally select the same fallback template.
+    angle = (variation_hint or "").split("Do not repeat", 1)[0].lower()
     q_text = (
         f"Deep-dive into {clean_topic}: Explain its architectural flow, how state is managed, "
         f"and how you would diagnose a performance bottleneck or race condition under 100x traffic."
