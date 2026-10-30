@@ -1098,6 +1098,26 @@ def generate_dynamic_ai_technical_question(
         q_text = "Compare Pessimistic Locking with Optimistic Concurrency Control (OCC) using versioning. In a high-concurrency seat-booking system, how do you prevent race conditions without starving worker threads?"
         followup = "How would you structure a deadlock detector to identify circular wait graphs in a distributed transaction?"
 
+    # Offline mode must also distinguish the requested difficulty, not just change labels.
+    if difficulty_level.lower() == "beginner":
+        q_text = (
+            f"Beginner-level practical question: {q_text} "
+            "Start with the core concept, explain the basic workflow, and give one simple example."
+        )
+        followup = f"What is one common beginner mistake when working with {clean_topic}, and how would you avoid it?"
+    elif difficulty_level.lower() == "intermediate":
+        q_text = (
+            f"Intermediate-level applied scenario: {q_text} "
+            "Explain your diagnostic steps, implementation choices, and at least one trade-off."
+        )
+        followup = f"What edge case or operational trade-off would you test first for {clean_topic}?"
+    elif difficulty_level.lower() == "advanced":
+        q_text = (
+            f"Advanced system-design scenario: {q_text} "
+            "Address scale, failure modes, security or consistency constraints, and justify the architecture against alternatives."
+        )
+        followup = f"What would fail first at 10x scale, and how would you redesign {clean_topic} without violating its guarantees?"
+
     return QuestionItem(
         id=f"dyn_tech_{time.time_ns()}",
         category=QuestionCategory.TECHNICAL,
