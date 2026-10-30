@@ -151,17 +151,19 @@ def test_blank_custom_challenge_topic_is_rejected():
     assert not app.session_state.get("challenge_set")
 
 
-def test_custom_challenge_generates_five_distinct_questions_and_refreshes():
+def test_custom_challenge_generates_five_to_ten_distinct_questions_and_refreshes():
     app = build_offline_app("technical_challenge").run()
 
     topic = next(item for item in app.text_input if item.label == "Topic or technology")
     topic.set_value("SQL indexing and query plans")
+    count = next(item for item in app.slider if "Questions in this challenge" in item.label)
+    count.set_value(10).run()
     generate = next(item for item in app.button if "Generate New Challenge Set" in item.label)
     generate.click().run()
 
     assert not app.exception
     first_set = app.session_state["challenge_set"]
-    assert len(first_set) == 5
+    assert len(first_set) == 10
     assert len({item.question_text for item in first_set}) == 5
     first_token = app.session_state["challenge_set_token"]
 
@@ -170,7 +172,7 @@ def test_custom_challenge_generates_five_distinct_questions_and_refreshes():
 
     assert not app.exception
     second_set = app.session_state["challenge_set"]
-    assert len(second_set) == 5
+    assert len(second_set) == 10
     assert app.session_state["challenge_set_token"] != first_token
     assert len({item.question_text for item in second_set}) == 5
     assert {item.question_text for item in second_set} != {item.question_text for item in first_set}
