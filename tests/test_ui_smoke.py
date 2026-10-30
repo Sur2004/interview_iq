@@ -173,6 +173,7 @@ def test_custom_challenge_generates_five_distinct_questions_and_refreshes():
     assert len(second_set) == 5
     assert app.session_state["challenge_set_token"] != first_token
     assert len({item.question_text for item in second_set}) == 5
+    assert {item.question_text for item in second_set} != {item.question_text for item in first_set}
 
 
 def test_typed_primary_answer_is_evaluated_offline():
