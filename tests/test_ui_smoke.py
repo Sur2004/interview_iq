@@ -301,3 +301,19 @@ def test_behavioral_and_project_question_bank_categories_also_generate_five_to_e
             assert all(item.category.value == "behavioral" for item in quiz["questions"])
         else:
             assert sum(item.category.value == "project" for item in quiz["questions"]) >= 3
+
+def test_mock_interview_setup_only_appears_when_mock_interview_is_selected():
+    mock_app = build_offline_app("mock_interview").run()
+    assert not mock_app.exception
+    assert any("Interview Setup" in item.label for item in mock_app.expander)
+
+    challenge_app = build_offline_app("technical_challenge").run()
+    assert not challenge_app.exception
+    assert not any("Interview Setup" in item.label for item in challenge_app.expander)
+
+
+def test_question_bank_quiz_always_generates_exactly_five_questions():
+    app = build_offline_app("question_bank").run()
+    assert not app.exception
+    assert len(app.session_state["question_bank_quiz"]["questions"]) == 5
+    assert any("exactly five" in item.value.lower() for item in app.caption)
