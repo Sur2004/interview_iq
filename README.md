@@ -305,3 +305,28 @@ python -m pytest tests/
 - Developed as part of the **GMRIT Student Project Handbook — Grand AI & NLP Projects** initiative.
 - Powered by Streamlit, Groq Cloud, and open-source Python libraries.
 - Released under the **MIT License**. See [LICENSE](LICENSE) for details.
+
+
+## PostgreSQL + pgvector Resume Intelligence (new)
+
+A separate **Resume Intelligence** page now provides a semantic retrieval pipeline:
+
+1. Extract text from a text-based PDF resume (bounded upload size and page count).
+2. Split the resume into overlapping, section-labelled passages.
+3. Generate normalized 384-dimensional embeddings with Sentence Transformers.
+4. Store resume documents, source passages, and vectors in PostgreSQL + pgvector.
+5. For each job-description requirement, retrieve the closest resume passages and display the evidence with a similarity signal.
+
+The retrieval signal is not an ATS score, hiring probability, or proof that a candidate has or lacks a skill. Review the source passages before drawing conclusions. Image-only scanned PDFs need OCR, which is not included in this first release.
+
+### Run locally with Docker (Windows or Mac)
+
+Install Docker Desktop, copy `env.example` to `.env`, set a local database password, and optionally add your own LLM API key. Then run:
+
+```bash
+docker compose up --build
+```
+
+Open [http://localhost:8501](http://localhost:8501). The first run downloads the embedding model. See [Local Docker Demo Guide](docs/LOCAL_DOCKER_DEMO.md) for setup, data persistence, and Mac presentation instructions.
+
+**Storage note:** Resume documents and embeddings use PostgreSQL. Existing interview history remains on the current SQLite/browser-local implementation until the planned storage migration is completed.
