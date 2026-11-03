@@ -17,6 +17,9 @@ The application includes a candidate dashboard, browser-local interview history 
 
 ### Daily interview and technology briefing
 
+Package syntax was checked before publishing the downloadable source bundle.
+
+
 Open **Daily Interview & Tech Briefing** from the candidate dashboard or sidebar. It provides a date-rotating interview question with answer structure, Hacker News engineering discussions, Dev.to AI/developer articles, and latest release metadata/notes for selected projects (Ollama, PyTorch, Hugging Face Transformers, and VS Code). The feeds use public endpoints and require no API key. Results are cached for 30 minutes and can be manually refreshed. API availability, release cadence, and ranking are controlled by the source services; the page is not a guaranteed breaking-news alert or scheduled background job.
 
 ## Local Ollama inference
