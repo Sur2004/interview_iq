@@ -1,0 +1,29 @@
+name: Package InterviewIQ
+on:
+  push:
+    branches: [feature/main-review-ui-and-dataflow]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Build downloadable project ZIP
+        run: |
+          mkdir -p dist
+          zip -r dist/InterviewIQ-Source.zip . \
+            -x ".git/*" ".venv/*" "venv/*" "__pycache__/*" "*.pyc" \
+               ".env" ".streamlit/secrets.toml" ".pytest_cache/*" "dist/*"
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: InterviewIQ-Source
+          path: dist/InterviewIQ-Source.zip
+          retention-days: 14

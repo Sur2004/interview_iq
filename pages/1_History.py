@@ -3,8 +3,17 @@ import time
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="InterviewIQ — History & Performance", page_icon="⚡", layout="wide")
-st.title("History & Performance")
+st.set_page_config(page_title="InterviewIQ | History & Performance", page_icon="⚡", layout="wide")
+st.markdown("""
+<style>
+.block-container{max-width:1200px;padding-top:2rem}
+.hero{padding:28px 32px;border-radius:20px;background:linear-gradient(125deg,#101a35,#243f82 68%,#4776d5);color:white;margin-bottom:22px}
+.hero h1{font-size:2.1rem;letter-spacing:-.04em;margin:0}
+.hero p{color:#dbe5ff;margin:.45rem 0 0}
+[data-testid="stMetric"]{border:1px solid #e4e9f2;border-radius:14px;padding:14px;background:#fff}
+</style>
+""",unsafe_allow_html=True)
+st.markdown('<div class="hero"><h1>History & Performance</h1><p>Track consistency, identify rubric gaps, and measure improvement across practice rounds.</p></div>',unsafe_allow_html=True)
 email = st.session_state.get("authenticated_email")
 if not email:
     st.warning("Sign in from the main InterviewIQ page to view your personal history.")
@@ -40,6 +49,11 @@ for row in rows:
             category_rows.append({"Category": category, "Score": float(evaluation["overall_score"])})
 
 if trend:
+    st.subheader("Performance overview")
+    metric_cols=st.columns(3)
+    metric_cols[0].metric("Completed sessions",len(trend))
+    metric_cols[1].metric("Average score",f"{sum(x['Score'] for x in trend)/len(trend):.1f} / 5")
+    metric_cols[2].metric("Best score",f"{max(x['Score'] for x in trend):.1f} / 5")
     st.subheader("Score progression")
     st.line_chart(pd.DataFrame(trend).set_index("Practice"), y="Score", y_label="Score / 5", use_container_width=True)
 if rubric_rows:
@@ -51,6 +65,7 @@ if category_rows:
     categories = pd.DataFrame(category_rows).groupby("Category", as_index=False)["Score"].mean().sort_values("Score")
     st.bar_chart(categories.set_index("Category"), y="Score", y_label="Average score / 5", use_container_width=True)
 
+st.markdown("---")
 st.subheader("Past sessions")
 for row in reversed(rows):
     stamp = float(row.get("created_at") or 0)
