@@ -47,6 +47,16 @@ QUESTIONS = [
 ]
 question = QUESTIONS[(today.toordinal() // 1) % len(QUESTIONS)]
 role = st.selectbox("Choose a practice focus", ["All roles", "Software Engineer", "Data Analyst", "Python Developer", "Cybersecurity", "AI / ML Engineer"])
+role_question_indices = {
+    "All roles": list(range(len(QUESTIONS))),
+    "Software Engineer": [2, 3, 4, 5, 8, 9, 10],
+    "Data Analyst": [1, 6, 2, 11, 12],
+    "Python Developer": [0, 1, 2, 9, 10],
+    "Cybersecurity": [7, 4, 3, 8],
+    "AI / ML Engineer": [6, 12, 0, 2, 8],
+}
+eligible_questions = role_question_indices[role]
+question = QUESTIONS[eligible_questions[today.toordinal() % len(eligible_questions)]]
 st.subheader("Question of the day")
 q1,q2 = st.columns([1.55,1], gap="large")
 with q1:
