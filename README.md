@@ -11,6 +11,14 @@
 ---
 
 
+## InterviewIQ workspace and architecture guide
+
+The application includes a candidate dashboard, browser-local interview history and performance charts, and an interactive System Architecture page. Open **System Architecture** to inspect the end-to-end data path, request/response JSON examples, browser storage model, and explanations of the key payload fields and LLM tokenization. A companion technical guide is available at [docs/END_TO_END_DATA_FLOW_AND_VIVA_GUIDE.md](docs/END_TO_END_DATA_FLOW_AND_VIVA_GUIDE.md).
+
+### Local Ollama inference
+
+Set `LLM_PROVIDER=ollama`, optionally set `OLLAMA_HOST` (default `http://localhost:11434`) and `OLLAMA_MODEL` (default `llama3.2`), then start Ollama and pull the model locally. Interview evaluation uses the local `/api/chat` JSON endpoint. Hosted API providers remain selectable. Speech transcription still uses the existing Gemini/Groq speech APIs; local speech-to-text is not yet implemented.
+
 ## Interview tracks and candidate-material review
 
 Use the **Interview Type** selector in the sidebar to focus a round on one goal:
