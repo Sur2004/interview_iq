@@ -49,6 +49,8 @@ def get_llm_config() -> Dict[str, Optional[str]]:
     groq_key = get_setting("GROQ_API_KEY")
     gemini_key = get_setting("GEMINI_API_KEY")
     openai_key = get_setting("OPENAI_API_KEY")
+    ollama_host = get_setting("OLLAMA_HOST", "http://localhost:11434")
+    ollama_model = get_setting("OLLAMA_MODEL", "llama3.2")
     model_name = get_setting("MODEL_NAME")
 
     if explicit_provider:
@@ -59,6 +61,8 @@ def get_llm_config() -> Dict[str, Optional[str]]:
         provider = "gemini"
     elif openai_key:
         provider = "openai"
+    elif explicit_provider and explicit_provider.lower() == "ollama":
+        provider = "ollama"
     else:
         provider = "heuristic"
 
@@ -69,6 +73,8 @@ def get_llm_config() -> Dict[str, Optional[str]]:
         model_name = "gemini-3.8-flash"
     elif provider == "openai" and not model_name:
         model_name = "gpt-4o-mini"
+    elif provider == "ollama" and not model_name:
+        model_name = ollama_model
     elif provider == "heuristic" and not model_name:
         model_name = "built-in-diagnostic-engine"
 
@@ -78,6 +84,7 @@ def get_llm_config() -> Dict[str, Optional[str]]:
         "gemini_api_key": gemini_key,
         "openai_api_key": openai_key,
         "model_name": model_name,
+        "ollama_host": ollama_host.rstrip("/"),
     }
 
 
