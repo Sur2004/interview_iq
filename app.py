@@ -78,7 +78,7 @@ if st.session_state.get("browser_data_dirty"):
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
-    :root { --iq-ink:#172033; --iq-muted:#667085; --iq-border:#e5e7eb; --iq-surface:#fff; --iq-soft:#f8fafc; --iq-accent:#3157d5; --iq-accent-soft:#eef2ff; }
+    :root { --iq-ink:#101828; --iq-muted:#667085; --iq-border:#e4e9f2; --iq-surface:#fff; --iq-soft:#f5f7fc; --iq-accent:#3659d9; --iq-accent-soft:#edf1ff; }
     html, body, [class*="css"], [data-testid="stAppViewContainer"] { font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif; }
     code, pre, [data-testid="stCode"] { font-family:'IBM Plex Mono',ui-monospace,monospace !important; }
     .block-container { max-width:1240px; padding-top:2rem; padding-bottom:3rem; }
@@ -133,9 +133,9 @@ st.markdown("""
         [data-testid="stTabs"] [role="tablist"] { top: 0; padding: .4rem; }
         [data-testid="stTabs"] button[role="tab"] { min-height: 38px; padding: .5rem .7rem; font-size: .82rem; }
     }
-    .hero-banner-sky { background:var(--iq-surface); border:1px solid var(--iq-border); border-radius:18px; padding:30px 34px; color:var(--iq-ink); margin:0 0 22px; box-shadow:0 8px 28px rgba(15,23,42,.04); }
-    .hero-title { font-size:clamp(1.9rem,3vw,2.5rem); line-height:1.15; font-weight:700; letter-spacing:-.045em; color:var(--iq-ink); margin-bottom:8px; }
-    .hero-subtitle { font-size:1rem; color:var(--iq-muted); max-width:760px; line-height:1.65; }
+    .hero-banner-sky { background:linear-gradient(125deg,#101a35,#243f82 68%,#426bd0); border:1px solid #334d91; border-radius:22px; padding:34px 36px; color:#fff; margin:0 0 24px; box-shadow:0 16px 40px rgba(20,38,86,.16); }
+    .hero-title { font-size:clamp(2rem,3vw,2.65rem); line-height:1.15; font-weight:750; letter-spacing:-.045em; color:#fff; margin-bottom:8px; }
+    .hero-subtitle { font-size:1rem; color:#dbe5ff; max-width:760px; line-height:1.65; }
     .tech-tag { display:inline-block; background:var(--iq-soft); color:#475467; border:1px solid var(--iq-border); border-radius:999px; padding:5px 10px; font-size:.76rem; margin:5px 5px 0 0; }
     .ai-online-badge { display:inline-block; background:var(--iq-accent-soft); color:var(--iq-accent); border:1px solid #dbe3ff; padding:6px 11px; border-radius:999px; font-size:.74rem; font-weight:700; letter-spacing:.04em; }
     .animated-question-card, .animated-followup-card, .telemetry-card { background:var(--iq-surface); border:1px solid var(--iq-border); border-radius:14px; padding:22px 24px; color:var(--iq-ink); box-shadow:0 4px 16px rgba(15,23,42,.035); margin-bottom:16px; animation:none !important; }
@@ -148,7 +148,7 @@ st.markdown("""
     .pacing-ok { background:#ecfdf3; color:#027a48; border:1px solid #abefc6; } .pacing-warn { background:#fff7ed; color:#b54708; border:1px solid #fed7aa; }
     button[kind="primary"] { border-radius:10px; font-weight:650; min-height:2.65rem; }
     [data-testid="stTabs"] [role="tab"] { font-weight:600; padding-top:.75rem; padding-bottom:.75rem; }
-    [data-testid="stMetric"] { background:var(--iq-soft); border:1px solid var(--iq-border); border-radius:12px; padding:12px 14px; }
+    [data-testid="stMetric"] { background:linear-gradient(145deg,#fff,#f7f9ff); border:1px solid var(--iq-border); border-radius:14px; padding:14px 16px; box-shadow:0 4px 14px rgba(16,24,40,.035); }\n    [data-testid="stSidebar"] { background:#fbfcff; }\n    div[data-testid="stExpander"] { border:1px solid var(--iq-border); border-radius:12px; }\n    div.stButton > button { border-radius:11px; font-weight:650; min-height:2.7rem; }
     input, textarea, [data-baseweb="select"] > div { border-radius:9px !important; }
     button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline:3px solid #a5b4fc !important; outline-offset:2px !important; }
     @media (max-width:800px) { .block-container { padding-top:1rem; padding-left:1rem; padding-right:1rem; } .hero-banner-sky { padding:22px 20px; } .hero-title { font-size:1.8rem; } }
