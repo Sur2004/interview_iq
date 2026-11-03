@@ -1,5 +1,6 @@
 """InterviewIQ — candidate command centre."""
 import time
+import html
 from datetime import date
 import pandas as pd
 import streamlit as st
@@ -44,7 +45,7 @@ best = max(scores) if scores else 0
 name = profile.get("name") or st.session_state.get("sb_candidate_name") or "Candidate"
 today = date.today()
 
-st.markdown(f'<div class="hero"><div class="eyebrow">INTERVIEWIQ · DAILY COMMAND CENTRE</div><h1>Good to see you, {name}.</h1><p>Your interview preparation, performance signals and technology briefing — together in one workspace.</p></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="hero"><div class="eyebrow">INTERVIEWIQ · DAILY COMMAND CENTRE</div><h1>Good to see you, {html.escape(str(name))}.</h1><p>Your interview preparation, performance signals and technology briefing — together in one workspace.</p></div>', unsafe_allow_html=True)
 
 m = st.columns(4)
 m[0].metric("Practice sessions", len(rows))
