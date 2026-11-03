@@ -114,6 +114,10 @@ def validate_secrets() -> Dict[str, Any]:
 
     return {
         "status": "ready",
-        "message": f"AI Engine active using hosted provider: {provider.upper()} ({config['model_name']})",
+        "message": (
+            f"Local Ollama model configured: {config['model_name']}"
+            if provider == "ollama"
+            else f"AI Engine configured using hosted provider: {provider.upper()} ({config['model_name']})"
+        ),
         "provider": provider,
     }
