@@ -271,7 +271,6 @@ def get_active_llm_settings() -> dict:
         "gemini": "gemini-3.8-flash",
         "openai": "gpt-4o-mini",
         "ollama": configured.get("model_name") or "llama3.2",
-        "ollama": configured.get("model_name") or "llama3.2",
         "heuristic": "built-in-diagnostic-engine",
     }
     return {
@@ -595,16 +594,17 @@ with st.sidebar:
             help="Keys live in .env locally or Streamlit Secrets on Cloud.",
             key="sb_provider",
         )
-        manual_key = st.text_input(
-            "API Key Override",
-            value="",
-            type="password",
-            placeholder="Paste key to override...",
-            help="Never committed or logged.",
-            key="sb_manual_key",
-        )
-        if manual_key:
-            st.session_state.api_key = manual_key
+        if chosen_provider not in {"Ollama (Local)", "Built-In Offline Engine"}:
+            manual_key = st.text_input(
+                "API Key Override",
+                value="",
+                type="password",
+                placeholder="Paste key to override...",
+                help="Never committed or logged.",
+                key="sb_manual_key",
+            )
+            if manual_key:
+                st.session_state.api_key = manual_key
 
         active_settings = get_active_llm_settings()
         if active_settings["provider"] == "heuristic":
@@ -614,9 +614,9 @@ with st.sidebar:
         elif active_settings.get("api_key"):
             st.success(f"Selected provider is configured: {active_settings['provider'].upper()} · {active_settings['model_name']}")
         else:
-            st.warning(
+            st.error(
                 f"No API key is configured for {active_settings['provider'].upper()}. "
-                "The app will fall back to offline diagnostic feedback until a matching key is available."
+                "Evaluation will stop with an error rather than silently substituting offline scores."
             )
 
     st.markdown("---")
