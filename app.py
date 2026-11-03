@@ -251,10 +251,11 @@ def get_active_llm_settings() -> dict:
         "Groq Cloud — Llama 3.3 70B": "groq",
         "Google Gemini 3.8 Flash (Free tier available)": "gemini",
         "OpenAI GPT-4o Mini": "openai",
+        "Ollama (Local)": "ollama",
         "Built-In Offline Engine": "heuristic",
     }
     provider = provider_by_label.get(selection, configured.get("provider") or "heuristic")
-    if provider not in {"groq", "gemini", "openai", "heuristic"}:
+    if provider not in {"groq", "gemini", "openai", "ollama", "heuristic"}:
         provider = "heuristic"
 
     manual_key = st.session_state.get("sb_manual_key", "").strip()
@@ -269,6 +270,7 @@ def get_active_llm_settings() -> dict:
         "groq": "llama-3.3-70b-versatile",
         "gemini": "gemini-3.8-flash",
         "openai": "gpt-4o-mini",
+        "ollama": configured.get("model_name") or "llama3.2",
         "heuristic": "built-in-diagnostic-engine",
     }
     return {
@@ -582,6 +584,7 @@ with st.sidebar:
             "Groq Cloud — Llama 3.3 70B",
             "Google Gemini 3.8 Flash (Free tier available)",
             "OpenAI GPT-4o Mini",
+            "Ollama (Local)",
             "Built-In Offline Engine",
         ]
         chosen_provider = st.selectbox(
@@ -604,7 +607,9 @@ with st.sidebar:
 
         active_settings = get_active_llm_settings()
         if active_settings["provider"] == "heuristic":
-            st.info("Offline diagnostic mode is selected. No API key is required.")
+            st.info("Offline diagnostic mode is selected. This uses deterministic Python feedback, not a generative model.")
+        elif active_settings["provider"] == "ollama":
+            st.info("Local Ollama selected: " + str(active_settings["model_name"]) + ". Start Ollama and pull this model before the interview.")
         elif active_settings.get("api_key"):
             st.success(f"Selected provider is configured: {active_settings['provider'].upper()} · {active_settings['model_name']}")
         else:
