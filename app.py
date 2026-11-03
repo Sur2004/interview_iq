@@ -663,7 +663,9 @@ with st.sidebar:
             st.rerun()
 
     st.markdown("---")
-    st.page_link("pages/1_History.py", label="\U0001f4da History & Performance", icon="\U0001f4ca")
+    st.page_link("pages/0_Dashboard.py", label="Dashboard", icon="🏠")
+    st.page_link("pages/1_History.py", label="History & Performance", icon="📊")
+    st.page_link("pages/2_System_Architecture.py", label="System Architecture", icon="🧭")
 
 
 # ==============================================================================
