@@ -666,6 +666,7 @@ with st.sidebar:
     st.page_link("pages/0_Dashboard.py", label="Dashboard", icon="🏠")
     st.page_link("pages/1_History.py", label="History & Performance", icon="📊")
     st.page_link("pages/2_System_Architecture.py", label="System Architecture", icon="🧭")
+    st.page_link("pages/3_Daily_Briefing.py", label="Daily Interview & Tech Briefing", icon="🗞️")
 
 
 # ==============================================================================
