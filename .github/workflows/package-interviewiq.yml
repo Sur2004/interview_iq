@@ -1,5 +1,7 @@
 name: Package InterviewIQ
 on:
+  push:
+    branches: [feature/main-review-ui-and-dataflow]
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
