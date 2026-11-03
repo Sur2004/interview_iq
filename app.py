@@ -271,6 +271,7 @@ def get_active_llm_settings() -> dict:
         "gemini": "gemini-3.8-flash",
         "openai": "gpt-4o-mini",
         "ollama": configured.get("model_name") or "llama3.2",
+        "ollama": configured.get("model_name") or "llama3.2",
         "heuristic": "built-in-diagnostic-engine",
     }
     return {
