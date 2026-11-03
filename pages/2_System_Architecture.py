@@ -20,6 +20,24 @@ st.markdown('<div class="hero"><div class="kicker" style="color:#bcd0ff">ENGINEE
 st.info("This page documents the current application design. It distinguishes implemented behaviour from optional integrations; it does not claim that every feature calls an LLM.")
 
 st.header("1 · End-to-end data flow")
+st.graphviz_chart("""
+digraph InterviewIQ {
+  rankdir=LR; graph [bgcolor="transparent", pad="0.2", nodesep="0.35", ranksep="0.55"];
+  node [shape=box, style="rounded,filled", fillcolor="#f3f6ff", color="#9aaee8", fontname="Arial", fontsize=10];
+  edge [color="#526da8", fontname="Arial", fontsize=9];
+  Browser [label="Candidate Browser UI"];
+  Streamlit [label="Streamlit Widgets + Session State"];
+  Python [label="Python Backend: Validation + Workflow"];
+  LLM [label="Hosted API or Local Ollama"];
+  Parse [label="Parse + Validate Structured JSON"];
+  Store [label="Browser localStorage JSON Session"];
+  Analytics [label="History + Progress Aggregations"];
+  Export [label="Markdown / HTML / JSON Reports"];
+  Browser -> Streamlit -> Python -> LLM -> Parse -> Store -> Analytics -> Export;
+  Python -> Store [label="profile/session writes"];
+}
+""", use_container_width=True)
+
 flow = [
 ("01 · Candidate access", "Candidate enters a name and creates a Candidate ID + 6-digit PIN, or signs in. The PIN is salted and hashed by the backend; the profile record is kept in this browser's localStorage."),
 ("02 · Interview setup", "Streamlit collects target role, experience level, interview type, interviewer persona, question count and optional project context. Python validates and stores these values in Streamlit session state."),
@@ -84,7 +102,7 @@ st.table([
 {"Field / token":"content","Meaning":"UTF-8 text sent as the message body."},
 {"Field / token":"temperature","Meaning":"Sampling parameter. Lower values generally reduce variation; it does not guarantee correctness."},
 {"Field / token":"response_format","Meaning":"Provider option requesting a JSON-shaped response where supported."},
-{"Field / token":"overall_score","Meaning":"Final practice score derived from the four rubric criteria."},
+{"Field / token":"overall_score","Meaning":"Weighted aggregate: relevance 35%, structure 20%, evidence 30%, clarity 15%; the app constrains the displayed score."},
 {"Field / token":"rubric_scores","Meaning":"Object containing the separate criterion scores and explanations."},
 {"Field / token":"key_strengths","Meaning":"Array of evidence-based positive observations."},
 {"Field / token":"actionable_improvements","Meaning":"Array of concrete changes the candidate can make."},
