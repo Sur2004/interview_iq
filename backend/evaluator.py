@@ -1006,7 +1006,9 @@ def generate_dynamic_ai_technical_question(
                         default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
                     )
         except Exception as e:
-            logger.warning(f"Live dynamic question generation failed: {e}")
+            logger.exception("Live dynamic question generation failed.")
+            if provider != "heuristic":
+                raise RuntimeError(f"{provider.upper()} question generation failed: {e}") from e
 
     # Fallback intelligent generator
     hints = [
