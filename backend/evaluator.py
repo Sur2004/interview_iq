@@ -514,7 +514,7 @@ def evaluate_with_llm(
     validate_answer_relevance(question, candidate_answer)
     configured = get_llm_config()
     provider = (provider or configured.get("provider") or "heuristic").strip().lower()
-    supported_providers = {"groq", "gemini", "openai", "heuristic"}
+    supported_providers = {"groq", "gemini", "openai", "ollama", "heuristic"}
     if provider not in supported_providers:
         logger.warning("Unsupported LLM provider %r; using heuristic evaluation.", provider)
         provider = "heuristic"
@@ -531,6 +531,7 @@ def evaluate_with_llm(
         "groq": "llama-3.3-70b-versatile",
         "gemini": "gemini-3.8-flash",
         "openai": "gpt-4o-mini",
+        "ollama": configured.get("model_name") or "llama3.2",
         "heuristic": "built-in-diagnostic-engine",
     }
     configured_model = (
@@ -540,9 +541,11 @@ def evaluate_with_llm(
     )
     model_name = model_name or configured_model or default_models[provider]
 
-    if provider == "heuristic" or not api_key:
-        logger.info("No LLM API key provided; using intelligent heuristic evaluation engine.")
+    if provider == "heuristic":
+        logger.info("Explicit offline diagnostic provider selected.")
         return evaluate_heuristically(question, candidate_answer, followup_answer, candidate_context)
+    if provider != "ollama" and not api_key:
+        raise RuntimeError(f"{provider.upper()} is selected but its API key is not configured. Add the key or choose another provider.")
 
     # If key is available, attempt live LLM evaluation with strict ethical prompt
     system_prompt = (
@@ -617,6 +620,27 @@ Format output as pure JSON:
     try:
         import requests
 
+        if provider == "ollama":
+            host = (configured.get("ollama_host") or "http://localhost:11434").rstrip("/")
+            response = requests.post(
+                f"{host}/api/chat",
+                json={
+                    "model": model_name,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "stream": False,
+                    "format": "json",
+                    "options": {"temperature": 0.2},
+                },
+                timeout=120,
+            )
+            response.raise_for_status()
+            raw_text = response.json().get("message", {}).get("content", "")
+            data = json.loads(raw_text)
+            return _parse_llm_json(data, question, candidate_answer=candidate_answer)
+
         # Groq API endpoint (fastest inference for interviews)
         if provider == "groq":
             url = "https://api.groq.com/openai/v1/chat/completions"
@@ -637,7 +661,7 @@ Format output as pure JSON:
                 data = json.loads(raw_text)
                 return _parse_llm_json(data, question, candidate_answer=candidate_answer)
             else:
-                logger.warning(f"Groq API returned status {resp.status_code}; falling back to heuristic.")
+                raise RuntimeError(f"Groq API returned HTTP {resp.status_code}: {resp.text[:300]}")
 
         elif provider == "gemini":
             # Call Google Gemini API (v1beta)
@@ -658,7 +682,7 @@ Format output as pure JSON:
                 data = json.loads(raw_text)
                 return _parse_llm_json(data, question, candidate_answer=candidate_answer)
             else:
-                logger.warning(f"Gemini API returned status {resp.status_code}; falling back to heuristic.")
+                raise RuntimeError(f"Gemini API returned HTTP {resp.status_code}: {resp.text[:300]}")
 
         else:
             # OpenAI compatible endpoint
@@ -680,12 +704,11 @@ Format output as pure JSON:
                 data = json.loads(raw_text)
                 return _parse_llm_json(data, question, candidate_answer=candidate_answer)
             else:
-                logger.warning(f"OpenAI API returned status {resp.status_code}; falling back to heuristic.")
+                raise RuntimeError(f"OpenAI API returned HTTP {resp.status_code}: {resp.text[:300]}")
 
     except Exception as e:
-        logger.warning(f"LLM evaluation failed ({e}); falling back to heuristic evaluation.")
-
-    return evaluate_heuristically(question, candidate_answer, followup_answer, candidate_context)
+        logger.exception("Selected LLM provider evaluation failed.")
+        raise RuntimeError(f"{provider.upper()} evaluation failed: {e}") from e
 
 
 def _parse_llm_json(data: dict, question: QuestionItem, candidate_answer: str = "") -> EvaluationResult:
