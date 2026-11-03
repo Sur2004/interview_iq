@@ -894,7 +894,7 @@ def generate_dynamic_ai_technical_question(
     from .config import get_llm_config, get_setting
     configured = get_llm_config()
     provider = (provider or configured.get("provider") or "heuristic").strip().lower()
-    if provider not in {"groq", "gemini", "openai", "heuristic"}:
+    if provider not in {"groq", "gemini", "openai", "ollama", "heuristic"}:
         provider = "heuristic"
     if api_key is None:
         key_names = {"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY"}
@@ -903,10 +903,11 @@ def generate_dynamic_ai_technical_question(
         "groq": "llama-3.3-70b-versatile",
         "gemini": "gemini-3.8-flash",
         "openai": "gpt-4o-mini",
+        "ollama": configured.get("model_name") or "llama3.2",
     }
     configured_model = configured.get("model_name") if configured.get("provider") == provider else None
     model_name = model_name or configured_model or default_models.get(provider)
-    if api_key and provider != "heuristic":
+    if (api_key and provider != "heuristic") or provider == "ollama":
         try:
             import requests
             prompt = (
@@ -916,7 +917,31 @@ def generate_dynamic_ai_technical_question(
                 "Return JSON matching: "
                 '{"question_text": "...", "competency_or_topic": "...", "rubric_hints": ["...", "...", "..."], "default_followup": "..."}'
             )
-            if provider == "groq":
+            if provider == "ollama":
+                host = (configured.get("ollama_host") or "http://localhost:11434").rstrip("/")
+                resp = requests.post(
+                    f"{host}/api/chat",
+                    json={
+                        "model": model_name,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "stream": False,
+                        "format": "json",
+                        "options": {"temperature": 0.3},
+                    },
+                    timeout=120,
+                )
+                resp.raise_for_status()
+                data = json.loads(resp.json().get("message", {}).get("content", ""))
+                return QuestionItem(
+                    id=f"dyn_ai_{int(time.time())}",
+                    category=QuestionCategory.TECHNICAL,
+                    role=role,
+                    question_text=data.get("question_text", f"Explain the core technical mechanics and trade-offs of {clean_topic}."),
+                    competency_or_topic=data.get("competency_or_topic", clean_topic),
+                    rubric_hints=data.get("rubric_hints", ["Time and space complexity", "Concurrency safety", "Trade-offs"]),
+                    default_followup=data.get("default_followup", "How does this component behave under high network partition or memory pressure?"),
+                )
+            elif provider == "groq":
                 url = "https://api.groq.com/openai/v1/chat/completions"
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                 payload = {
