@@ -25,7 +25,7 @@ div.stButton>button{border-radius:10px;font-weight:700}
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown(f'<div class="hero"><div class="eyebrow">INTERVIEWIQ · DAILY INTELLIGENCE</div><h1>Today's interview & tech briefing</h1><p>Build interview readiness while staying current with engineering, AI and open-source releases.</p></div>', unsafe_allow_html=True)
+st.markdown(f"""<div class="hero"><div class="eyebrow">INTERVIEWIQ · DAILY INTELLIGENCE</div><h1>Today's interview &amp; tech briefing</h1><p>Build interview readiness while staying current with engineering, AI and open-source releases.</p></div>""", unsafe_allow_html=True)
 today = date.today()
 st.caption(f"DAILY EDITION · {today.strftime('%A, %d %B %Y')} · Feeds refresh every 30 minutes")
 
